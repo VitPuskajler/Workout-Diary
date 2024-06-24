@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Periodization</title>
+  <link rel="icon" href="/static/title/barbell_title.jpg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
+  <style>
+
+  </style>
+  <script>
+    function addFields() {
+      var num = document.getElementById("num_fields").value;
+      var container = document.getElementById("container");
+      container.innerHTML = "";
+      for (i = 0; i < num; i++) {
+        container.appendChild(document.createTextNode("Field " + (i + 1) + ": "));
+        var input = document.createElement("input");
+        input.type = "text";
+        input.name = "field_" + (i + 1);
+        container.appendChild(input);
+        container.appendChild(document.createElement("br"));
+      }
+    }
+  </script>
+</head>
+
+<body>
+
+  <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
+    <symbol id="check2" viewBox="0 0 16 16">
+      <path
+        d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z">
+      </path>
+    </symbol>
+    <symbol id="circle-half" viewBox="0 0 16 16">
+      <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"></path>
+    </symbol>
+    <symbol id="moon-stars-fill" viewBox="0 0 16 16">
+      <path
+        d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z">
+      </path>
+      <path
+        d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.734 1.734 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.734 1.734 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.734 1.734 0 0 0 1.097-1.097l.387-1.162zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L13.863.1z">
+      </path>
+    </symbol>
+    <symbol id="sun-fill" viewBox="0 0 16 16">
+      <path
+        d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z">
+      </path>
+    </symbol>
+  </svg>
+
+  <div class="dropdown position-fixed bottom-0 end-0 mb-3 me-3 bd-mode-toggle">
+    <button class="btn btn-bd-primary py-2 dropdown-toggle d-flex align-items-center" id="bd-theme" type="button"
+      aria-expanded="false" data-bs-toggle="dropdown" aria-label="Toggle theme (light)">
+      <svg class="bi my-1 theme-icon-active" width="1em" height="1em">
+        <use href="#sun-fill"></use>
+      </svg>
+      <span class="visually-hidden" id="bd-theme-text">Toggle theme</span>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="bd-theme-text">
+      <li>
+        <button type="button" class="dropdown-item d-flex align-items-center active" data-bs-theme-value="light"
+          aria-pressed="true">
+          <svg class="bi me-2 opacity-50" width="1em" height="1em">
+            <use href="#sun-fill"></use>
+          </svg>
+          Light
+          <svg class="bi ms-auto d-none" width="1em" height="1em">
+            <use href="#check2"></use>
+          </svg>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="dark"
+          aria-pressed="false">
+          <svg class="bi me-2 opacity-50" width="1em" height="1em">
+            <use href="#moon-stars-fill"></use>
+          </svg>
+          Dark
+          <svg class="bi ms-auto d-none" width="1em" height="1em">
+            <use href="#check2"></use>
+          </svg>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="auto"
+          aria-pressed="false">
+          <svg class="bi me-2 opacity-50" width="1em" height="1em">
+            <use href="#circle-half"></use>
+          </svg>
+          Auto
+          <svg class="bi ms-auto d-none" width="1em" height="1em">
+            <use href="#check2"></use>
+          </svg>
+        </button>
+      </li>
+    </ul>
+  </div>
+
+  <div class="p-3">
+    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('home')}}">Personal Workout Periodization</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
+          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarCollapse">
+          <ul class="navbar-nav me-auto mb-2 mb-md-0">
+            <li class="nav-item">
+              <a class="nav-link" aria-current="page" href="{{url_for('training_session_redirect')}}">Training
+                Session</a>
+            </li>
+            <li class="nav-item active">
+              <a class="nav-link active" href="#">Workout Plan</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#">Statistics</a>
+            </li>
+          </ul>
+          <ul class="navbar-nav ms-auto">
+            {% if current_user.is_authenticated %}
+            <li class="nav-item">
+              <!-- Change path to profile.html after clicking on UserName-->
+              <a class="nav-link" href="#">{{ current_user.username }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+            </li>
+            {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+            </li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </nav>
+  </div>
+  <main class="container">
+    <div class="my-3 p-3 bg-body rounded shadow-sm">
+      <h5 class="border-bottom pb-2 mb-0 text-center">View your workout plan</h5>
+      <div class="d-flex text-body-secondary pt-3 text-center">
+        <div class="container col-12">
+          <form action="{{ url_for('workout_plan_page') }}" method="get">
+            <label for="mesocycleSelect">Workout Plan:</label>
+            <select class="form-select" aria-label="Default select example" id="mesocycleSelect" name="mesocycle">
+              <option value="Hide">Hide</option>
+              {% for x in range(amount_of_mesocycles) %}
+              <option value="{{x+1}}">Mesocycle {{x+1}}</option>
+              {% endfor %}
+              <!-- Add more options as needed -->
+            </select>
+            <div class=p-3><button class="btn btn-dark" type="submit">Submit</button></div>
+          </form>
+
+
+          <!-- --------------------------------------------------------------------------------- -->
+          <form action="{{ url_for('workout_plan_page') }}" method="post">
+            {% for x in range(length_curr_meso) %}
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>{{ x + 1 }}. Workout</th>
+                </tr>
+                <tr>
+                  <th>Exercise</th>
+                  <th>Sets</th>
+                  <th>Pauses</th>
+                  <th>1. Set Reps</th>
+                  <th>Weight</th>
+                  <th>RPE</th>
+                  <th>2. Set Reps</th>
+                  <th>Weight</th>
+                  <th>RPE</th>
+                  <th>3. Set Reps</th>
+                  <th>Weight</th>
+                  <th>RPE</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for y in full_meso_data_list[x * for_loop:(x + 1) * for_loop] %}
+                <tr>
+                  <td>{{ y.exercise }}</td>
+                  <td>{{ y.sets }}</td>
+                  <td>{{ y.pauses }}</td>
+                  <td>{{ y.first_set }}</td>
+                  <td>{{ y.weight_first_set }}</td>
+                  <td>{{ y.rpe_first_set }}</td>
+                  <td>{{ y.second_set }}</td>
+                  <td>{{ y.weight_second_set }}</td>
+                  <td>{{ y.rpe_second_set }}</td>
+                  <td>{{ y.third_set }}</td>
+                  <td>{{ y.weight_third_set }}</td>
+                  <td>{{ y.rpe_third_set }}</td>
+                  <td>{{ y.notes }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% endfor %}
+          </form>
+        </div>
+      </div>
+    </div>
+
+
+
+
+    <div class="fixed-bottom left-0 pd-2" style="padding-left: 10px;">
+      <h6><a href="{{ url_for('table_layout') }}" style="text-decoration:none;">Create new mesocycle plan</a></h6>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+    crossorigin="anonymous"></script>
+</body>
+
+</html>
