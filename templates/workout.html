@@ -165,16 +165,14 @@
 
           <!-- --------------------------------------------------------------------------------- -->
           <form action="{{ url_for('workout_plan_page') }}" method="post">
-            {% for x in range(length_curr_meso) %}
+            {% for table_exercises in nested_exercises_list %}
             <table class="table table-striped">
               <thead>
                 <tr>
-                  <th>{{ x + 1 }}. Workout</th>
+                  <th>Workout {{ loop.index }}</th>
                 </tr>
                 <tr>
                   <th>Exercise</th>
-                  <th>Sets</th>
-                  <th>Pauses</th>
                   <th>1. Set Reps</th>
                   <th>Weight</th>
                   <th>RPE</th>
@@ -188,21 +186,19 @@
                 </tr>
               </thead>
               <tbody>
-                {% for y in full_meso_data_list[x * for_loop:(x + 1) * for_loop] %}
+                {% for exercise in table_exercises %}
                 <tr>
-                  <td>{{ y.exercise }}</td>
-                  <td>{{ y.sets }}</td>
-                  <td>{{ y.pauses }}</td>
-                  <td>{{ y.first_set }}</td>
-                  <td>{{ y.weight_first_set }}</td>
-                  <td>{{ y.rpe_first_set }}</td>
-                  <td>{{ y.second_set }}</td>
-                  <td>{{ y.weight_second_set }}</td>
-                  <td>{{ y.rpe_second_set }}</td>
-                  <td>{{ y.third_set }}</td>
-                  <td>{{ y.weight_third_set }}</td>
-                  <td>{{ y.rpe_third_set }}</td>
-                  <td>{{ y.notes }}</td>
+                  <td>{{ exercise.exercise }}</td>
+                  <td>{{ exercise.first_set }}</td>
+                  <td>{{ exercise.weight_first_set }}</td>
+                  <td>{{ exercise.rpe_first_set }}</td>
+                  <td>{{ exercise.second_set }}</td>
+                  <td>{{ exercise.weight_second_set }}</td>
+                  <td>{{ exercise.rpe_second_set }}</td>
+                  <td>{{ exercise.third_set }}</td>
+                  <td>{{ exercise.weight_third_set }}</td>
+                  <td>{{ exercise.rpe_third_set }}</td>
+                  <td>{{ exercise.notes }}</td>
                 </tr>
                 {% endfor %}
               </tbody>

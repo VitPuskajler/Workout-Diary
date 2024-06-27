@@ -11,6 +11,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, IntegerField, FloatField, SubmitField
 from wtforms.validators import DataRequired, EqualTo, NumberRange
 from werkzeug.security import generate_password_hash, check_password_hash
+from collections import defaultdict
 
 NOW = datetime.now()
 DATE = NOW.strftime("%d%m%Y")
@@ -162,15 +163,18 @@ def workout_plan_page():
     except TypeError:
         return render_template("table_layout.html")
 
-    full_meso_data_list = []
-    for table in range(amount_of_tables_curr_meso):
-        full_meso_data = text(f"""
-        SELECT * FROM {any_string_contains_word[table]}
-        """)
-        full_meso_data_execute = connection.execute(full_meso_data)
-        for x in full_meso_data_execute:
-            full_meso_data_list.append(x)
+    nested_exercises_list = []
 
+    for table in any_string_contains_word:
+        exercises_query = text(f"""
+        SELECT * FROM {table}
+        ORDER BY exercise
+        """)
+        exercises_result = connection.execute(exercises_query).fetchall()
+        print(exercises_result)
+        nested_exercises_list.append(exercises_result)
+            
+    # If no value exists or none is selected, just don't give me table, show only select bar
     number_for_loop_separation = 0  # Default value
     try:
         exercises_per_session_query = text(f"""
@@ -186,11 +190,12 @@ def workout_plan_page():
     return render_template(
         "workout.html",
         tables_for_las_meso=any_string_contains_word,
-        length_curr_meso=amount_of_tables_curr_meso,
         full_meso_tables_names=any_string_contains_word,
-        full_meso_data_list=full_meso_data_list,
         for_loop=number_for_loop_separation,
-        amount_of_mesocycles=all_user_mesocycles
+        amount_of_mesocycles=all_user_mesocycles,
+        nested_exercises_list=nested_exercises_list,
+        length_curr_meso=len(nested_exercises_list)
+        
     )
 
 # ----------------------------------------------------------------------
@@ -414,8 +419,15 @@ def training_session():
     try:
         execute_sql = connection.execute(sql_query)
     except OperationalError:
-        # If new user with empty mesocycles, he will be redirected to workout page
-        return render_template("table_layout.html")
+        try:
+            sql_query = text(f""" 
+                SELECT *
+                FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
+            """)
+        except OperationalError:
+
+            # If new user with empty mesocycles, he will be redirected to workout page
+            return render_template("table_layout.html")
 
     # From last mesocycle load all tables
     list_of_all_tables = inspect_db_names.get_table_names()
@@ -426,14 +438,18 @@ def training_session():
             tables_from_last_meso.append(table)
     
     # Separate query just to store chosen day from user
-    current_training_day_sql = text(f"""
-    SELECT exercise FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
-    """)
-    current_training_day = connection.execute(current_training_day_sql)
-    list_of_current_exerxises: list = []
-    for exercise in current_training_day:
-        list_of_current_exerxises.append(exercise[0])
-    
+    try:
+        current_training_day_sql = text(f"""
+        SELECT exercise FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
+        """)
+        current_training_day = connection.execute(current_training_day_sql)
+        list_of_current_exerxises: list = []
+        for exercise in current_training_day:
+            list_of_current_exerxises.append(exercise[0])
+    except OperationalError:
+        current_training_day = 1
+        execute_sql = []
+
     # Load data from user-----------------------------------------------------------------------------------
     user_input_into_training = {}
     new_row_data = {}
