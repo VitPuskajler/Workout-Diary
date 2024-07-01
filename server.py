@@ -608,6 +608,144 @@ def training_session():
 def execute_workout_plan_exercises(): 
     return render_template("<h1>Just test if process will pass<h1>")
 
+# --------------------------------------------------------------------------
+@app.route('/profile', methods=["GET", "POST"])
+@login_required
+def profile():
+    # Get info from HTML submit and keep it after reload, or hitting submit button. Delete session if we are out of range.
+    try:
+        if request.args.get('training_day') is not None:
+            choose_training_day = int(request.args.get('training_day'))
+            session['choose_training_day'] = choose_training_day
+        elif 'choose_training_day' in session:
+            choose_training_day = session['choose_training_day']
+        else:
+            choose_training_day = 0
+    except OperationalError:
+        session.clear()
+        if request.args.get('training_day') is not None:
+            choose_training_day = int(request.args.get('training_day'))
+            session['choose_training_day'] = choose_training_day
+        elif 'choose_training_day' in session:
+            choose_training_day = session['choose_training_day']
+        else:
+            choose_training_day = 0
+
+    # Title for table
+    table_title = 1
+    if choose_training_day is not None:
+        table_title += int(choose_training_day)
+    else:
+        table_title= 1
+
+    # Logic for training sessions---------------------------------------------------------------------------
+
+    # Access current user's mesocycles - if none is picked by user - show workout day one
+    user = User.query.filter_by(username=current_user.username).first()
+    last_masocycle = user.mesocycles
+
+    # SQL query to fetch the latest entry for each exercise in the original order 
+    sql_query = text(f"""
+        WITH latest_exercises AS (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY exercise ORDER BY id DESC) AS row_num
+            FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
+        ),
+        initial_order AS (
+            SELECT exercise, MIN(id) AS first_id
+            FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
+            GROUP BY exercise
+        )
+        SELECT le.*
+        FROM latest_exercises le
+        JOIN initial_order io ON le.exercise = io.exercise
+        WHERE le.row_num = 1
+        ORDER BY io.first_id
+    """)
+
+    inspect_db_names = inspect(db.engine)
+    connection = db.session.connection()
+    connection.commit()
+    try:
+        execute_sql = connection.execute(sql_query)
+    except OperationalError:
+        try:
+            sql_query = text(f""" 
+                SELECT exercise, sets, pauses
+                FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
+            """)
+        except OperationalError:
+
+            # If new user with empty mesocycles, he will be redirected to workout page
+            return render_template("table_layout.html")
+
+    # From last mesocycle load all tables
+    list_of_all_tables = inspect_db_names.get_table_names()
+    tables_from_last_meso = []
+    
+    for table in list_of_all_tables:
+        if table.startswith(f"{current_user.username}_M{last_masocycle}"):
+            tables_from_last_meso.append(table)
+    
+    # Separate query just to store chosen day from user
+    try:
+        current_training_day_sql = text(f"""
+        SELECT exercise FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
+        """)
+        current_training_day = connection.execute(current_training_day_sql)
+        list_of_current_exerxises: list = []
+        for exercise in current_training_day:
+            list_of_current_exerxises.append(exercise[0])
+    except OperationalError:
+        current_training_day = 1
+        execute_sql = []
+
+    # Load data from user-----------------------------------------------------------------------------------
+
+    if request.method == "POST":
+        form_data = request.form
+        num_rows = (len(form_data) // 6)  # Assuming 6 fields per row: 3 hidden and 3 visible
+
+        for i in range(1, num_rows + 1):
+            exercise_id = form_data.get(f'add_exercise{i}')
+            sets_id = form_data.get(f'add_sets{i}')
+            pauses_id = form_data.get(f'add_pauses{i}')
+            exercise_value = form_data.get(f'exercise{i}')
+            sets_value = form_data.get(f'sets{i}')
+            pauses_value = form_data.get(f'pauses{i}')
+            print(f"pauses {pauses_value}")
+            try: 
+                if exercise_value or sets_value or pauses_value:
+                    exercise_value = exercise_id if exercise_value == '' else exercise_value
+                    sets_value = sets_id if sets_value == '' else sets_value
+                    pauses_value = pauses_id if pauses_value == '' else pauses_value
+                    
+
+                    replace_exercise_query = text(f"""
+                    UPDATE {current_user.username}_M{last_masocycle}_{choose_training_day}
+                    SET exercise='{exercise_value}', sets='{sets_value}', pauses='{pauses_value}'
+                    WHERE id = (
+                        SELECT max(id)
+                        FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
+                        WHERE exercise = '{exercise_id}'
+                    )
+                    """)
+                    connection.execute(replace_exercise_query)
+                connection.commit()
+                
+            except OperationalError as op:
+                print(f"You did poorly {op}")
+                return redirect(url_for('profile'))
+            # Make SQL query and replace old exercise with a new one
+                
+
+    return render_template("profile.html",
+                           exercises_meso_one=execute_sql,
+                            training_sessions=tables_from_last_meso,
+                            training_session_length=len(tables_from_last_meso),
+                            table_title=table_title,
+                            today=DATE)
+
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()

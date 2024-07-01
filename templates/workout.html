@@ -127,7 +127,7 @@
             {% if current_user.is_authenticated %}
             <li class="nav-item">
               <!-- Change path to profile.html after clicking on UserName-->
-              <a class="nav-link" href="#">{{ current_user.username }}</a>
+              <a class="nav-link" href="{{ url_for('profile')}}">{{ current_user.username }}</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
@@ -147,7 +147,7 @@
   </div>
   <main class="container">
     <div class="my-3 p-3 bg-body rounded shadow-sm">
-      <h5 class="border-bottom pb-2 mb-0 text-center">View your workout plan</h5>
+      <h5 class="border-bottom pb-2 mb-0 text-center">Here are all your exercises you have done so far.</h5>
       <div class="d-flex text-body-secondary pt-3 text-center">
         <div class="container col-12">
           <form action="{{ url_for('workout_plan_page') }}" method="get">
