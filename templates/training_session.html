@@ -25,6 +25,23 @@
     }
   </style>
 
+  <style>
+    /* Additional styles for fixed-bottom container */
+    .fixed-bottom {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background-color: #f8f9fa;
+      /* Background color for visibility */
+      text-align: center;
+      /* Center align text */
+      padding: 10px 0;
+      /* Add padding for spacing */
+      z-index: 1030;
+      /* Ensure above other fixed elements */
+    }
+  </style>
+
 </head>
 
 <body>
@@ -201,8 +218,8 @@
       </table>
       {% endfor %}
 
-      <div class="p-4">
-        <div style="position: fixed; bottom: 20px; right: 20px;">
+      <div class="p-3">
+        <div style="position: fixed; bottom: 50px; right: 20px;">
           <button type="submit" class="btn btn-success">Confirm</button>
         </div>
       </div>
@@ -210,6 +227,11 @@
     </form>
   </div>
 
+  <div clas="p-3">
+    <div class="fixed-bottom">
+      © {{ year }} | Created by Vít Puskajler
+    </div>
+  </div>
   <!-- -------------------------------------------------------------------------- -->
   <script>
     // Additional script to reset the color on focus if needed

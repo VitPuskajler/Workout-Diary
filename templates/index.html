@@ -9,11 +9,36 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@3">
-
+  <!-- Jus to so the page is not wider than screensize-->
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+  </style>
+  <style>
+    /* Additional styles for fixed-bottom container */
+    .fixed-bottom {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background-color: #f8f9fa;
+      /* Background color for visibility */
+      text-align: center;
+      /* Center align text */
+      padding: 10px 0;
+      /* Add padding for spacing */
+      z-index: 1030;
+      /* Ensure above other fixed elements */
+    }
+  </style>
 </head>
 
 <body>
   <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
+    <!-- Symbols -->
     <symbol id="check2" viewBox="0 0 16 16">
       <path
         d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z">
@@ -81,32 +106,63 @@
       </div>
     </nav>
   </div>
+
   <div class="row p-5 g-5">
     <div class="col-md-8">
-
       <article class="blog-post">
         <h2 class="display-5 link-body-emphasis mb-1">Basic information about this site</h2>
-
         <hr>
-        <p>You can manage all wour workouts in one place. After end of your mesocycle you can view Statistics about your
-          progress and based on it plan new training period.</p>
-        <h2>Important info</h2></br>
-        <p><b>This is prtfolio project suited for personal use.</b></p></br>
-        <blockquote class="blockquote">
+        <h2>Quick overview.</h2>
 
+        <blockquote class="blockquote">
+          <b>Training Session:</b></br> Here you directly provide input for your pre created workout plan. During
+          your
+          training session you will simple open this tab and enter your info from workout (weights, reps...)
         </blockquote>
 
+        <blockquote class="blockquote">
+          <b>Workout Plan:</b></br>
+          Informations about all your exercises and mesocycles so far. Also you can create new mesocycle plan throughout
+          this page
+        </blockquote>
+
+        <blockquote class="blockquote">
+          <b>Create New Mesocycle Plan:</b></br>
+          Create new mesocycle plan and populate the table
+        </blockquote>
+
+        <blockquote class="blockquote">
+          <b>Username:</b></br>
+          In this tab you can change your exercise name, sets and reps. But I am not allowing any deleting so far. If
+          There is something wrong please create a new mesocycle plan
+        </blockquote>
+      </article>
+
+      <article class="blog-post">
+        <h2 class="display-5 link-body-emphasis mb-1">What you need to know</h2>
+
+        <hr>
+        <h2>Important info</h2>
+
+        <blockquote class="blockquote">
+          <!-- Blockquote content here if any -->
+        </blockquote>
+
+      </article>
     </div>
 
     <div class="col-md-4">
       <div class="position-sticky" style="top: 2rem;">
         <div class="p-4 mb-3 bg-body-tertiary rounded">
           <h4 class="fst-italic">About</h4>
-          <p class="mb-0">Aim of this website is to help you periodize, structure and manage your workouts. </p>
+          <p class="mb-0">You can manage all your workouts in one place. After the end of your mesocycle, you can view
+            statistics (currently 'Workout Plan' tab) about
+            your progress and based on it plan a new training period. Aim of this web app is to help you periodize,
+            structure and manage your workouts.</p>
         </div>
 
         <div>
-          <h4 class="fst-italic">Recent updates</h4>
+          <h4 class="fst-italic">Super Informations</h4>
           <ul class="list-unstyled">
             <li>
               <a class="d-flex flex-column flex-lg-row gap-3 align-items-start align-items-lg-center py-3 link-body-emphasis text-decoration-none border-top"
@@ -117,10 +173,9 @@
                   <image href="https://cdn.pixabay.com/photo/2012/04/23/16/49/danger-39026_1280.png" width="100%"
                     height="96" />
                 </svg>
-
                 <div class="col-lg-8">
-                  <h6 class="mb-0">Layout change. No more empty site!</h6>
-                  <small class="text-body-secondary">27.5.2024</small>
+                  <h6 class="mb-0">Statistics page is in progress</h6>
+                  <small class="text-body-secondary">2.7.2024</small>
                 </div>
               </a>
             </li>
@@ -134,8 +189,8 @@
                     height="96" />
                 </svg>
                 <div class="col-lg-8">
-                  <h6 class="mb-0">Login access granted. Users can now create new accounts</h6>
-                  <small class="text-body-secondary">27.5.2024</small>
+                  <h6 class="mb-0">In workout plan you can see your progress</h6>
+                  <small class="text-body-secondary">2.7.2024</small>
                 </div>
               </a>
             </li>
@@ -149,13 +204,14 @@
                     height="96" />
                 </svg>
                 <div class="col-lg-8">
-                  <h6 class="mb-0">Resolved issue with navbar not stucked at rolled out position</h6>
+                  <h6 class="mb-0">Resolved issue with navbar not stuck at rolled out position</h6>
                   <small class="text-body-secondary">27.5.2024</small>
                 </div>
               </a>
             </li>
           </ul>
         </div>
+
         <div class="dropdown position-fixed bottom-0 end-0 mb-3 me-3 bd-mode-toggle">
           <button class="btn btn-bd-primary py-2 dropdown-toggle d-flex align-items-center" id="bd-theme" type="button"
             aria-expanded="false" data-bs-toggle="dropdown" aria-label="Toggle theme (light)">
@@ -203,14 +259,19 @@
             </li>
           </ul>
         </div>
+      </div>
+    </div>
+  </div>
 
-
-
-
-        <!-- Right side pannel with updates -->
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-          integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-          crossorigin="anonymous"></script>
+  <div clas="p-3">
+    <div class="fixed-bottom">
+      © {{ year }} | Created by Vít Puskajler
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+    crossorigin="anonymous"></script>
 </body>
+
 
 </html>

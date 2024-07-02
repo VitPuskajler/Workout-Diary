@@ -15,6 +15,7 @@ from collections import defaultdict
 
 NOW = datetime.now()
 DATE = NOW.strftime("%d%m%Y")
+YEAR = NOW.strftime("%Y")
 
 app = Flask(__name__)
 app.secret_key = "thiskeyshouldntbeherebutfornowitisok.1084"
@@ -137,7 +138,7 @@ def index_page():
         username = current_user.username
     else:
         username = None
-    return render_template("index.html", user=username)
+    return render_template("index.html", user=username, year=YEAR)
 
 # Workout Plan ---------------------------------------------------------
 
@@ -161,7 +162,7 @@ def workout_plan_page():
     try:
         all_user_mesocycles = int(all_users_mesocycles_query.mesocycles)
     except TypeError:
-        return render_template("table_layout.html")
+        return render_template("table_layout.html", year=YEAR)
 
     nested_exercises_list = []
 
@@ -171,7 +172,6 @@ def workout_plan_page():
         ORDER BY exercise
         """)
         exercises_result = connection.execute(exercises_query).fetchall()
-        print(exercises_result)
         nested_exercises_list.append(exercises_result)
             
     # If no value exists or none is selected, just don't give me table, show only select bar
@@ -194,7 +194,8 @@ def workout_plan_page():
         for_loop=number_for_loop_separation,
         amount_of_mesocycles=all_user_mesocycles,
         nested_exercises_list=nested_exercises_list,
-        length_curr_meso=len(nested_exercises_list)
+        length_curr_meso=len(nested_exercises_list),
+        year=YEAR
         
     )
 
@@ -263,7 +264,10 @@ def table_layout():
             return jsonify({"error": "Invalid username"})       
 
         return redirect("create_workout")
-    return render_template("table_layout.html", user_meso=user_mesocycles)
+    return render_template("table_layout.html", 
+                           user_meso=user_mesocycles,
+                           year=YEAR
+                           )
 
 # Here is created mesocycle workout
 @app.route("/create_workout", methods=["GET", "POST"])
@@ -361,7 +365,7 @@ def create_workout():
         create_tables_dynamically()
         return redirect(url_for("workout_plan_page"))
 
-    return render_template("create_workout.html", table_data=table_data, weekly=weekly, st=starter, enumerate=enumerate)
+    return render_template("create_workout.html", table_data=table_data, weekly=weekly, st=starter, enumerate=enumerate, year=YEAR)
 
 
 @app.route('/training_session_redirect', methods=["GET"])
@@ -427,7 +431,7 @@ def training_session():
         except OperationalError:
 
             # If new user with empty mesocycles, he will be redirected to workout page
-            return render_template("table_layout.html")
+            return render_template("table_layout.html", year=YEAR)
 
     # From last mesocycle load all tables
     list_of_all_tables = inspect_db_names.get_table_names()
@@ -479,8 +483,6 @@ def training_session():
                     exercise_number_new = connection.execute(exercise_number_query).fetchall()
                     connection.commit()
 
-                print(exercise_number_new)
-                print(key)
 
                 try:
                     # Always add SETS + PAUSES, they are not changing
@@ -598,7 +600,8 @@ def training_session():
                             training_sessions=tables_from_last_meso,
                             training_session_length=len(tables_from_last_meso),
                             table_title=table_title,
-                            today=DATE
+                            today=DATE,
+                            year=YEAR
                             )
 
 # --------------------------------------------------------------------------
@@ -704,6 +707,10 @@ def profile():
     if request.method == "POST":
         form_data = request.form
         num_rows = (len(form_data) // 6)  # Assuming 6 fields per row: 3 hidden and 3 visible
+        # Values for new exercise
+        new_exercise = form_data.get("new_exercise")
+        new_sets = form_data.get("new_sets")
+        new_pauses = form_data.get("new_pauses")
 
         for i in range(1, num_rows + 1):
             exercise_id = form_data.get(f'add_exercise{i}')
@@ -712,9 +719,12 @@ def profile():
             exercise_value = form_data.get(f'exercise{i}')
             sets_value = form_data.get(f'sets{i}')
             pauses_value = form_data.get(f'pauses{i}')
-            print(f"pauses {pauses_value}")
+            
+            
+
             try: 
                 if exercise_value or sets_value or pauses_value:
+                    # If user won't give any values but hit enter it will load previous data
                     exercise_value = exercise_id if exercise_value == '' else exercise_value
                     sets_value = sets_id if sets_value == '' else sets_value
                     pauses_value = pauses_id if pauses_value == '' else pauses_value
@@ -730,20 +740,35 @@ def profile():
                     )
                     """)
                     connection.execute(replace_exercise_query)
+
                 connection.commit()
                 
             except OperationalError as op:
                 print(f"You did poorly {op}")
                 return redirect(url_for('profile'))
             # Make SQL query and replace old exercise with a new one
-                
+        try:
+            if new_exercise:
+                        # If user forget to give sets or pauses they will be set to 0
+                        new_sets = 0 if new_sets == '' else new_sets
+                        new_pauses = 0 if new_pauses == '' else new_pauses
 
+                        add_new_exercise = text(f"""
+                        INSERT INTO {current_user.username}_M{last_masocycle}_{choose_training_day} (exercise, sets, pauses)
+                        VALUES ('{new_exercise}', '{new_sets}', '{new_pauses}')
+                        """)
+                        connection.execute(add_new_exercise)
+                        connection.commit()       
+        except OperationalError:
+            print(f"Here should be log {OperationalError}")
     return render_template("profile.html",
                            exercises_meso_one=execute_sql,
                             training_sessions=tables_from_last_meso,
                             training_session_length=len(tables_from_last_meso),
                             table_title=table_title,
-                            today=DATE)
+                            today=DATE,
+                            year=YEAR
+                            )
 
 
 if __name__ == "__main__":
