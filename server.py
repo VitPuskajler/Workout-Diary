@@ -11,7 +11,6 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, IntegerField, FloatField, SubmitField
 from wtforms.validators import DataRequired, EqualTo, NumberRange
 from werkzeug.security import generate_password_hash, check_password_hash
-from collections import defaultdict
 
 NOW = datetime.now()
 DATE = NOW.strftime("%d%m%Y")
