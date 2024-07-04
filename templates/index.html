@@ -34,6 +34,7 @@
       /* Ensure above other fixed elements */
     }
   </style>
+  <script src="/static/javascript/theme.js"></script>
 </head>
 
 <body>
@@ -62,6 +63,7 @@
     </symbol>
   </svg>
 
+
   <div class="p-3">
     <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
       <div class="container-fluid">
@@ -78,9 +80,6 @@
             </li>
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('workout_plan')}}">Workout Plan</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#">Statistics</a>
             </li>
           </ul>
           <!-- Login and register buttons on the right -->
@@ -107,168 +106,132 @@
     </nav>
   </div>
 
-  <div class="row p-5 g-5">
-    <div class="col-md-8">
-      <article class="blog-post">
-        <h2 class="display-5 link-body-emphasis mb-1">Basic information about this site</h2>
-        <hr>
-        <h2>Quick overview.</h2>
+  <main class="container">
+    <div class="row p-5 g-5">
+      <div class="col-md-8">
+        <article class="blog-post">
+          <h2 class="display-5 link-body-emphasis mb-1">Quick overview</h2>
+          <hr>
 
-        <blockquote class="blockquote">
-          <b>Training Session:</b></br> Here you directly provide input for your pre created workout plan. During
-          your
-          training session you will simple open this tab and enter your info from workout (weights, reps...)
-        </blockquote>
+          <p><b>Training Session:</b></br> Here you directly provide input for your pre created workout
+            plan. During
+            your
+            training session you will simple open this tab and enter your info from workout (weights, reps...)
+          </p>
 
-        <blockquote class="blockquote">
-          <b>Workout Plan:</b></br>
-          Informations about all your exercises and mesocycles so far. Also you can create new mesocycle plan throughout
-          this page
-        </blockquote>
+          <p><b>Workout Plan:</b></br>
+            Informations about all your exercises and mesocycles so far. Also you can create new mesocycle plan
+            throughout
+            this page
+          </p>
 
-        <blockquote class="blockquote">
-          <b>Create New Mesocycle Plan:</b></br>
-          Create new mesocycle plan and populate the table
-        </blockquote>
+          <p><b>Create New Mesocycle Plan:</b></br>
+            Create new mesocycle plan and populate the table
+          </p>
 
-        <blockquote class="blockquote">
-          <b>Username:</b></br>
-          In this tab you can change your exercise name, sets and reps. But I am not allowing any deleting so far. If
-          There is something wrong please create a new mesocycle plan
-        </blockquote>
-      </article>
+          <p><b>Username:</b></br>
+            In this tab you can change your exercise name, sets and reps. But I am not allowing any deleting so far.
+            If
+            There is something wrong please create a new mesocycle plan
+          </p>
+        </article>
 
-      <article class="blog-post">
-        <h2 class="display-5 link-body-emphasis mb-1">What you need to know</h2>
+        <article class="blog-post">
+          <h3 class="display-5 link-body-emphasis mb-1">What you need to know before usage</h2>
 
-        <hr>
-        <h2>Important info</h2>
+            <p>
+              <b>RPE:</b></br> Rating of perceived exertion
+            </p>
 
-        <blockquote class="blockquote">
-          <!-- Blockquote content here if any -->
-        </blockquote>
+            <p><b>Sets:</b></br> How many sets you have planned to do
+            </p>
 
-      </article>
-    </div>
+            <p><b>Reps:</b></br>How many repetitions you did
+            </p>
 
-    <div class="col-md-4">
-      <div class="position-sticky" style="top: 2rem;">
-        <div class="p-4 mb-3 bg-body-tertiary rounded">
-          <h4 class="fst-italic">About</h4>
-          <p class="mb-0">You can manage all your workouts in one place. After the end of your mesocycle, you can view
-            statistics (currently 'Workout Plan' tab) about
-            your progress and based on it plan a new training period. Aim of this web app is to help you periodize,
-            structure and manage your workouts.</p>
-        </div>
+            <p>
+              <b>Pauses:</b></br>How long you want to rest between sets
+            </p>
 
-        <div>
-          <h4 class="fst-italic">Super Informations</h4>
-          <ul class="list-unstyled">
-            <li>
-              <a class="d-flex flex-column flex-lg-row gap-3 align-items-start align-items-lg-center py-3 link-body-emphasis text-decoration-none border-top"
-                href="#">
-                <svg class="bd-placeholder-img" width="100%" height="96" aria-hidden="true"
-                  preserveAspectRatio="xMidYMid slice" focusable="false">
-                  <rect width="100%" height="100%" fill="#777"></rect>
-                  <image href="https://cdn.pixabay.com/photo/2012/04/23/16/49/danger-39026_1280.png" width="100%"
-                    height="96" />
-                </svg>
-                <div class="col-lg-8">
-                  <h6 class="mb-0">Statistics page is in progress</h6>
-                  <small class="text-body-secondary">2.7.2024</small>
-                </div>
-              </a>
-            </li>
-            <li>
-              <a class="d-flex flex-column flex-lg-row gap-3 align-items-start align-items-lg-center py-3 link-body-emphasis text-decoration-none border-top"
-                href="#">
-                <svg class="bd-placeholder-img" width="100%" height="96" xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true" preserveAspectRatio="xMidYMid slice" focusable="false">
-                  <rect width="100%" height="100%" fill="#700"></rect>
-                  <image href="https://cdn.pixabay.com/photo/2012/04/23/16/49/danger-39026_1280.png" width="100%"
-                    height="96" />
-                </svg>
-                <div class="col-lg-8">
-                  <h6 class="mb-0">In workout plan you can see your progress</h6>
-                  <small class="text-body-secondary">2.7.2024</small>
-                </div>
-              </a>
-            </li>
-            <li>
-              <a class="d-flex flex-column flex-lg-row gap-3 align-items-start align-items-lg-center py-3 link-body-emphasis text-decoration-none border-top"
-                href="#">
-                <svg class="bd-placeholder-img" width="100%" height="96" xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true" preserveAspectRatio="xMidYMid slice" focusable="false">
-                  <rect width="100%" height="100%" fill="#777"></rect>
-                  <image href="https://cdn.pixabay.com/photo/2012/04/23/16/49/danger-39026_1280.png" width="100%"
-                    height="96" />
-                </svg>
-                <div class="col-lg-8">
-                  <h6 class="mb-0">Resolved issue with navbar not stuck at rolled out position</h6>
-                  <small class="text-body-secondary">27.5.2024</small>
-                </div>
-              </a>
-            </li>
-          </ul>
-        </div>
+            <p>
+              <b>Notes:</b></br>Any informations relevant for your workout (if something hurt, if you were hungry...)
+            </p>
 
-        <div class="dropdown position-fixed bottom-0 end-0 mb-3 me-3 bd-mode-toggle">
-          <button class="btn btn-bd-primary py-2 dropdown-toggle d-flex align-items-center" id="bd-theme" type="button"
-            aria-expanded="false" data-bs-toggle="dropdown" aria-label="Toggle theme (light)">
-            <svg class="bi my-1 theme-icon-active" width="1em" height="1em">
-              <use href="#sun-fill"></use>
-            </svg>
-            <span class="visually-hidden" id="bd-theme-text">Toggle theme</span>
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="bd-theme-text">
-            <li>
-              <button type="button" class="dropdown-item d-flex align-items-center active" data-bs-theme-value="light"
-                aria-pressed="true">
-                <svg class="bi me-2 opacity-50" width="1em" height="1em">
-                  <use href="#sun-fill"></use>
-                </svg>
-                Light
-                <svg class="bi ms-auto d-none" width="1em" height="1em">
-                  <use href="#check2"></use>
-                </svg>
-              </button>
-            </li>
-            <li>
-              <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="dark"
-                aria-pressed="false">
-                <svg class="bi me-2 opacity-50" width="1em" height="1em">
-                  <use href="#moon-stars-fill"></use>
-                </svg>
-                Dark
-                <svg class="bi ms-auto d-none" width="1em" height="1em">
-                  <use href="#check2"></use>
-                </svg>
-              </button>
-            </li>
-            <li>
-              <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="auto"
-                aria-pressed="false">
-                <svg class="bi me-2 opacity-50" width="1em" height="1em">
-                  <use href="#circle-half"></use>
-                </svg>
-                Auto
-                <svg class="bi ms-auto d-none" width="1em" height="1em">
-                  <use href="#check2"></use>
-                </svg>
-              </button>
-            </li>
-          </ul>
-        </div>
+        </article>
       </div>
-    </div>
-  </div>
+
+      <div class="col-md-4">
+        <div class="position-sticky" style="top: 2rem;">
+          <div class="p-4 mb-3 bg-body-tertiary rounded">
+            <h4 class="fst-italic">About</h4>
+            <p class="mb-0">You can manage all your workouts in one place. After the end of your mesocycle, you can view
+              statistics (currently 'Workout Plan' tab) about
+              your progress and based on it plan a new training period. Aim of this web app is to help you periodize,
+              structure and manage your workouts.</p>
+          </div>
+
+          <div>
+            <h4 class="fst-italic">Super Informations</h4>
+            <ul class="list-unstyled">
+              <li>
+                <a class="d-flex flex-column flex-lg-row gap-3 align-items-start align-items-lg-center py-3 link-body-emphasis text-decoration-none border-top"
+                  href="#">
+                  <svg class="bd-placeholder-img" width="100%" height="96" aria-hidden="true"
+                    preserveAspectRatio="xMidYMid slice" focusable="false">
+                    <rect width="100%" height="100%" fill="#777"></rect>
+                    <image href="https://cdn.pixabay.com/photo/2012/04/23/16/49/danger-39026_1280.png" width="100%"
+                      height="96" />
+                  </svg>
+                  <div class="col-lg-8">
+                    <h6 class="mb-0">Statistics page is in progress</h6>
+                    <small class="text-body-secondary">2.7.2024</small>
+                  </div>
+                </a>
+              </li>
+              <li>
+                <a class="d-flex flex-column flex-lg-row gap-3 align-items-start align-items-lg-center py-3 link-body-emphasis text-decoration-none border-top"
+                  href="#">
+                  <svg class="bd-placeholder-img" width="100%" height="96" xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true" preserveAspectRatio="xMidYMid slice" focusable="false">
+                    <rect width="100%" height="100%" fill="#700"></rect>
+                    <image href="https://cdn.pixabay.com/photo/2012/04/23/16/49/danger-39026_1280.png" width="100%"
+                      height="96" />
+                  </svg>
+                  <div class="col-lg-8">
+                    <h6 class="mb-0">In workout plan you can see your progress</h6>
+                    <small class="text-body-secondary">2.7.2024</small>
+                  </div>
+                </a>
+              </li>
+              <li>
+                <a class="d-flex flex-column flex-lg-row gap-3 align-items-start align-items-lg-center py-3 link-body-emphasis text-decoration-none border-top"
+                  href="#">
+                  <svg class="bd-placeholder-img" width="100%" height="96" xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true" preserveAspectRatio="xMidYMid slice" focusable="false">
+                    <rect width="100%" height="100%" fill="#777"></rect>
+                    <image href="https://cdn.pixabay.com/photo/2012/04/23/16/49/danger-39026_1280.png" width="100%"
+                      height="96" />
+                  </svg>
+                  <div class="col-lg-8">
+                    <h6 class="mb-0">Resolved issue with navbar not stuck at rolled out position</h6>
+                    <small class="text-body-secondary">27.5.2024</small>
+                  </div>
+                </a>
+              </li>
+            </ul>
+          </div>
+  </main>
 
   <div clas="p-3">
     <div class="fixed-bottom">
       © {{ year }} | Created by Vít Puskajler
     </div>
   </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+    crossorigin="anonymous"></script>
+  <script src="/docs/5.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
     crossorigin="anonymous"></script>
 </body>
