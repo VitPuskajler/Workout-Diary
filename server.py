@@ -62,24 +62,6 @@ class User(UserMixin, db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-class WorkoutPlan(db.Model):
-    id = db.Column(db.String, primary_key=True)
-    exercise = db.Column(db.String(100), nullable=False)
-    sets = db.Column(db.Integer, nullable=False)
-    pauses = db.Column(db.Integer, nullable=False)
-    first_set = db.Column(db.Integer)
-    weight_first_set = db.Column(db.Float)
-    rpe_first_set = db.Column(db.Float)
-    second_set = db.Column(db.Integer)
-    weight_second_set = db.Column(db.Float)
-    rpe_second_set = db.Column(db.Float)
-    third_set = db.Column(db.Integer)
-    weight_third_set = db.Column(db.Float)
-    rpe_third_set = db.Column(db.Float)
-    notes = db.Column(db.String)
-
-    def __repr__(self):
-        return f"<WorkoutPlan {self.excercise}>"
 
 class RegistrationForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -326,6 +308,9 @@ def create_workout():
                     third_set INTEGER, 
                     weight_third_set FLOAT,
                     rpe_third_set FLOAT,
+                    fourth_set INTEGER, 
+                    weight_fourth_set FLOAT,
+                    rpe_fourth_set FLOAT,
                     notes TEXT
                 )
                 """)

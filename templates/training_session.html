@@ -144,6 +144,9 @@
             <th>3. Set Reps</th>
             <th>Weight</th>
             <th>RPE</th>
+            <th>4. Set Reps</th>
+            <th>Weight</th>
+            <th>RPE</th>
             <th>Notes</th>
           </tr>
         </thead>
@@ -205,7 +208,23 @@
                 class="form-control {{ placeholder_color_class }}" placeholder="{{ row.rpe_third_set }}"
                 onfocus="this.style.color='inherit';">
             </td>
-            <!-- NOTES -->
+            <!-- 4. set -->
+            <td>
+              <input type="text" name="fourth_set_{{ loop.index }}" class="form-control {{ placeholder_color_class }}"
+                placeholder="{{ row.fourth_set }}" onfocus="this.style.color='inherit';">
+            </td>
+
+            <td>
+              <input type="text" name="weight_fourth_set_{{ loop.index }}"
+                class="form-control {{ placeholder_color_class }}" placeholder="{{ row.weight_fourth_set }}"
+                onfocus="this.style.color='inherit';">
+            </td>
+
+            <td>
+              <input type="text" name="rpe_fourth_set_{{ loop.index }}"
+                class="form-control {{ placeholder_color_class }}" placeholder="{{ row.rpe_fourth_set }}"
+                onfocus="this.style.color='inherit';">
+              <!-- NOTES -->
             <td>
               <input type="text" name="notes_{{ loop.index }}" class="form-control {{ placeholder_color_class }}"
                 placeholder="{{ row.notes }}" onfocus="this.style.color='inherit';">
