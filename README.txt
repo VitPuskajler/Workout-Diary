@@ -1,4 +1,4 @@
-You can try it on www.vito.pythonanywhere.com
+You can try it on https://www.vito.pythonanywhere.com
 
 Feel free to use this web app as your personal workout diary
 
