@@ -130,49 +130,51 @@
           <!-- --------------------------------------------------------------------------------- -->
           <form action="{{ url_for('workout_plan_page') }}" method="post">
             {% for table_exercises in nested_exercises_list %}
-            <table class="table table-striped">
-              <thead>
-                <tr>
-                  <th>Workout {{ loop.index }}</th>
-                </tr>
-                <tr>
-                  <th>Exercise</th>
-                  <th>1. Set Reps</th>
-                  <th>Weight</th>
-                  <th>RPE</th>
-                  <th>2. Set Reps</th>
-                  <th>Weight</th>
-                  <th>RPE</th>
-                  <th>3. Set Reps</th>
-                  <th>Weight</th>
-                  <th>RPE</th>
-                  <th>4. Set Reps</th>
-                  <th>Weight</th>
-                  <th>RPE</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for exercise in table_exercises %}
-                <tr>
-                  <td>{{ exercise.exercise }}</td>
-                  <td>{{ exercise.first_set }}</td>
-                  <td>{{ exercise.weight_first_set }}</td>
-                  <td>{{ exercise.rpe_first_set }}</td>
-                  <td>{{ exercise.second_set }}</td>
-                  <td>{{ exercise.weight_second_set }}</td>
-                  <td>{{ exercise.rpe_second_set }}</td>
-                  <td>{{ exercise.third_set }}</td>
-                  <td>{{ exercise.weight_third_set }}</td>
-                  <td>{{ exercise.rpe_third_set }}</td>
-                  <td>{{ exercise.fourth_set }}</td>
-                  <td>{{ exercise.weight_fourth_set }}</td>
-                  <td>{{ exercise.rpe_fourth_set }}</td>
-                  <td>{{ exercise.notes }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+            <div class="table-responsive">
+              <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Workout {{ loop.index }}</th>
+                  </tr>
+                  <tr>
+                    <th>Exercise</th>
+                    <th>1. Set Reps</th>
+                    <th>Weight</th>
+                    <th>RPE</th>
+                    <th>2. Set Reps</th>
+                    <th>Weight</th>
+                    <th>RPE</th>
+                    <th>3. Set Reps</th>
+                    <th>Weight</th>
+                    <th>RPE</th>
+                    <th>4. Set Reps</th>
+                    <th>Weight</th>
+                    <th>RPE</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for exercise in table_exercises %}
+                  <tr>
+                    <td>{{ exercise.exercise }}</td>
+                    <td>{{ exercise.first_set }}</td>
+                    <td>{{ exercise.weight_first_set }}</td>
+                    <td>{{ exercise.rpe_first_set }}</td>
+                    <td>{{ exercise.second_set }}</td>
+                    <td>{{ exercise.weight_second_set }}</td>
+                    <td>{{ exercise.rpe_second_set }}</td>
+                    <td>{{ exercise.third_set }}</td>
+                    <td>{{ exercise.weight_third_set }}</td>
+                    <td>{{ exercise.rpe_third_set }}</td>
+                    <td>{{ exercise.fourth_set }}</td>
+                    <td>{{ exercise.weight_fourth_set }}</td>
+                    <td>{{ exercise.rpe_fourth_set }}</td>
+                    <td>{{ exercise.notes }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
             {% endfor %}
           </form>
         </div>

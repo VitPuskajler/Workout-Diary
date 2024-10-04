@@ -23,9 +23,41 @@
     .placeholder-blue::placeholder {
       color: blue;
     }
-  </style>
 
-  <style>
+    th {
+      min-width: 75px;
+      /* Adjust the width as needed */
+      vertical-align: middle;
+      /* Ensure text is vertically centered */
+    }
+
+    td {
+      vertical-align: middle;
+      /* Ensure text is vertically centered */
+    }
+
+    .notes {
+      min-width: 300px;
+    }
+
+    .exercise {
+      min-width: 200px;
+    }
+
+    .sets {
+      min-width: 50px;
+      /* Add 'px' to ensure proper sizing */
+    }
+
+    .pauses {
+      min-width: 50px;
+      /* Add 'px' to ensure proper sizing */
+    }
+
+    .colums-vertical {
+      vertical-align: middle;
+    }
+
     /* Additional styles for fixed-bottom container */
     .fixed-bottom {
       position: fixed;
@@ -40,7 +72,34 @@
       z-index: 1030;
       /* Ensure above other fixed elements */
     }
+
+    .confirm-button {
+      position: fixed;
+      bottom: 50px;
+      right: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .confirm-button {
+        position: static;
+        width: 100%;
+        margin-top: 20px;
+      }
+
+      .container-my {
+        margin-left: auto;
+        margin-right: auto;
+        /* Add padding to ensure the content is not covered */
+      }
+    }
+
+    /* Centering the container */
+    .center-container {
+      margin-left: auto;
+      margin-right: auto;
+    }
   </style>
+
 
 </head>
 
@@ -125,109 +184,107 @@
     </form>
   </div>
   <!-- -------------------------------------------------------------------------- -->
-  <div class="container">
-    <h2 class="mt-5">Day {{table_title}}</h2>
+  <div class="container mx-auto" style="max-width: 80%;">
+    <h2 class="mt-5 text-center">Day {{table_title}}</h2>
     <form action="{{ url_for('training_session') }}" method="post">
       {% for table_create in range(1) %}
-      <table class="table table-bordered text-center">
+      <table class="table table-bordered text-center mx-auto">
         <thead>
-          <tr>
-            <th>Exercise</th>
-            <th>Sets</th>
-            <th>Pauses</th>
-            <th>1. Set Reps</th>
+          <tr class="colums-vertical">
+            <th class="exercise">Exercise</th>
+            <th class="sets">Sets</th>
+            <th class="pauses">Pauses</th>
+            <th>1.<br> Reps</th>
             <th>Weight</th>
             <th>RPE</th>
-            <th>2. Set Reps</th>
+            <th>2.<br> Reps</th>
             <th>Weight</th>
             <th>RPE</th>
-            <th>3. Set Reps</th>
+            <th>3.<br> Reps</th>
             <th>Weight</th>
             <th>RPE</th>
-            <th>4. Set Reps</th>
+            <th>4.<br> Reps</th>
             <th>Weight</th>
             <th>RPE</th>
-            <th>Notes</th>
+            <th class="notes">Notes</th>
           </tr>
         </thead>
         <tbody>
           {% for row in exercises_meso_one %}
-          <tr>
+          <tr class="colums-vertical">
             <td>{{ row.exercise }}</td>
             <td>{{ row.sets }}</td>
             <td>{{ row.pauses }}</td>
             <!-- 1. set -->
             <td>
               {% set placeholder_color_class = 'placeholder-blue' if row.date == today else 'placeholder-red' %}
-              <input type="text" name="first_set_{{ loop.index }}" class="form-control {{ placeholder_color_class }}"
-                placeholder="{{ row.first_set }}" onfocus="this.style.color='inherit';">
-            </td>
-
-            <td>
-              <input type="text" name="weight_first_set_{{ loop.index }}"
-                class="form-control {{ placeholder_color_class }}" placeholder="{{ row.weight_first_set }}"
+              <input type="text" name="first_set_{{ loop.index }}"
+                class="form-control form-control-lg {{ placeholder_color_class }}" placeholder="{{ row.first_set }}"
                 onfocus="this.style.color='inherit';">
             </td>
-
+            <td>
+              <input type="text" name="weight_first_set_{{ loop.index }}"
+                class="form-control form-control-lg {{ placeholder_color_class }}"
+                placeholder="{{ row.weight_first_set }}" onfocus="this.style.color='inherit';">
+            </td>
             <td>
               <input type="text" name="rpe_first_set_{{ loop.index }}"
-                class="form-control {{ placeholder_color_class }}" placeholder="{{ row.rpe_first_set }}"
+                class="form-control form-control-lg {{ placeholder_color_class }}" placeholder="{{ row.rpe_first_set }}"
                 onfocus="this.style.color='inherit';">
             </td>
             <!-- 2. set -->
             <td>
-              <input type="text" name="second_set_{{ loop.index }}" class="form-control {{ placeholder_color_class }}"
-                placeholder="{{ row.second_set }}" onfocus="this.style.color='inherit';">
+              <input type="text" name="second_set_{{ loop.index }}"
+                class="form-control form-control-lg {{ placeholder_color_class }}" placeholder="{{ row.second_set }}"
+                onfocus="this.style.color='inherit';">
             </td>
-
             <td>
               <input type="text" name="weight_second_set_{{ loop.index }}"
-                class="form-control {{ placeholder_color_class }}" placeholder="{{ row.weight_second_set }}"
-                onfocus="this.style.color='inherit';">
+                class="form-control form-control-lg {{ placeholder_color_class }}"
+                placeholder="{{ row.weight_second_set }}" onfocus="this.style.color='inherit';">
             </td>
-
             <td>
               <input type="text" name="rpe_second_set_{{ loop.index }}"
-                class="form-control {{ placeholder_color_class }}" placeholder="{{ row.rpe_second_set }}"
-                onfocus="this.style.color='inherit';">
+                class="form-control form-control-lg {{ placeholder_color_class }}"
+                placeholder="{{ row.rpe_second_set }}" onfocus="this.style.color='inherit';">
             </td>
             <!-- 3. set -->
             <td>
-              <input type="text" name="third_set_{{ loop.index }}" class="form-control {{ placeholder_color_class }}"
-                placeholder="{{ row.third_set }}" onfocus="this.style.color='inherit';">
-            </td>
-
-            <td>
-              <input type="text" name="weight_third_set_{{ loop.index }}"
-                class="form-control {{ placeholder_color_class }}" placeholder="{{ row.weight_third_set }}"
+              <input type="text" name="third_set_{{ loop.index }}"
+                class="form-control form-control-lg {{ placeholder_color_class }}" placeholder="{{ row.third_set }}"
                 onfocus="this.style.color='inherit';">
             </td>
-
+            <td>
+              <input type="text" name="weight_third_set_{{ loop.index }}"
+                class="form-control form-control-lg {{ placeholder_color_class }}"
+                placeholder="{{ row.weight_third_set }}" onfocus="this.style.color='inherit';">
+            </td>
             <td>
               <input type="text" name="rpe_third_set_{{ loop.index }}"
-                class="form-control {{ placeholder_color_class }}" placeholder="{{ row.rpe_third_set }}"
+                class="form-control form-control-lg {{ placeholder_color_class }}" placeholder="{{ row.rpe_third_set }}"
                 onfocus="this.style.color='inherit';">
             </td>
             <!-- 4. set -->
             <td>
-              <input type="text" name="fourth_set_{{ loop.index }}" class="form-control {{ placeholder_color_class }}"
-                placeholder="{{ row.fourth_set }}" onfocus="this.style.color='inherit';">
+              <input type="text" name="fourth_set_{{ loop.index }}"
+                class="form-control form-control-lg {{ placeholder_color_class }}" placeholder="{{ row.fourth_set }}"
+                onfocus="this.style.color='inherit';">
             </td>
-
             <td>
               <input type="text" name="weight_fourth_set_{{ loop.index }}"
-                class="form-control {{ placeholder_color_class }}" placeholder="{{ row.weight_fourth_set }}"
-                onfocus="this.style.color='inherit';">
+                class="form-control form-control-lg {{ placeholder_color_class }}"
+                placeholder="{{ row.weight_fourth_set }}" onfocus="this.style.color='inherit';">
             </td>
-
             <td>
               <input type="text" name="rpe_fourth_set_{{ loop.index }}"
-                class="form-control {{ placeholder_color_class }}" placeholder="{{ row.rpe_fourth_set }}"
-                onfocus="this.style.color='inherit';">
-              <!-- NOTES -->
+                class="form-control form-control-lg {{ placeholder_color_class }}"
+                placeholder="{{ row.rpe_fourth_set }}" onfocus="this.style.color='inherit';">
+            </td>
+            <!-- NOTES -->
             <td>
-              <input type="text" name="notes_{{ loop.index }}" class="form-control {{ placeholder_color_class }}"
-                placeholder="{{ row.notes }}" onfocus="this.style.color='inherit';">
+              <input type="text" name="notes_{{ loop.index }}"
+                class="form-control form-control-lg {{ placeholder_color_class }}" placeholder="{{ row.notes }}"
+                onfocus="this.style.color='inherit';">
             </td>
           </tr>
           {% endfor %}
@@ -237,15 +294,14 @@
 
       <div class="p-3">
         <div style="position: fixed; bottom: 50px; right: 20px;">
-          <button type="submit" class="btn btn-success">Confirm</button>
+          <button type="submit" class="btn btn-success btn-lg">Confirm</button>
         </div>
       </div>
-
     </form>
   </div>
 
-  <div clas="p-3">
-    <div class="fixed-bottom">
+  <div class="p-3">
+    <div class="fixed-bottom text-center">
       © {{ year }} | Created by Vít Puskajler
     </div>
   </div>
