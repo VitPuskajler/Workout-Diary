@@ -32,6 +32,12 @@
               <h2 class="card-title text-center">Register</h2>
               <form method="POST" action="{{ url_for('register') }}">
                 {{ form.hidden_tag() }}
+                
+                <div class="form-floating mb-3">
+                  {{ form.email(class_='form-control', placeholder='Email') }}
+                <label for="floatingInput">Email</label>
+                </div>
+
                 <div class="form-floating mb-3">
                   {{ form.username(class_='form-control', placeholder='Username') }}
                 <label for="floatingInput">Username</label>
