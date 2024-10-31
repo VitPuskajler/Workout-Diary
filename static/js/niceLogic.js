@@ -1,3 +1,5 @@
+"use strict";
+
 const aboutBg = document.querySelector('.p-4.mb-3.bg-body-tertiary.rounded');
 const superInfoOne = document.querySelector(".d-flex.flex-column.flex-lg-row.gap-3.align-items-start.align-items-lg-center.py-3.link-body-emphasis.text-decoration-none.border-top");
 const superInfoTwo = document.querySelector(".d-flex.flex-column.flex-lg-row.gap-3.align-items-start.align-items-lg-center.py-3.link-body-emphasis.text-decoration-none.border-top.b");
@@ -36,3 +38,4 @@ superInfoThree.addEventListener("mousemove", e => {
 superInfoThree.addEventListener("mouseleave", () => {
     superInfoThree.classList.remove("newInformations");
 });
+

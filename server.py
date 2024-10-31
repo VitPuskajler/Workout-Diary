@@ -2,11 +2,41 @@ import re
 import os
 from datetime import datetime
 
-from flask import Flask, flash, jsonify, redirect, render_template, request,session, url_for
-from flask_login import LoginManager, UserMixin, current_user, login_required, login_user, logout_user
+from flask import (
+    Flask,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+from flask_login import (
+    LoginManager,
+    UserMixin,
+    current_user,
+    login_required,
+    login_user,
+    logout_user,
+)
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
-from sqlalchemy import Column, Float, Integer, MetaData, String, DateTime, func, create_engine, inspect, text
+from sqlalchemy import (
+    Column,
+    Float,
+    Integer,
+    MetaData,
+    String,
+    DateTime,
+    Boolean,
+    func,
+    create_engine,
+    inspect,
+    text,
+    select,
+    desc,
+)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -18,6 +48,8 @@ DATE = NOW.strftime("%d%m%Y")
 YEAR = NOW.strftime("%Y")
 
 app = Flask(__name__, instance_relative_config=True)
+
+
 app.secret_key = "thiskeyshouldntbeherebutfornowitisok.1084"
 
 # Login manager setup
@@ -30,10 +62,13 @@ login_manager.login_view = "login"
 class Base(DeclarativeBase):
     pass
 
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(basedir, "instance/workout.db")}"
-#app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///workout.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    f"sqlite:///{os.path.join(basedir, "instance/workout.db")}"
+)
+# app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///workout.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Create engine so I can work with dynamic tables
@@ -43,6 +78,7 @@ metadata = MetaData()
 db = SQLAlchemy(model_class=Base)
 
 db.init_app(app)
+
 
 # 1. Users Table
 class Users(UserMixin, db.Model):
@@ -57,7 +93,7 @@ class Users(UserMixin, db.Model):
 
     def __repr__(self):
         return f"<User {self.username}>"
-    
+
     def get_id(self):
         return str(self.user_id)
 
@@ -67,6 +103,7 @@ class Users(UserMixin, db.Model):
         self.age = age
         self.weight = weight
         self.email = email
+
 
 # 2. Exercises Table
 class Exercise(UserMixin, db.Model):
@@ -79,20 +116,24 @@ class Exercise(UserMixin, db.Model):
         self.exercise_name = exercise
         self.muscle_group = muscle_group
 
+
 # 3. Workouts Table
 class WorkoutPlan(UserMixin, db.Model):
     __tablename__ = "workouts"
     workout_id = Column(Integer, primary_key=True)
     user_id = Column(Integer, db.ForeignKey("users.user_id"))
     workout_name = Column(String(100), unique=False, nullable=True)
-    created_at = Column(DateTime, default=func.now()) # current time / date
-    description = Column(String(100), unique=True, nullable=False)
+    created_at = Column(DateTime, default=func.now())  # current time / date
 
-    def __init__(self, user_id, workout_name, description):
+    def __init__(
+        self,
+        user_id,
+        workout_name,
+    ):
         self.user_id = user_id
         self.workout_name = workout_name
-        self.description = description
         # created_at is not here because SQLAlchemy will take care of it
+
 
 # 4. WorkoutExercises Table
 class WorkoutExercises(UserMixin, db.Model):
@@ -100,33 +141,42 @@ class WorkoutExercises(UserMixin, db.Model):
     workout_exercise_id = Column(Integer, primary_key=True)
     workout_id = Column(Integer, db.ForeignKey("workouts.workout_id"))
     exercise_id = Column(Integer, db.ForeignKey("exercises.exercise_id"))
-    order_in_workout = Column(Integer, unique=True, nullable=False)
+    order_in_workout = Column(Integer, unique=False, nullable=False)
     prescribed_sets = Column(Integer, unique=False, nullable=False)
-    prescribed_reps = Column(Integer, unique=False, nullable=True)
     rest_period = Column(Integer, unique=False, nullable=False)
+    # deleted = Column(Boolean, nullable=False, default=False)
 
-    def __init__(self, workout_id, exercise_id, order_in_workout, prescribed_sets, prescribed_reps, rest_period):
+    def __init__(
+        self,
+        workout_id,
+        exercise_id,
+        order_in_workout,
+        prescribed_sets,
+        rest_period,
+    ):
         self.workout_id = workout_id
         self.exercise_id = exercise_id
         self.order_in_workout = order_in_workout
         self.prescribed_sets = prescribed_sets
-        self.prescribed_reps = prescribed_reps
         self.rest_period = rest_period
+        # self.deleted = deleted
+
 
 # 5. Sessions Table
 # High-level information about each workout session, such as the date, user, and overall notes
 class Sessions(UserMixin, db.Model):
-    __tablename__ = 'sessions'
+    __tablename__ = "sessions"
     session_id = Column(Integer, primary_key=True)
     user_id = Column(Integer, db.ForeignKey("users.user_id"))
     workout_id = Column(Integer, db.ForeignKey("workouts.workout_id"))
     session_date = Column(DateTime, default=func.now())
-    notes = Column(String(150),unique=False, nullable=True)
+    notes = Column(String(150), unique=False, nullable=True)
 
     def __init__(self, user_id, workout_id, notes):
         self.user_id = user_id
         self.workout_id = workout_id
         self.notes = notes
+
 
 # 6. ExerciseEntries Table
 class ExerciseEntries(UserMixin, db.Model):
@@ -140,28 +190,32 @@ class ExerciseEntries(UserMixin, db.Model):
     rpe = Column(Float, unique=False, nullable=True)
     notes = Column(String(150), unique=False, nullable=True)
 
+
 # 7. Mesocycles Table
 class Mesocycles(UserMixin, db.Model):
     __tablename__ = "mesocycles"
     mesocycle_id = Column(Integer, primary_key=True)
     user_id = Column(Integer, db.ForeignKey("users.user_id"))
-    username = Column(String(100), unique=True, nullable=False)
     name = Column(String(100), unique=False, nullable=False)
     mesocycle_duration_weeks = Column(Integer, unique=False, nullable=False)
+    workouts_per_week = Column(Integer, unique=False, nullable=False)
 
-    def __init__(self, user_id, name, mesocycle_duration_weeks):
+    def __init__(self, user_id, mesocycle_duration_weeks, workouts_per_week, name):
         self.user_id = user_id
         self.name = name
         self.mesocycle_duration_weeks = mesocycle_duration_weeks
+        self.workouts_per_week = workouts_per_week
+
 
 # 8. SessionMesocycles Table
 # Links sessions to mesocycles, allowing tracking of training days within a mesocycle
 class SessionMesocycles(UserMixin, db.Model):
     __tablename__ = "session_mesocycles"
     session_id = Column(Integer, db.ForeignKey("sessions.session_id"), primary_key=True)
-    mesocycle_id = Column(Integer, db.ForeignKey("mesocycles.mesocycle_id"), primary_key=True)
+    mesocycle_id = Column(
+        Integer, db.ForeignKey("mesocycles.mesocycle_id"), primary_key=True
+    )
     training_day_number = Column(Integer, unique=False, nullable=False)
-
 
     def __init__(self, session_id, mesocycle_id, training_day_number):
         self.session_id = session_id
@@ -170,8 +224,9 @@ class SessionMesocycles(UserMixin, db.Model):
 
 
 @login_manager.user_loader
-def load_users(user_id):
-    return Users.query.get(int(user_id))
+def load_user(user_id):
+    stmt = select(Users).where(Users.user_id == int(user_id))
+    return db.session.execute(stmt).scalar_one_or_none()
 
 
 class RegistrationForm(FlaskForm):
@@ -207,7 +262,7 @@ def register():
             username=form.username.data,
             password=hashed_password,
             age=form.age.data,
-            email = form.email.data,
+            email=form.email.data,
             weight=form.weight.data,
         )
         db.session.add(new_users)
@@ -255,8 +310,6 @@ def index_page():
 
 
 # Workout Plan ---------------------------------------------------------
-
-
 @app.route("/workout_plan")
 @login_required
 def workout_plan():
@@ -271,9 +324,9 @@ def workout_plan_page():
     inspect_db_names = inspect(db.engine)
     tables = inspect_db_names.get_table_names()
     any_string_contains_word = [
-    item
-    for item in tables
-    if f"{current_user.username}_M{selected_mesocycle}" in item
+        item
+        for item in tables
+        if f"{current_user.username}_M{selected_mesocycle}" in item
     ]
     amount_of_tables_curr_meso = len(any_string_contains_word)
 
@@ -332,107 +385,454 @@ def workout_plan_page():
 @login_required
 def table_layout():
     if current_user.is_authenticated:
-        users_mesocycles = text(
-            f"""
-            SELECT mesocycles FROM users
-            WHERE username = '{current_user.username}'
-            """
-        )
-        connection = db.session.connection()
-        total_meso = connection.execute(users_mesocycles).fetchone
-        try:
-            if total_meso[0] is None:
-                users_mesocycles = 0
-        except TypeError:
-            users_mesocycles = 1
+        # Retrieve the user record once
+        user = Users.query.filter_by(username=current_user.username).first()
+        if user:
+            # If 'mesocycles' is None, set it to 0 for easier work in the future
+            if user.mesocycles is None:
+                # I deactivated this for testing purposes
+                """user.mesocycles = 0
+                db.session.commit()"""
 
-    if request.method == "POST":
-        exrs = request.form.get("xcrs")
-        planned_exrs = request.form.get("weekly")
-        mesocycle = request.form.get("mesocycle")
-        deload = request.form.get("deload")
-        date = "0"
+            username = current_user.username
 
-        # Set value of mesocycles to 0 for easier work in future
-        users = Users.query.filter_by(username=current_user.username).first()
-        if users and (users.mesocycles is None):
-            users.mesocycles = 0
-            db.session.commit()
+            if request.method == "POST":
+                meso_name = request.form.get("meso_name")
+                meso_duration = request.form.get("mesocycle")
+                workouts_per_week = request.form.get("per_week")
 
-        try:
-            per_week = int(request.form.get("weekly", 0))
-            if per_week <= 0:
-                raise ValueError("Weekly value must be greater than zero.")
-        except (TypeError, ValueError) as e:
-            return "Invalid input for 'weekly': " + str(e), 400
+                # Save to DB
+                user_from_db = Users.query.filter_by(
+                    username=current_user.username
+                ).first()
+                user_id = user_from_db.user_id
+                mesocycles_db = Mesocycles(
+                    name=meso_name,
+                    user_id=user_id,
+                    mesocycle_duration_weeks=meso_duration,
+                    workouts_per_week=workouts_per_week,
+                )
 
-        num_rows = int(request.form["xcrs"])
-        num_cols = 3
+                # Create rows in WorkoutPlan / workouts based on workout_per_week ... Workout name default to number of weeks
+                # INSERT INTO workouts (user_id, workout_name) VALUES (CurrentUser.username, meso_name)
+                for i in range(int(workouts_per_week)):
+                    user = Users.query.filter_by(username=current_user.username).first()
+                    user_id_db = user.user_id
+                    table = WorkoutPlan(
+                        workout_name=i,
+                        user_id=user_id_db,
+                    )
 
-        table_data = []
-        for i in range(num_rows):
-            row_data = []
-            starter = 0
-            for j in range(num_cols):
-                cell_value = ""  # <- This can be adjusted as needed
-                row_data.append(cell_value)
-            table_data.append(row_data)
+                    db.session.add(table)
 
-        session["table_data"] = table_data
-        session["weekly"] = per_week
-        session["starter"] = starter
-        session["excercise"] = exrs
+                db.session.add(mesocycles_db)
+                db.session.commit()
 
-        username = current_user.username
-
-        # Handle current users's mesocycles passing to jinja2
-        print(users.mesocycles)
-
-        # Before we let our users create new table we need to restrict his access to DB so no SQL injections are possible
-        if not re.match(r"^\w+$", username):
-            return jsonify({"error": "Invalid username"})
+            # Before we let our users create new table we need to restrict his access to DB so no SQL injections are possible
+            if not re.match(r"^\w+$", username):
+                return jsonify({"error": "Invalid username"})
 
         return redirect("create_workout")
-    return render_template("table_layout.html", users_meso=users_mesocycles, year=YEAR)
+    return render_template("table_layout.html", year=YEAR)
 
 
 # Here is created mesocycle workout
 @app.route("/create_workout", methods=["GET", "POST"])
 @login_required
 def create_workout():
-    table_data = session.get("table_data", [])
-    weekly = session.get("weekly", 0)
-    starter = session.get("starter", 0)
-    current_table = session.get("current_user_table")
-    exercises_per_session = session.get("excercise")
+    # Overwrite function
+    def overwrite_exercise(submitted_data):
+        count, count_sets, count_pauses = -1, -1, -1
 
-    if request.method == "POST":
-        submitted_data = {}
+        for day in range(weekly):
+            user_exe = submitted_data.get(f"workout_name_{day}", "")
 
-        for key, value in request.form.items():
-            if key.startswith("table_"):
+            for i, x in enumerate(submitted_data):
+                # Catch exercise renaming
+                if x.startswith(f"exercise_{day}"):
+                    count += 1
+
+                    exe_name = submitted_data[x]
+                    # print(f"day {day}: {exe_name}")
+
+                    exercise_id_query = (
+                        db.session.query(Exercise.exercise_id)
+                        .filter_by(exercise_name=exe_name)
+                        .first()
+                    )
+                    if exercise_id_query:
+                        current_exercise_id = exercise_id_query.exercise_id
+
+                        current_workout_exercise_id = (
+                            db.session.query(WorkoutExercises.workout_exercise_id)
+                            .filter_by(
+                                workout_id=workouts_id[day],
+                                exercise_id=current_exercise_id,
+                            )
+                            .first()
+                        )
+
+                        if not current_workout_exercise_id:
+                            previous_exercise = jinja_exercises[day][count]["exercise"][
+                                0
+                            ]
+                            previous_exercise_id_query = (
+                                db.session.query(Exercise.exercise_id)
+                                .filter_by(exercise_name=previous_exercise)
+                                .first()
+                            )
+
+                            update_databse_exercise = (
+                                db.session.query(WorkoutExercises)
+                                .filter_by(
+                                    workout_id=workouts_id[day],
+                                    exercise_id=previous_exercise_id_query.exercise_id,
+                                )
+                                .update({"exercise_id": exercise_id_query.exercise_id})
+                            )
+                # Catch change in sets
+                if x.startswith(f"sets_{day}"):
+                    count_sets += 1
+                    exe_sets = submitted_data[x]
+
+                    if exercise_id_query:
+                        current_workout_exercise_sets = (
+                            db.session.query(WorkoutExercises.prescribed_sets)
+                            .filter_by(
+                                workout_id=workouts_id[day],
+                                exercise_id=current_exercise_id,
+                            )
+                            .first()
+                        )
+
+                        if current_workout_exercise_sets:
+                            update_databse_sets = (
+                                db.session.query(WorkoutExercises)
+                                .filter_by(
+                                    workout_id=workouts_id[day],
+                                    exercise_id=current_exercise_id,
+                                )
+                                .update({"prescribed_sets": exe_sets})
+                            )
+
+                # Catch change in pauses
+                if x.startswith(f"pauses_{day}"):
+                    count_pauses += 1
+                    exe_pauses = submitted_data[x]
+                    print(f"day {day}: name: {exe_name} sets:{exe_pauses}")
+
+                    if exercise_id_query:
+                        current_workout_exercise_pauses = (
+                            db.session.query(WorkoutExercises.rest_period)
+                            .filter_by(
+                                workout_id=workouts_id[day],
+                                exercise_id=current_exercise_id,
+                            )
+                            .first()
+                        )
+
+                        if current_workout_exercise_pauses:
+                            update_databse_sets = (
+                                db.session.query(WorkoutExercises)
+                                .filter_by(
+                                    workout_id=workouts_id[day],
+                                    exercise_id=current_exercise_id,
+                                )
+                                .update({"rest_period": exe_pauses})
+                            )
+
+            db.session.commit()
+
+    # Delete function
+    def delete_exercise(submitted_data):
+        for day in range(weekly):
+            delete_keys = [
+                key for key in submitted_data.keys() if key.startswith(f"remove_{day}_")
+            ]
+
+            for key in delete_keys:
                 parts = key.split("_")
-                table_index = int(parts[1])
-                row_index = int(parts[3])
-                col_index = int(parts[5])
 
-                if table_index not in submitted_data:
-                    submitted_data[table_index] = {}
-                if row_index not in submitted_data[table_index]:
-                    submitted_data[table_index][row_index] = {}
+                if len(parts) == 3:
+                    _, day_str, idx_str = parts
+                    idx = int(idx_str)
+                    delete_value = submitted_data.get(key)
 
-                submitted_data[table_index][row_index][col_index] = value
+                    exercise = submitted_data.get(f"exercise_{day}_{idx}")
 
-        # Create as many tables as I have sessions per week
+                    specific_exercise_id = (
+                        db.session.query(Exercise.exercise_id)
+                        .filter_by(exercise_name=exercise)
+                        .first()
+                    )
 
+                    if specific_exercise_id:
+                        workout_id_found = (
+                            db.session.query(WorkoutExercises.workout_exercise_id)
+                            .filter_by(
+                                workout_id=workouts_id[day],
+                                exercise_id=specific_exercise_id[0],
+                            )
+                            .first()
+                        )
+                        # Remove the exercise
+                        # DELTE FROM WorkoutExercises
+                        # WHERE workout_exercise_id = workout_id_found.workout_exercise_id
 
-@app.route("/training_session_redirect", methods=["GET"])
-def training_session_redirect():
-    return redirect(url_for("training_session"))
+                        remove_exe_from_db = (
+                            db.session.query(WorkoutExercises)
+                            .filter(
+                                WorkoutExercises.workout_exercise_id
+                                == workout_id_found.workout_exercise_id
+                            )
+                            .delete(synchronize_session=False)
+                        )
+                        db.session.commit()
+
+                else:
+                    print(f"Unexpected key format: {key}")
+
+    # Append exercises to jinja_exercises nested dict - use in jinja to display added exercises
+    def exercises_for_jinja(jinja_exercises, weekly, workouts_id):
+        appendable_dict = {"exercise": None, "sets": None, "pauses": None}
+        for x in range(weekly):
+            # Access exercises for specific exercises
+            exercise_details = (
+                db.session.query(
+                    WorkoutExercises.exercise_id,
+                    WorkoutExercises.prescribed_sets,
+                    WorkoutExercises.rest_period,
+                )
+                .filter_by(workout_id=workouts_id[x])
+                .all()
+            )
+
+            if exercise_details:
+                for exes in exercise_details:
+                    # We are at 1. exercise (360, 2, 120)
+                    # Translate exe_id into Exe name
+
+                    specific_exercise_name = (
+                        db.session.query(Exercise.exercise_name)
+                        .filter_by(exercise_id=exes[0])
+                        .first()
+                    )
+
+                    appendable_dict = {
+                        "exercise": specific_exercise_name,
+                        "sets": exes[1],
+                        "pauses": exes[2],
+                    }
+                    # Append this to jinja_exercises
+                    jinja_exercises[x].append(appendable_dict)
+
+    # Default order in list
+    # Default disct for exercises: jinja_exercises
+    def default_order(weekly):
+        jinja_exercises = {}
+        default_order = []
+
+        for x in range(weekly):
+            default_order.append(1)
+            jinja_exercises[x] = []
+
+        return default_order, jinja_exercises
+
+    # Add exercise to database --- add weekly to arguments
+    def add_exercise(submitted_data, order, weekly, jinja_exercises):
+        user = Users.query.filter_by(username=current_user.username).first()
+        user_id_db = user.user_id
+        new_exercise_order = 0
+        exercise_count = 0
+
+        # Function to make exercise dict: if no set /values are provided then set default values
+        def user_input_or_defualt():
+            prescribed_sets_user = submitted_data.get(f"new_sets_{day}", None)
+            rest_period_user = submitted_data.get(f"new_pauses_{day}", None)
+
+            rest_period = rest_period_user if rest_period_user else 120
+            prescribed_sets = prescribed_sets_user if prescribed_sets_user else 2
+
+            return rest_period, prescribed_sets
+
+        for day in range(weekly):
+            user_exe = submitted_data.get(f"new_exercise_{day}", "")
+
+            # Find exercise_id for exercise user have inputed
+            exe_id = (
+                db.session.query(Exercise).filter_by(exercise_name=user_exe).first()
+            )
+
+            if exe_id:
+                # Give me last exercise_id from workout_exercises
+                exe_in_db = (
+                    db.session.query(WorkoutExercises.exercise_id)
+                    .filter_by(workout_id=workouts_id[day])
+                    .order_by(WorkoutExercises.workout_exercise_id.desc())
+                    .all()
+                )
+
+                exercise_ids = [exercise_id[0] for exercise_id in exe_in_db]
+
+                if exe_id.exercise_id in exercise_ids:
+                    # In this case don't save exercise to db -> maybe give user some info
+                    print("I have this exercise in db. Nothing is going to happen.")
+
+                else:
+                    print("This exercise is not in db yet. I am saving it now.")
+                    exercise_count = (
+                        db.session.query(WorkoutExercises)
+                        .filter_by(workout_id=workouts_id[day])
+                        .count()
+                    )
+                    rest, sets = user_input_or_defualt()
+                    if exercise_count >= 1:
+
+                        print(f"total exercises in this workout: {exercise_count + 1}")
+                        # Add new exercise to database
+                        new_exercise_order = exercise_count + 1
+                        new_exercise_entry = {
+                            "order_in_workout": new_exercise_order,  # Match with the unique input name
+                            "exercise_id": exe_id.exercise_id,  # Match with the unique input name
+                            "prescribed_sets": sets,
+                            "rest_period": rest,
+                            "workout_id": workouts_id[day],
+                        }
+
+                        new_exercise = WorkoutExercises(**new_exercise_entry)
+                        db.session.add(new_exercise)
+                        db.session.commit()
+
+                    elif exercise_count == 0:
+                        new_exercise_order = exercise_count + 1
+                        new_exercise_entry = {
+                            "order_in_workout": new_exercise_order,  # Match with the unique input name
+                            "exercise_id": exe_id.exercise_id,  # Match with the unique input name
+                            "prescribed_sets": int(sets),
+                            "rest_period": int(rest),
+                            "workout_id": workouts_id[day],
+                        }
+
+                        new_exercise = WorkoutExercises(**new_exercise_entry)
+                        db.session.add(new_exercise)
+                        db.session.commit()
+
+                        print("No exercise")
+
+        return order
+
+    def find_users_weeks():
+        user = Users.query.filter_by(username=current_user.username).first()
+        user_id_db = user.user_id
+        # Retrieve last mesocycle's data from my table
+        per_week_db = (
+            db.session.query(Mesocycles.workouts_per_week)
+            .filter(Mesocycles.user_id == user_id_db)
+            .order_by(Mesocycles.mesocycle_id.desc())
+            .first()
+        )
+
+        last_workouts = (
+            WorkoutPlan.query.filter_by(user_id=user_id_db)
+            .order_by(desc(WorkoutPlan.created_at))
+            .limit(per_week_db[0])
+            .all()
+        )
+
+        try:
+            last_workouts_id = (
+                db.session.query(WorkoutPlan.workout_id)
+                .filter(WorkoutPlan.user_id == user_id_db)
+                .order_by(WorkoutPlan.created_at.desc())
+                .limit(per_week_db[0])
+                .all()
+            )
+
+            workouts_id = [x[0] for x in last_workouts_id] if last_workouts_id else []
+        except Exception as e:
+            print(f"Probably no workout created yet {e}")
+            workouts_id = None
+
+        workout_names_in_db = [workout.workout_name for workout in last_workouts]
+
+        return per_week_db[0], workout_names_in_db, workouts_id
+
+    # Create workout name / tag - user can change workout name in database
+    def find_workout_name_from_user(submitted_data, weekly) -> None:
+        # Save to DB - WorkoutPlan
+        user = Users.query.filter_by(username=current_user.username).first()
+        user_id_db = user.user_id
+
+        for day in range(weekly):
+            workout_name = request.form.get(f"workout_name_{day}", None)
+
+            if workout_name != "":
+                workout_names[day] = workout_name
+                # Save / rename workout in database
+                # Find the corresponding workout by user_id and some identifier like day or created_at
+                workout = (
+                    WorkoutPlan.query.filter_by(user_id=user_id_db)
+                    .order_by(WorkoutPlan.created_at.desc())
+                    .offset(day)
+                    .first()
+                )
+                if workout:
+                    workout.workout_name = workout_name  # Update workout name
+                    db.session.add(workout)
+
+            db.session.commit()
+        return workout_names
+
+    weekly, workout_names, workouts_id = find_users_weeks()
+
+    # Default order
+    order, jinja_exercises = default_order(weekly)
+
+    exercises_for_jinja(jinja_exercises, weekly, workouts_id)
+
+    if request.method == "GET":
+        # Handle AJAX request for exercise search
+        search_term = request.args.get("query")
+
+        if search_term:  # This will be triggered by the AJAX call
+            exercises = Exercise.query.filter(
+                Exercise.exercise_name.ilike(f"%{search_term}%")
+            ).all()
+            exercise_names = [exercise.exercise_name for exercise in exercises]
+            return jsonify(exercise_names)  # Return JSON for AJAX request
+
+    elif request.method == "POST":
+        # Process form submission and save the workout data
+        submitted_data = request.form.to_dict()
+
+        # Name of workout is default set 1-x and user can change it
+        workout_names = find_workout_name_from_user(submitted_data, weekly)
+
+        # Save new exercise into database - return order number
+        exercises_dict = add_exercise(submitted_data, order, weekly, jinja_exercises)
+
+        # Call function to delete exercise from workout
+        delete_exercise(submitted_data)
+
+        # Call function to overwrite exercise
+        overwrite_exercise(submitted_data)
+
+        # Use the PRG pattern: Redirect to prevent resubmission
+        return redirect(url_for("create_workout"))
+
+    return render_template(
+        "create_workout.html",
+        week=weekly,
+        w_names=workout_names,
+        exe_order=order,
+        user_exe=jinja_exercises,
+    )
 
 
 # Training session ---------------------------------------------------------
-
+@app.route("/training_session_redirect", methods=["GET"])
+def training_session_redirect():
+    return redirect(url_for("training_session"))
 
 @app.route("/training_session", methods=["GET", "POST"])
 @login_required
