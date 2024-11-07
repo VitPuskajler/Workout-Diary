@@ -30,18 +30,26 @@ from sqlalchemy import (
     String,
     DateTime,
     Boolean,
+    and_,
     func,
     create_engine,
     inspect,
     text,
     select,
     desc,
+    
 )
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.security import check_password_hash, generate_password_hash
 from wtforms import FloatField, IntegerField, PasswordField, StringField, SubmitField
 from wtforms.validators import DataRequired, EqualTo, NumberRange
+
+from sqlalchemy import func
+
+#from workout_management import WorkoutManagement as wm
+
+#training_session_data = wm.find_users_weeks()
 
 NOW = datetime.now()
 DATE = NOW.strftime("%d%m%Y")
@@ -182,13 +190,22 @@ class Sessions(UserMixin, db.Model):
 class ExerciseEntries(UserMixin, db.Model):
     __tablename__ = "exercise_entries"
     entry_id = Column(Integer, primary_key=True)
-    session_id = Column(String(100), db.ForeignKey("sessions.session_id"))
+    session_id = Column(Integer, db.ForeignKey("sessions.session_id"))
     exercise_id = Column(Integer, db.ForeignKey("exercises.exercise_id"))
-    set_number = Column(Integer, unique=True, nullable=False)
+    set_number = Column(Integer, unique=False, nullable=False)
     reps = Column(Integer, unique=False, nullable=True)
     weight = Column(Float, unique=False, nullable=True)
     rpe = Column(Float, unique=False, nullable=True)
     notes = Column(String(150), unique=False, nullable=True)
+
+    def __init__(self, session_id, exercise_id, set_number, reps, weight, rpe, notes):
+        self.session_id = session_id
+        self.exercise_id = exercise_id
+        self.set_number = set_number
+        self.reps = reps
+        self.weight = weight
+        self.rpe = rpe
+        self.notes = notes
 
 
 # 7. Mesocycles Table
@@ -249,7 +266,346 @@ class LoginForm(FlaskForm):
 
 
 # --------------------------------------------------------------------------------------------------------------------------------------
+def current_user_id_db() -> str:
+    user = Users.query.filter_by(username=current_user.username).first()
+    return user.user_id
 
+def find_users_weeks():
+        user = Users.query.filter_by(username=current_user.username).first()
+        user_id_db = user.user_id
+        # Retrieve last mesocycle's data from my table
+        per_week_db = (
+            db.session.query(Mesocycles.workouts_per_week)
+            .filter(Mesocycles.user_id == user_id_db)
+            .order_by(Mesocycles.mesocycle_id.desc())
+            .first()
+        )
+
+        last_workouts = (
+            WorkoutPlan.query.filter_by(user_id=user_id_db)
+            .order_by(desc(WorkoutPlan.created_at))
+            .limit(per_week_db[0])
+            .all()
+        )
+
+        try:
+            last_workouts_id = (
+                db.session.query(WorkoutPlan.workout_id)
+                .filter(WorkoutPlan.user_id == user_id_db)
+                .order_by(WorkoutPlan.created_at.desc())
+                .limit(per_week_db[0])
+                .all()
+            )
+
+            workouts_id = [x[0] for x in last_workouts_id] if last_workouts_id else []
+        except Exception as e:
+            print(f"Probably no workout created yet {e}")
+            workouts_id = None
+
+        workout_names_in_db = [workout.workout_name for workout in last_workouts]
+
+        return per_week_db[0], workout_names_in_db, workouts_id
+
+
+# Append exercises to jinja_exercises nested dict - use in jinja to display added exercises
+def exercises_for_jinja(jinja_exercises, weekly, workouts_id):
+    appendable_dict = {"exercise": None, "sets": None, "pauses": None}
+    for x in range(weekly):
+        # Access exercises for specific exercises
+        exercise_details = (
+            db.session.query(
+                WorkoutExercises.exercise_id,
+                WorkoutExercises.prescribed_sets,
+                WorkoutExercises.rest_period,
+            )
+            .filter_by(workout_id=workouts_id[x])
+            .all()
+        )
+
+        if exercise_details:
+            for exes in exercise_details:
+                # We are at 1. exercise (360, 2, 120)
+                # Translate exe_id into Exe name
+
+                specific_exercise_name = (
+                    db.session.query(Exercise.exercise_name)
+                    .filter_by(exercise_id=exes[0])
+                    .first()
+                )
+
+                appendable_dict = {
+                    "exercise": specific_exercise_name,
+                    "sets": exes[1],
+                    "pauses": exes[2],
+                }
+                # Append this to jinja_exercises
+                jinja_exercises[x].append(appendable_dict)
+
+# Default order in list
+# Default disct for exercises: jinja_exercises
+def default_order(weekly):
+    jinja_exercises = {}
+    default_order = []
+
+    for x in range(weekly):
+        default_order.append(1)
+        jinja_exercises[x] = []
+
+    return default_order, jinja_exercises
+
+# Overwrite exercises, sets or rest period
+def overwrite_exercise(submitted_data, weekly, workouts_id, jinja_exercises):
+    count, count_sets, count_pauses = -1, -1, -1
+
+    for day in range(weekly):
+        user_exe = submitted_data.get(f"workout_name_{day}", "")
+
+        for i, x in enumerate(submitted_data):
+            # Catch exercise renaming
+            if x.startswith(f"exercise_{day}"):
+                count += 1
+
+                exe_name = submitted_data[x]
+                # print(f"day {day}: {exe_name}")
+
+                exercise_id_query = (
+                    db.session.query(Exercise.exercise_id)
+                    .filter_by(exercise_name=exe_name)
+                    .first()
+                )
+
+                if exercise_id_query:
+                    current_exercise_id = exercise_id_query[0]
+                    
+                    current_workout_exercise_id = (
+                        db.session.query(WorkoutExercises.workout_exercise_id)
+                        .filter_by(
+                            workout_id=workouts_id[day],
+                            exercise_id=current_exercise_id,
+                        )
+                        .first()
+                    )
+
+                    if not current_workout_exercise_id:
+                        try:
+                            previous_exercise = jinja_exercises[day][count]["exercise"][0]
+                            previous_exercise_id_query = (
+                                db.session.query(Exercise.exercise_id)
+                                .filter_by(exercise_name=previous_exercise)
+                                .first()
+                            )
+
+                            update_databse_exercise = (
+                                db.session.query(WorkoutExercises)
+                                .filter_by(
+                                    workout_id=workouts_id[day],
+                                    exercise_id=previous_exercise_id_query.exercise_id,
+                                )
+                                .update({"exercise_id": exercise_id_query.exercise_id})
+                            )
+                        except IndexError as ie:
+                            print(f"you are out of range {ie}")
+
+            # Catch change in sets
+            if x.startswith(f"sets_{day}"):
+                count_sets += 1
+                exe_sets = submitted_data[x]
+
+                if exercise_id_query:
+                    current_workout_exercise_sets = (
+                        db.session.query(WorkoutExercises.prescribed_sets)
+                        .filter_by(
+                            workout_id=workouts_id[day],
+                            exercise_id=current_exercise_id,
+                        )
+                        .first()
+                    )
+
+                    if current_workout_exercise_sets:
+                        update_databse_sets = (
+                            db.session.query(WorkoutExercises)
+                            .filter_by(
+                                workout_id=workouts_id[day],
+                                exercise_id=current_exercise_id,
+                            )
+                            .update({"prescribed_sets": exe_sets})
+                        )
+
+            # Catch change in pauses
+            if x.startswith(f"pauses_{day}"):
+                count_pauses += 1
+                exe_pauses = submitted_data[x]
+                print(f"day {day}: name: {exe_name} sets:{exe_pauses}")
+
+                if exercise_id_query:
+                    current_workout_exercise_pauses = (
+                        db.session.query(WorkoutExercises.rest_period)
+                        .filter_by(
+                            workout_id=workouts_id[day],
+                            exercise_id=current_exercise_id,
+                        )
+                        .first()
+                    )
+
+                    if current_workout_exercise_pauses:
+                        update_databse_sets = (
+                            db.session.query(WorkoutExercises)
+                            .filter_by(
+                                workout_id=workouts_id[day],
+                                exercise_id=current_exercise_id,
+                            )
+                            .update({"rest_period": exe_pauses})
+                        )
+
+        db.session.commit()
+
+# For tryining sessions mainly ---------------------------------------
+def add_session_to_db(chosen_day_by_user, workouts_id):
+    # After user hits "add set" set session 
+    # if session_date != today create new
+    user = Users.query.filter_by(username=current_user.username).first()
+    user_id_db = user.user_id
+
+    does_session_exist = db.session.query(Sessions.session_date, Sessions.session_id).filter(
+        and_(
+            Sessions.workout_id == chosen_day_by_user,
+            Sessions.user_id == user_id_db,
+            func.DATE(Sessions.session_date) == func.DATE(NOW)
+        )
+    ).first()
+
+    if does_session_exist:
+        print_string = ("Sorry, there is already workout session for today")
+    else:        
+        workout_id_hopefully = workouts_id[chosen_day_by_user]
+
+        # There is no session today, create a new one
+        check_session_existance = db.session.query(Sessions.session_id).filter(
+            Sessions.user_id == user_id_db,
+            Sessions.workout_id == workout_id_hopefully,
+            func.DATE(Sessions.session_date) == func.DATE(NOW)
+        ).first()
+
+        if not check_session_existance:
+            new_session_query = Sessions(user_id=user_id_db, workout_id=workout_id_hopefully, notes="Null")
+            db.session.add(new_session_query)
+
+
+            # Also add data to session_mesocycles
+            training_day_number_query = db.session.query(Sessions).filter(
+                Sessions.user_id == user_id_db,
+                Sessions.workout_id == chosen_day_by_user,
+            ).count()
+
+            mesocycle_id_query = db.session.query(Mesocycles.mesocycle_id).filter(
+                Mesocycles.user_id ==user_id_db,
+            ).order_by(desc(Mesocycles.mesocycle_id)).first()
+
+            session_id_query = db.session.query(Sessions.session_id).filter(
+                Sessions.user_id == user_id_db,
+                Sessions.workout_id == workout_id_hopefully,
+                
+            )
+
+            session_id_result = session_id_query[0] if session_id_query else None
+
+            # Access result like this: session_id_query[0][0]
+            if does_session_exist:
+                pass
+            else:
+                try:
+                    if session_id_result is not None:
+                        new_session_mesocycles_query = SessionMesocycles(
+                        session_id=session_id_result[0],
+                        mesocycle_id=mesocycle_id_query[0], 
+                        training_day_number=training_day_number_query)
+
+                        db.session.add(new_session_mesocycles_query)
+                        db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    return redirect(url_for("training_session"))
+
+    # Find if there are relevant exercise's sets - return for jinja
+    last_session_query = db.session.query(Sessions.session_id).filter(
+        Sessions.user_id == user_id_db,
+        func.DATE(Sessions.session_date) == func.DATE(NOW),
+        Sessions.workout_id ==workout_id_hopefully
+    ).order_by(desc(Sessions.session_date)).first()
+
+    if last_session_query:
+        sets_for_jinja = db.session.query(ExerciseEntries).filter(
+            ExerciseEntries.session_id == last_session_query[0]
+        ).all()
+
+        return sets_for_jinja
+        
+
+def find_exercise_id_db(exercise):
+    find_exercise_query = db.session.query(Exercise.exercise_id).filter(
+        Exercise.exercise_name == exercise
+    ).first()
+
+    if find_exercise_query:
+        return find_exercise_query
+
+def add_set_to_db(submitted_data, exercise, sets_for_jinja, chosen_day, workout_names) -> dict:
+    user = Users.query.filter_by(username=current_user.username).first()
+    user_id_db = user.user_id
+
+    if exercise is not None:
+        workout_id_from_db = (
+                            db.session.query(WorkoutPlan.workout_id)
+                            .filter(
+                                WorkoutPlan.user_id==user_id_db,
+                                WorkoutPlan.workout_name==chosen_day
+                            )
+                            .order_by(desc(WorkoutPlan.created_at)).first()
+                        )
+        
+        # Add set to database - exercise_entries
+        # SELECT session_id FROM Sessions WHERE workout_id = my_workout_id ORDER BY session_id DESC
+        if workout_id_from_db[0] is not None:
+            session_id_form_db = db.session.query(Sessions.session_id).filter(
+                Sessions.workout_id == workout_id_from_db[0]
+            ).first()
+            
+            exe_id = find_exercise_id_db(exercise)          
+            
+            try:
+                # Find total sets in ExerciseEntries
+                sets_yet = db.session.query(ExerciseEntries.set_number).filter(
+                    ExerciseEntries.session_id == session_id_form_db[0],
+                    ExerciseEntries.exercise_id == exe_id[0]
+                ).count()
+            except TypeError:
+                print("Bro, there is no session yet, but I will set 0 for you")
+                sets_yet = 0
+
+            sets_yet += 1
+
+            # Save exdrcise entry into database
+            try:
+                exercise_entry_add = ExerciseEntries(
+                            session_id=session_id_form_db[0], 
+                            exercise_id=exe_id[0], 
+                            set_number=sets_yet, 
+                            reps=int(submitted_data.get("reps", 0)), 
+                            weight=float(submitted_data.get("kg", 0.0)), 
+                            rpe=int(submitted_data.get("rpe", 0)),
+                            notes=submitted_data.get("notes", "")
+                        )
+                db.session.add(exercise_entry_add)
+                db.session.commit()
+            except Exception as e:
+                print(f"Exception line cca 573: {e}")
+
+# Sets for jinja
+def jinja_sets_function(sets_for_jinja):
+    print("Hi I am inside sets for jinja function :-)")        
+        
+
+# --------------------------------------------------------------------
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -440,109 +796,6 @@ def table_layout():
 @app.route("/create_workout", methods=["GET", "POST"])
 @login_required
 def create_workout():
-    # Overwrite function
-    def overwrite_exercise(submitted_data):
-        count, count_sets, count_pauses = -1, -1, -1
-
-        for day in range(weekly):
-            user_exe = submitted_data.get(f"workout_name_{day}", "")
-
-            for i, x in enumerate(submitted_data):
-                # Catch exercise renaming
-                if x.startswith(f"exercise_{day}"):
-                    count += 1
-
-                    exe_name = submitted_data[x]
-                    # print(f"day {day}: {exe_name}")
-
-                    exercise_id_query = (
-                        db.session.query(Exercise.exercise_id)
-                        .filter_by(exercise_name=exe_name)
-                        .first()
-                    )
-                    if exercise_id_query:
-                        current_exercise_id = exercise_id_query.exercise_id
-
-                        current_workout_exercise_id = (
-                            db.session.query(WorkoutExercises.workout_exercise_id)
-                            .filter_by(
-                                workout_id=workouts_id[day],
-                                exercise_id=current_exercise_id,
-                            )
-                            .first()
-                        )
-
-                        if not current_workout_exercise_id:
-                            previous_exercise = jinja_exercises[day][count]["exercise"][
-                                0
-                            ]
-                            previous_exercise_id_query = (
-                                db.session.query(Exercise.exercise_id)
-                                .filter_by(exercise_name=previous_exercise)
-                                .first()
-                            )
-
-                            update_databse_exercise = (
-                                db.session.query(WorkoutExercises)
-                                .filter_by(
-                                    workout_id=workouts_id[day],
-                                    exercise_id=previous_exercise_id_query.exercise_id,
-                                )
-                                .update({"exercise_id": exercise_id_query.exercise_id})
-                            )
-                # Catch change in sets
-                if x.startswith(f"sets_{day}"):
-                    count_sets += 1
-                    exe_sets = submitted_data[x]
-
-                    if exercise_id_query:
-                        current_workout_exercise_sets = (
-                            db.session.query(WorkoutExercises.prescribed_sets)
-                            .filter_by(
-                                workout_id=workouts_id[day],
-                                exercise_id=current_exercise_id,
-                            )
-                            .first()
-                        )
-
-                        if current_workout_exercise_sets:
-                            update_databse_sets = (
-                                db.session.query(WorkoutExercises)
-                                .filter_by(
-                                    workout_id=workouts_id[day],
-                                    exercise_id=current_exercise_id,
-                                )
-                                .update({"prescribed_sets": exe_sets})
-                            )
-
-                # Catch change in pauses
-                if x.startswith(f"pauses_{day}"):
-                    count_pauses += 1
-                    exe_pauses = submitted_data[x]
-                    print(f"day {day}: name: {exe_name} sets:{exe_pauses}")
-
-                    if exercise_id_query:
-                        current_workout_exercise_pauses = (
-                            db.session.query(WorkoutExercises.rest_period)
-                            .filter_by(
-                                workout_id=workouts_id[day],
-                                exercise_id=current_exercise_id,
-                            )
-                            .first()
-                        )
-
-                        if current_workout_exercise_pauses:
-                            update_databse_sets = (
-                                db.session.query(WorkoutExercises)
-                                .filter_by(
-                                    workout_id=workouts_id[day],
-                                    exercise_id=current_exercise_id,
-                                )
-                                .update({"rest_period": exe_pauses})
-                            )
-
-            db.session.commit()
-
     # Delete function
     def delete_exercise(submitted_data):
         for day in range(weekly):
@@ -592,51 +845,6 @@ def create_workout():
                 else:
                     print(f"Unexpected key format: {key}")
 
-    # Append exercises to jinja_exercises nested dict - use in jinja to display added exercises
-    def exercises_for_jinja(jinja_exercises, weekly, workouts_id):
-        appendable_dict = {"exercise": None, "sets": None, "pauses": None}
-        for x in range(weekly):
-            # Access exercises for specific exercises
-            exercise_details = (
-                db.session.query(
-                    WorkoutExercises.exercise_id,
-                    WorkoutExercises.prescribed_sets,
-                    WorkoutExercises.rest_period,
-                )
-                .filter_by(workout_id=workouts_id[x])
-                .all()
-            )
-
-            if exercise_details:
-                for exes in exercise_details:
-                    # We are at 1. exercise (360, 2, 120)
-                    # Translate exe_id into Exe name
-
-                    specific_exercise_name = (
-                        db.session.query(Exercise.exercise_name)
-                        .filter_by(exercise_id=exes[0])
-                        .first()
-                    )
-
-                    appendable_dict = {
-                        "exercise": specific_exercise_name,
-                        "sets": exes[1],
-                        "pauses": exes[2],
-                    }
-                    # Append this to jinja_exercises
-                    jinja_exercises[x].append(appendable_dict)
-
-    # Default order in list
-    # Default disct for exercises: jinja_exercises
-    def default_order(weekly):
-        jinja_exercises = {}
-        default_order = []
-
-        for x in range(weekly):
-            default_order.append(1)
-            jinja_exercises[x] = []
-
-        return default_order, jinja_exercises
 
     # Add exercise to database --- add weekly to arguments
     def add_exercise(submitted_data, order, weekly, jinja_exercises):
@@ -664,6 +872,7 @@ def create_workout():
             )
 
             if exe_id:
+                
                 # Give me last exercise_id from workout_exercises
                 exe_in_db = (
                     db.session.query(WorkoutExercises.exercise_id)
@@ -680,11 +889,13 @@ def create_workout():
 
                 else:
                     print("This exercise is not in db yet. I am saving it now.")
+
                     exercise_count = (
                         db.session.query(WorkoutExercises)
                         .filter_by(workout_id=workouts_id[day])
                         .count()
                     )
+
                     rest, sets = user_input_or_defualt()
                     if exercise_count >= 1:
 
@@ -720,42 +931,6 @@ def create_workout():
                         print("No exercise")
 
         return order
-
-    def find_users_weeks():
-        user = Users.query.filter_by(username=current_user.username).first()
-        user_id_db = user.user_id
-        # Retrieve last mesocycle's data from my table
-        per_week_db = (
-            db.session.query(Mesocycles.workouts_per_week)
-            .filter(Mesocycles.user_id == user_id_db)
-            .order_by(Mesocycles.mesocycle_id.desc())
-            .first()
-        )
-
-        last_workouts = (
-            WorkoutPlan.query.filter_by(user_id=user_id_db)
-            .order_by(desc(WorkoutPlan.created_at))
-            .limit(per_week_db[0])
-            .all()
-        )
-
-        try:
-            last_workouts_id = (
-                db.session.query(WorkoutPlan.workout_id)
-                .filter(WorkoutPlan.user_id == user_id_db)
-                .order_by(WorkoutPlan.created_at.desc())
-                .limit(per_week_db[0])
-                .all()
-            )
-
-            workouts_id = [x[0] for x in last_workouts_id] if last_workouts_id else []
-        except Exception as e:
-            print(f"Probably no workout created yet {e}")
-            workouts_id = None
-
-        workout_names_in_db = [workout.workout_name for workout in last_workouts]
-
-        return per_week_db[0], workout_names_in_db, workouts_id
 
     # Create workout name / tag - user can change workout name in database
     def find_workout_name_from_user(submitted_data, weekly) -> None:
@@ -815,7 +990,7 @@ def create_workout():
         delete_exercise(submitted_data)
 
         # Call function to overwrite exercise
-        overwrite_exercise(submitted_data)
+        overwrite_exercise(submitted_data, weekly, workouts_id, jinja_exercises)
 
         # Use the PRG pattern: Redirect to prevent resubmission
         return redirect(url_for("create_workout"))
@@ -837,261 +1012,76 @@ def training_session_redirect():
 @app.route("/training_session", methods=["GET", "POST"])
 @login_required
 def training_session():
-    # Get info from HTML submit and keep it after reload, or hitting submit button
-    if request.args.get("training_day") is not None:
-        choose_training_day = int(request.args.get("training_day"))
-        session["choose_training_day"] = choose_training_day
-    elif "choose_training_day" in session:
-        choose_training_day = session["choose_training_day"]
-    else:
-        choose_training_day = 0
+    sets_for_jinja = {}    
+    # Function to acces workout day / data from database
+    weekly, workout_names, workout_id = find_users_weeks()
+    order, jinja_exercises = default_order(weekly)
+    jinja_exe = exercises_for_jinja(jinja_exercises, weekly, workout_id)
 
-    # Title for table
-    table_title = 1
-    if choose_training_day is not None:
-        table_title += int(choose_training_day)
-    else:
-        table_title = 1
+    workouts_id_name = {}
+    # Make dick like this: 1: "Upper Body"
+    for i in range(weekly):
+        workouts_id_name[i] = workout_names[i]  
 
-    # Logic for training sessions---------------------------------------------------------------------------
+    chosen_day = session.get("chosen_day")
+    chosen_exercise = session.get("chosen_exercise")
 
-    # Access current users's mesocycles - if none is picked by users - show workout day one
-    users = Users.query.filter_by(username=current_user.username).first()
-    last_masocycle = users.mesocycles
+    # Create list of exercises -> for jinja purposes
+    workout_key = next((k for k, v in workouts_id_name.items() if v == chosen_day), 0)
+ 
+    exercises_from_user: dict = jinja_exercises[workout_key]
+    exercises_in_workout: list = [x["exercise"][0] for x in exercises_from_user] 
 
-    # SQL query to fetch the latest entry for each exercise in the original order
-    sql_query = text(
-        f"""
-        WITH latest_exercises AS (
-            SELECT *, ROW_NUMBER() OVER (PARTITION BY exercise ORDER BY id DESC) AS row_num
-            FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
-        ),
-        initial_order AS (
-            SELECT exercise, MIN(id) AS first_id
-            FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
-            GROUP BY exercise
-        )
-        SELECT le.*
-        FROM latest_exercises le
-        JOIN initial_order io ON le.exercise = io.exercise
-        WHERE le.row_num = 1
-        ORDER BY io.first_id
-    """
-    )
+    load_workout_day = request.args.get("training_day")
 
-    inspect_db_names = inspect(db.engine)
-    connection = db.session.connection()
-    try:
-        execute_sql = connection.execute(sql_query)
-    except OperationalError:
-        try:
-            sql_query = text(
-                f""" 
-                SELECT *
-                FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
-            """
-            )
-        except OperationalError:
+    if request.method == "GET":
+        
+        # If the user made a selection, update `chosen_day` and store in session
+        if load_workout_day is not None:
+            # Clear if the selection is blank (like a placeholder)
+            if load_workout_day == "":
+                session.pop("chosen_day", None)  # Remove chosen day from session
+                chosen_day = None
+            else:
+                session["chosen_day"] = load_workout_day
+                chosen_day = load_workout_day  # Update variable with the new choice
+                # If day is changed, pop session
+                session.pop("chosen_exercise", None)
+                return redirect(url_for("training_session"))
 
-            # If new users with empty mesocycles, he will be redirected to workout page
-            return render_template("table_layout.html", year=YEAR)
+        load_chosen_exercise = request.args.get("chosen_exercise")
 
-    # From last mesocycle load all tables
-    list_of_all_tables = inspect_db_names.get_table_names()
-    tables_from_last_meso = []
+        if load_chosen_exercise is not None:
+            if load_chosen_exercise=="":
+                session.pop("chosen_exercise", None)
+                load_chosen_exercise = None
+            else:
+                session["chosen_exercise"] = load_chosen_exercise
+                chosen_exercise = load_chosen_exercise
 
-    for table in list_of_all_tables:
-        if table.startswith(f"{current_user.username}_M{last_masocycle}"):
-            tables_from_last_meso.append(table)
 
-    # Separate query just to store chosen day from users
-    try:
-        current_training_day_sql = text(
-            f"""
-        SELECT exercise FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
-        """
-        )
-        current_training_day = connection.execute(current_training_day_sql)
-        list_of_current_exerxises: list = []
-        for exercise in current_training_day:
-            list_of_current_exerxises.append(exercise[0])
-    except OperationalError:
-        current_training_day = 1
-        execute_sql = []
+    elif request.method == "POST":
+        sets_for_jinja = add_session_to_db(workout_key, workout_id)
 
-    # Load data from users-----------------------------------------------------------------------------------
-    users_input_into_training = {}
-    new_row_data = {}
-    existing_entry_id = None
-    zero_for_null = 0
+        print(sets_for_jinja)
 
-    if request.method == "POST":
-        form_data = request.form
+        submitted_data = request.form.to_dict()
 
-        for key, value in form_data.items():
-            if value != "":
-                users_input_into_training[key] = value
-                new_row_data[key[:-2]] = int(value) if value.isdigit() else value
-                exercise_number = int(key[len(key) - 1]) - 1
+        add_set_to_db(submitted_data, chosen_exercise, sets_for_jinja, chosen_day, workout_names)
+        
+        jinja_sets_function(sets_for_jinja)
 
-                try:
-                    exercise_number_query = text(
-                        f"""
-                    SELECT id FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
-                    """
-                    )
-                    exercise_number_new = connection.execute(
-                        exercise_number_query
-                    ).fetchall()
-                    connection.commit()
-                except OperationalError:
-                    exercise_number_query = text(
-                        f"""
-                    SELECT id FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
-                    """
-                    )
-                    exercise_number_new = connection.execute(
-                        exercise_number_query
-                    ).fetchall()
-                    connection.commit()
-
-                try:
-                    # Always add SETS + PAUSES, they are not changing
-                    find_sets_pauses_query = text(
-                        f"""
-                    SELECT sets, pauses FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
-                    WHERE exercise = '{list_of_current_exerxises[exercise_number]}'
-                    """
-                    )
-                    find_sets_pauses = connection.execute(
-                        find_sets_pauses_query
-                    ).fetchone()
-
-                    # Check if there is today's date for the current exercise - 2 queries because I had ideas and not so much time
-                    check_id_query = text(
-                        f"""
-                        SELECT id, date
-                        FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
-                        WHERE exercise = '{list_of_current_exerxises[exercise_number]}'
-                        ORDER BY id DESC 
-                        LIMIT 1
-                    """
-                    )
-
-                    verify_date = connection.execute(
-                        check_id_query, {"date": DATE}
-                    ).fetchone()
-
-                    check_date_query = text(
-                        f"""
-                        SELECT date 
-                        FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
-                        WHERE exercise  = '{list_of_current_exerxises[exercise_number]}'
-                        ORDER BY id DESC
-                        LIMIT 1
-                        """
-                    )
-                    check_date = connection.execute(check_date_query).fetchone()
-
-                    # How to handle "object is not subscriptable"
-                    if check_date[0] is None:
-                        zero_for_null = 1
-                    elif check_date[0] == DATE:
-                        zero_for_null = 2
-                    else:
-                        zero_for_null = 3
-
-                    if zero_for_null == 1 or zero_for_null == 2:
-                        # Always add SETS + PAUSES, they are not changing
-                        find_sets_pauses_query = text(
-                            f"""
-                        SELECT sets, pauses FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
-                        WHERE exercise = '{exercise_number}'
-                        """
-                        )
-                        find_sets_pauses = connection.execute(find_sets_pauses_query)
-
-                        # ------------------------------------------------
-                        existing_entry_id = verify_date[0]
-                        new_row_data["date"] = DATE
-
-                        try:
-                            update_query = text(
-                                f"""
-                                UPDATE {current_user.username}_M{last_masocycle}_{choose_training_day}
-                                SET {key[:-2]} = '{value}', date = '{DATE}'
-                                WHERE id = (
-                                    SELECT MAX(id)
-                                    FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
-                                    WHERE exercise = '{list_of_current_exerxises[exercise_number]}'
-                                )
-                            """
-                            )
-                            new_row_data["id"] = existing_entry_id
-                            connection.execute(update_query)
-                            connection.commit()
-                            print("Updated existing row")
-                        # Because sometimes I need to key[:-3] for correct string (exercise name) form
-                        except OperationalError:
-                            update_query = text(
-                                f"""
-                                UPDATE {current_user.username}_M{last_masocycle}_{choose_training_day}
-                                SET {key[:-3]} = '{value}'
-                                WHERE id = (
-                                    SELECT MAX(id)
-                                    FROM {current_user.username}_M{last_masocycle}_{choose_training_day}
-                                    WHERE exercise = '{list_of_current_exerxises[exercise_number]}'
-                                )
-                            """
-                            )
-                            new_row_data["id"] = existing_entry_id
-                            connection.execute(update_query)
-                            connection.commit()
-                        print("Updated existing row")
-
-                    # Inserst new row if no entry exists for today's date
-                    elif zero_for_null == 3:
-                        sets_sticks = find_sets_pauses[0]
-                        pauses_sticks = find_sets_pauses[1]
-                        try:
-                            # Try to do it by raw sql, no fancy joins
-                            inserst_query = text(
-                                f"""
-                            INSERsT INTO {current_user.username}_M{last_masocycle}_{choose_training_day} (date, exercise, sets, pauses, {key[:-2]})
-                            VALUES ('{DATE}', '{list_of_current_exerxises[exercise_number]}', '{sets_sticks}', '{pauses_sticks}', '{value}')
-                            """
-                            )
-
-                            connection.execute(inserst_query)
-                            connection.commit()
-                        except OperationalError:
-                            # Try to do it by raw sql, no fancy joins
-                            inserst_query = text(
-                                f"""
-                            INSERsT INTO {current_user.username}_M{last_masocycle}_{choose_training_day} (date, exercise, sets, pauses, {key[:-3]})
-                            VALUES ('{DATE}', '{list_of_current_exerxises[exercise_number]}', '{sets_sticks}', '{pauses_sticks}', '{value}')
-                            """
-                            )
-
-                            connection.execute(inserst_query)
-                            connection.commit()
-                        print("Insersted new row")
-
-                except ValueError:
-                    print(f"No value such this {key}")
-
-        # ------------------------------------------------------------------------------------------------------
-
-        return redirect(url_for("training_session"))
 
     return render_template(
         "training_session.html",
-        exercises_meso_one=execute_sql,
-        training_sessions=tables_from_last_meso,
-        training_session_length=len(tables_from_last_meso),
-        table_title=table_title,
         today=DATE,
         year=YEAR,
+        w_names=workouts_id_name,
+        weeks=weekly,
+        chosen_day=chosen_day,
+        exercises_to_display=exercises_in_workout,
+        chosen_exercise=chosen_exercise,
+        sets_for_jinja=sets_for_jinja
     )
 
 
