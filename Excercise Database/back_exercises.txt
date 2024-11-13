@@ -1,0 +1,468 @@
+Assisted Hyperextension
+Back Extension (Prone)
+Back Hyperextension
+Back Stretch
+Band Upright Row
+Barbell Behind the Back Shrug
+Barbell Bent-Over Row
+Barbell Bent-Over Row (Reverse Grip)
+Barbell Cambered Row (Prone)
+Barbell Clean Deadlift
+Barbell Deadlift
+Barbell Good Morning
+Barbell Incline Bench Pull
+Barbell Incline Bench Row
+Barbell Incline Row (Reverse Grip)
+Barbell Inverted Row
+Barbell One-Arm Row
+Barbell One-Arm Row
+Barbell Pullover
+Barbell Rack Pull
+Barbell Romanian Deadlift
+Barbell Romanian Deadlift From Deficit
+Barbell Row
+Barbell Seated Good Morning
+Barbell Shrug
+Barbell Snatch Deadlift
+Barbell Snatch Shrug
+Barbell Stiff-Leg Deadlift
+Barbell Stiff-Leg Deadlift (Bench)
+Barbell Stiff-Leg Deadlift (Wide Stance)
+Barbell Sumo Deadlift
+Cable Deadlift
+Cable Elevated Row
+Cable Front Lat Pulldown (Close Grip)
+Cable Grip Lat Pulldown (Narrow Grip)
+Cable Incline Bench Row
+Cable Incline Pulldown (Supine)
+Cable Lat Pulldown (Wide Grip)
+Cable One-Arm Lat Pulldown
+Cable One-Arm Rotational Row
+Cable One-Arm Row
+Cable One-Arm Seated Row
+Cable Pulldown (Underhand)
+Cable Pullover (Supine)
+Cable Rear Pulldown (Wide Grip)
+Cable Reverse Crossover
+Cable Rope Face Pull
+Cable Rope Incline Row
+Cable Rope Lat Pulldown
+Cable Rope Pull-Up
+Cable Rope Seated Crossover Row
+Cable Rope Seated Row
+Cable Rope Seated Row
+Cable Seated Row
+Cable Seated Shrug
+Cable Shoulder Extension
+Cable Shoulder Extension
+Cable Shrug
+Cable Shrug (Supine)
+Cable Standing Row
+Cable Upper Row
+Cable V Bar Pulldown
+Cable V-Bar Row
+Calf Machine Shoulder Shrug
+Cat Stretch
+Chin-Up
+Chin-Up (Close Grip)
+Chin-Up (Mixed Grip)
+Climber Pull-Up
+Cobra
+Deadlift to Bicep Curl
+Dumbbell Alternating Row (Stability Ball)
+Dumbbell Bent-Over Row
+Dumbbell Bent-Over Row (Palm in)
+Dumbbell Bent-Over Row (Palms in)
+Dumbbell Deadlift
+Dumbbell Incline Bench Row
+Dumbbell Incline Row (Reverse Grip)
+Dumbbell One-Arm Pullover
+Dumbbell One-Arm Rear Row (Prone)
+Dumbbell One-Arm Row
+Dumbbell One-Arm Row (Reverse Grip)
+Dumbbell One-Arm Row (Stability Ball)
+Dumbbell Prone Incline Shrug
+Dumbbell Pullover on Stability Ball
+Dumbbell Rear Delt Row
+Dumbbell Rear Row (Stability Ball)
+Dumbbell Rotational Row
+Dumbbell Shoulder Shrug
+Dumbbell Shrug (Stability Ball)
+Dumbbell Stiff-Leg Deadlift
+Dumbbell Stiff-Leg Deadlift
+Dumbbell Stiff-Leg Deadlift on Bench
+Dynamic Back Stretch
+EZ Bar Bent-Over Row (Reverse Grip)
+Gironda Sternum Pull-Up
+Gorilla Chin-Up with Crunch
+Hip Stretch
+Iso Lateral Wide Pulldown
+Kettlebell Alternating Row
+Kettlebell One-Arm Row
+Kettlebell Renegade Row
+Kettlebell Row
+Kneeling Lat Stretch
+Knees to Chest Hug
+Leverage Machine High Row
+Leverage Machine Iso Row
+Leverage Machine Shrug
+Low Back Chair Stretch
+Machine Assisted Chin-Up
+Machine Assisted Pull-Up
+Machine Assisted Pull-Up (Hammer Grip)
+Machine Back Extension
+Machine Inverted Row
+Machine Inverted Row
+Machine Iso Lateral High Row
+Machine Landmine Row (Reverse Grip)
+Machine Lat Pulldown
+Machine Lat Pulldown (Reverse Grip)
+Machine Lat Pulldown (Reverse Grip)
+Machine One-Arm Pulldown
+Machine Reverse Lat Pulldown (Close Grip)
+Machine Reverse T Bar Row
+Machine Seated Row
+Machine Unilateral Row
+Machine Vertical Row (Close Grip)
+Machine Vertical Row (Reverse Grip)
+Medicine Ball Catch and Throw
+One-Arm Chin-Up
+One-Arm Hang
+One-Arm Wall Stretch
+Pelvic Tilt to Glute Bridge
+Pull-Up
+Pull-Up (Hammer Grip)
+Rear Pull-Up (Wide Grip)
+Reverse Lunge Crossover 
+Rocky Pull-Up (Hammer Grip)
+Scorpion
+Seated Rotation
+Seated Trunk Rotation
+Side-Lying Floor Stretch
+Smith Machine Bent-Over Row
+Smith Machine Bent-Over Row (Reverse Grip)
+Smith Machine Deadlift
+Smith Machine Good Morning
+Smith Machine One-Arm Row
+Smith Machine Shrug
+Smith Machine Stiff-Leg Deadlift
+Sphinx
+Stability Ball Back Extension
+Stability Ball Back Extension
+Stability Ball Back Extension with Hands Behind Head
+Stability Ball Back Extension with Knees Off Ground
+Stability Ball Back Extension with Rotation
+Stability Ball Back Stretch
+Stability Ball Back Stretch
+Stability Ball Back Stretch
+Stability Ball Full Body Plank
+Stability Ball Hip Extension
+Stability Ball Hug
+Stability Ball Lat Stretch
+Stability Ball Lat Stretch
+Stability Ball Low Back Stretch
+Stability Ball Shoulder Flexion
+Stability Ball Wall Circles
+Stability Ball Weighted Hyperextension
+Standing Pelvic Tilt
+Standing Trunk Rotation
+Superman
+T Bar Prone Row
+T Bar Row
+Upper Back Stretch
+Upward Facing Dog
+V Bar Pull-Up
+Weight Plate One-Arm Shrug
+Weight Plate Shrug
+Weighted Pull-Up
+Band Alternating Bicep Curl 
+Barbell Bicep Curl (Prone)
+Barbell Bicep Curl (Wide Grip)
+Barbell Bicep Drag Curl
+Barbell Concentration Curl
+Barbell Concentration Curl (Close Grip)
+Barbell Curl
+Barbell Curl (Close Grip)
+Barbell Curl Against an Incline
+Barbell Drag Curl
+Barbell One-Arm Bicep Curl
+Barbell Preacher Curl
+Barbell Reverse Preacher Curl
+Barbell Spider Curl
+Bicep Stretch
+Cable Bicep Curl
+Cable Bicep Curl (Close Grip)
+Cable Bicep Curl (Supine Close Grip)
+Cable Bicep Curl (Supine)
+Cable Drag Curl
+Cable Dual Overhead Curl
+Cable Dual Overhead Curl (Stability Ball)
+Cable High Curl (Supine)
+Cable Incline Bicep Curl 
+Cable One-Arm Bicep Curl
+Cable One-Arm Concentration Curl
+Cable One-Arm High Curl
+Cable One-Arm Preacher Curl
+Cable One-Arm Preacher Curl (Reverse)
+Cable Preacher Curl
+Cable Pulldown Bicep Curl
+Cable Reverse Curl
+Cable Reverse Curl
+Cable Reverse Grip Curl
+Cable Reverse Preacher Curl
+Cable Rope Hammer Curl
+Cable Rope One-Arm Preacher Curl (Hammer)
+Cable Rope Preacher Curl (Hammer)
+Cable Seated Bicep Curl
+Cable Seated Curl
+Cable Seated Overhead Curl
+Cable Squat Curl
+Cable Standing Curl
+Dumbbell Alternating Bicep Curl
+Dumbbell Alternating Bicep Curl (Stability Ball)
+Dumbbell Alternating Bicep Curl (Stability Ball)
+Dumbbell Alternating Hammer Curl
+Dumbbell Alternating Hammer Curl (Stability Ball)
+Dumbbell Alternating Incline Curl
+Dumbbell Alternating Preacher Curl
+Dumbbell Alternating Preacher Curl (Hammer)
+Dumbbell Alternating Seated Curl
+Dumbbell Bicep Curl
+Dumbbell Bicep Curl (Supine Wide Grip)
+Dumbbell Bicep Curl (Supine)
+Dumbbell Bicep Curl on Dome
+Dumbbell Bicep Curl on Stability Ball
+Dumbbell Bicep Curl Step-Up
+Dumbbell Bicep Curl With Stork Stance
+Dumbbell Concentration Curl
+Dumbbell Concentration Curl on Stability Ball
+Dumbbell Forward Lunge with Bicep Curl
+Dumbbell Hammer Curl (Cross Body)
+Dumbbell Hammer Curl on Stability Ball
+Dumbbell Hammer Curl on Stability Ball
+Dumbbell High Curl
+Dumbbell Incline Alternating Hammer Curl
+Dumbbell Incline Bench Curl
+Dumbbell Incline Bench Hammer Curl
+Dumbbell Incline Curl
+Dumbbell Incline Hammer Curl
+Dumbbell Incline Hammer Curl
+Dumbbell Incline Hammer Curl (Prone)
+Dumbbell Incline Spider Curl
+Dumbbell Inner Bicep Curl
+Dumbbell Kneeling Bicep Curl (Stability Ball)
+Dumbbell Lunge with Bicep Curl Bowling Motion
+Dumbbell One-Arm Bicep Curl
+Dumbbell One-Arm Bicep Curl (Prone)
+Dumbbell One-Arm Bicep Curl on Stability Ball 
+Dumbbell One-Arm Hammer Curl
+Dumbbell One-Arm Hammer Curl (Prone)
+Dumbbell One-Arm Incline Curl
+Dumbbell One-Arm Preacher Curl
+Dumbbell One-Arm Preacher Hammer Curl
+Dumbbell One-Arm Reverse Spider Curl
+Dumbbell One-Arm Seated Curl
+Dumbbell One-Arm Seated Hammer Curl
+Dumbbell One-Arm Single-Leg Bicep Curl on Stability Ball
+Dumbbell One-Arm Zottman Preacher Curl
+Dumbbell Preacher Curl
+Dumbbell Preacher Curl (Stability Ball)
+Dumbbell Preacher Hammer Curl
+Dumbbell Reverse Bicep Curl 
+Dumbbell Reverse Spider Curl
+Dumbbell Rotational Curl
+Dumbbell Seated Alternating Hammer Curl
+Dumbbell Seated Bicep Curl
+Dumbbell Seated Curl
+Dumbbell Seated Hammer Curl
+Dumbbell Spider Curl
+Dumbbell Squat to Bicep Curl
+Dumbbell Zottman Curl
+EZ Bar Close Grip Curl
+EZ Bar Curl
+EZ Bar Preacher Curl (Close Grip)
+EZ Bar Seated Curl (Close Grip)
+Machine Bicep Curl
+Machine Bicep Curl (Reverse Grip)
+Machine Hammer Curl 
+Medicine Ball Bicep Curl on Stability Ball
+Preacher Curl Machine
+Smith Machine Bicep Curl
+Weight Plate Reverse Curl
+Assisted Hyperextension
+Back Extension (Prone)
+Back Hyperextension
+Back Stretch
+Band Upright Row
+Barbell Behind the Back Shrug
+Barbell Bent-Over Row
+Barbell Bent-Over Row (Reverse Grip)
+Barbell Cambered Row (Prone)
+Barbell Clean Deadlift
+Barbell Deadlift
+Barbell Good Morning
+Barbell Incline Bench Pull
+Barbell Incline Bench Row
+Barbell Incline Row (Reverse Grip)
+Barbell Inverted Row
+Barbell One-Arm Row
+Barbell One-Arm Row
+Barbell Pullover
+Barbell Rack Pull
+Barbell Romanian Deadlift
+Barbell Romanian Deadlift From Deficit
+Barbell Row
+Barbell Seated Good Morning
+Barbell Shrug
+Barbell Snatch Deadlift
+Barbell Snatch Shrug
+Barbell Stiff-Leg Deadlift
+Barbell Stiff-Leg Deadlift (Bench)
+Barbell Stiff-Leg Deadlift (Wide Stance)
+Barbell Sumo Deadlift
+Cable Deadlift
+Cable Elevated Row
+Cable Front Lat Pulldown (Close Grip)
+Cable Grip Lat Pulldown (Narrow Grip)
+Cable Incline Bench Row
+Cable Incline Pulldown (Supine)
+Cable Lat Pulldown (Wide Grip)
+Cable One-Arm Lat Pulldown
+Cable One-Arm Rotational Row
+Cable One-Arm Row
+Cable One-Arm Seated Row
+Cable Pulldown (Underhand)
+Cable Pullover (Supine)
+Cable Rear Pulldown (Wide Grip)
+Cable Reverse Crossover
+Cable Rope Face Pull
+Cable Rope Incline Row
+Cable Rope Lat Pulldown
+Cable Rope Pull-Up
+Cable Rope Seated Crossover Row
+Cable Rope Seated Row
+Cable Rope Seated Row
+Cable Seated Row
+Cable Seated Shrug
+Cable Shoulder Extension
+Cable Shoulder Extension
+Cable Shrug
+Cable Shrug (Supine)
+Cable Standing Row
+Cable Upper Row
+Cable V Bar Pulldown
+Cable V-Bar Row
+Calf Machine Shoulder Shrug
+Cat Stretch
+Chin-Up
+Chin-Up (Close Grip)
+Chin-Up (Mixed Grip)
+Climber Pull-Up
+Cobra
+Deadlift to Bicep Curl
+Dumbbell Alternating Row (Stability Ball)
+Dumbbell Bent-Over Row
+Dumbbell Bent-Over Row (Palm in)
+Dumbbell Bent-Over Row (Palms in)
+Dumbbell Deadlift
+Dumbbell Incline Bench Row
+Dumbbell Incline Row (Reverse Grip)
+Dumbbell One-Arm Pullover
+Dumbbell One-Arm Rear Row (Prone)
+Dumbbell One-Arm Row
+Dumbbell One-Arm Row (Reverse Grip)
+Dumbbell One-Arm Row (Stability Ball)
+Dumbbell Prone Incline Shrug
+Dumbbell Pullover on Stability Ball
+Dumbbell Rear Delt Row
+Dumbbell Rear Row (Stability Ball)
+Dumbbell Rotational Row
+Dumbbell Shoulder Shrug
+Dumbbell Shrug (Stability Ball)
+Dumbbell Stiff-Leg Deadlift
+Dumbbell Stiff-Leg Deadlift
+Dumbbell Stiff-Leg Deadlift on Bench
+Dynamic Back Stretch
+EZ Bar Bent-Over Row (Reverse Grip)
+Gironda Sternum Pull-Up
+Gorilla Chin-Up with Crunch
+Hip Stretch
+Iso Lateral Wide Pulldown
+Kettlebell Alternating Row
+Kettlebell One-Arm Row
+Kettlebell Renegade Row
+Kettlebell Row
+Kneeling Lat Stretch
+Knees to Chest Hug
+Leverage Machine High Row
+Leverage Machine Iso Row
+Leverage Machine Shrug
+Low Back Chair Stretch
+Machine Assisted Chin-Up
+Machine Assisted Pull-Up
+Machine Assisted Pull-Up (Hammer Grip)
+Machine Back Extension
+Machine Inverted Row
+Machine Inverted Row
+Machine Iso Lateral High Row
+Machine Landmine Row (Reverse Grip)
+Machine Lat Pulldown
+Machine Lat Pulldown (Reverse Grip)
+Machine Lat Pulldown (Reverse Grip)
+Machine One-Arm Pulldown
+Machine Reverse Lat Pulldown (Close Grip)
+Machine Reverse T Bar Row
+Machine Seated Row
+Machine Unilateral Row
+Machine Vertical Row (Close Grip)
+Machine Vertical Row (Reverse Grip)
+Medicine Ball Catch and Throw
+One-Arm Chin-Up
+One-Arm Hang
+One-Arm Wall Stretch
+Pelvic Tilt to Glute Bridge
+Pull-Up
+Pull-Up (Hammer Grip)
+Rear Pull-Up (Wide Grip)
+Reverse Lunge Crossover 
+Rocky Pull-Up (Hammer Grip)
+Scorpion
+Seated Rotation
+Seated Trunk Rotation
+Side-Lying Floor Stretch
+Smith Machine Bent-Over Row
+Smith Machine Bent-Over Row (Reverse Grip)
+Smith Machine Deadlift
+Smith Machine Good Morning
+Smith Machine One-Arm Row
+Smith Machine Shrug
+Smith Machine Stiff-Leg Deadlift
+Sphinx
+Stability Ball Back Extension
+Stability Ball Back Extension
+Stability Ball Back Extension with Hands Behind Head
+Stability Ball Back Extension with Knees Off Ground
+Stability Ball Back Extension with Rotation
+Stability Ball Back Stretch
+Stability Ball Back Stretch
+Stability Ball Back Stretch
+Stability Ball Full Body Plank
+Stability Ball Hip Extension
+Stability Ball Hug
+Stability Ball Lat Stretch
+Stability Ball Lat Stretch
+Stability Ball Low Back Stretch
+Stability Ball Shoulder Flexion
+Stability Ball Wall Circles
+Stability Ball Weighted Hyperextension
+Standing Pelvic Tilt
+Standing Trunk Rotation
+Superman
+T Bar Prone Row
+T Bar Row
+Upper Back Stretch
+Upward Facing Dog
+V Bar Pull-Up
+Weight Plate One-Arm Shrug
+Weight Plate Shrug
+Weighted Pull-Up

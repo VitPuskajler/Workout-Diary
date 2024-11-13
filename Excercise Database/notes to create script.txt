@@ -1,0 +1,28 @@
+website - page 1
+
+https://www.jefit.com/exercises/bodypart.php?id=11&exercises=All&search=&All=1&Bands=1&Bench=1&Dumbbell=1&EZBar=1&Kettlebell=1&MachineStrength=1&MachineCardio=1&Barbell=1&BodyOnly=1&ExerciseBall=1&FoamRoll=1&PullBar=1&WeightPlate=1&Other=1&Strength=1&Stretching=0&Powerlifting=1&OlympicWeightLifting=1&Beginner=0&Intermediate=0&Expert=0&page=1
+
+------------------------------------------------------------------------------
+
+10 excercises per page - XPATH
+
+
+//*[@id="page"]/div/div[2]/div[2]/div[2]/div[3]/h4/a
+//*[@id="page"]/div/div[2]/div[2]/div[3]/div[3]/h4/a
+//*[@id="page"]/div/div[2]/div[2]/div[4]/div[3]/h4/a
+
+//*[@id="page"]/div/div[2]/div[2]/div[6]/div[3]/h4/a
+//*[@id="page"]/div/div[2]/div[2]/div[7]/div[3]/h4/a
+//*[@id="page"]/div/div[2]/div[2]/div[8]/div[3]/h4/a
+
+//*[@id="page"]/div/div[2]/div[2]/div[10]/div[3]/h4/a
+//*[@id="page"]/div/div[2]/div[2]/div[11]/div[3]/h4/a
+//*[@id="page"]/div/div[2]/div[2]/div[12]/div[3]/h4/a
+
+//*[@id="page"]/div/div[2]/div[2]/div[14]/div[3]/h4/a
+
+
+--
+
+
+//*[@id="page"]/div/div[2]/div[2]/div[12]/a[6]/div

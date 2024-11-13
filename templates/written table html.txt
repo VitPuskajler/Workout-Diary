@@ -1,0 +1,43 @@
+<div class="container">
+<table class="table table-striped">
+<div class="col-xxl-8 col-xl-8 col-lg-8 col-md-10 col-sm-12">
+  <thead>
+    <tr>
+      <th scope="col">Excercise</th>
+      <th scope="col">Sets</th>
+      <th scope="col">1. set</th>
+      <th scope="col">Weight</th>
+      <th scope="col">RPE</th>
+      <th scope="col">2. set</th>
+      <th scope="col">Weight</th>
+      <th scope="col">RPE</th>
+      <th scope="col">3. set</th>
+      <th scope="col">Weight</th>
+      <th scope="col">RPE</th>
+      <th scope="col">4. set</th>
+      <th scope="col">Weight</th>
+      <th scope="col">RPE</th>
+      <th scope="col">Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Pull Ups</td>
+      <td>2</td>
+      <td>@mdo</td>
+      <td>1</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Jacob</td>
+      <td>Thornton</td>
+      <td>@fat</td>
+    </tr>
+    <tr>
+      <td colspan="2">Larry the Bird</td>
+      <td>@twitter</td>
+    </tr>
+  </tbody>
+</div>  
+</table>
+</div>
