@@ -111,89 +111,79 @@
   </div>
   <main class="container">
     <div class="my-3 p-3 bg-body rounded shadow-sm">
-      <h5 class="border-bottom pb-2 mb-0 text-center">Here are all your exercises you have done so far.</h5>
       <div class="d-flex text-body-secondary pt-3 text-center">
         <div class="container col-12">
-          <form action="{{ url_for('workout_plan_page') }}" method="get">
-            <label for="mesocycleSelect">Workout Plan:</label>
-            <select class="form-select" aria-label="Default select example" id="mesocycleSelect" name="mesocycle">
-              <option value="Hide">Hide</option>
-              {% for x in range(amount_of_mesocycles) %}
-              <option value="{{x+1}}">Mesocycle {{x+1}}</option>
+          <form action="{{ url_for('workout_plan_page') }}" method="post">
+            <label for="mesocycleSelect">Mesocycle:</label>
+            <select class="form-select" aria-label="Default select example" id="mesocycleSelect" name="mesocycle"
+              onchange="this.form.submit()">
+
+              {% if chosen_mesocycle is not none %}
+              <option>{{chosen_mesocycle}}</option>
+              {% else %}
+              <option>Choose Mesocycle</option>
+              {% endif %}
+
+              {% if dropdown is not none %}
+              {% for key, value in dropdown.items() %}
+              {%if chosen_mesocycle == value.keys() | first %}
+              {{pass}}
+              {% else %}
+              <option>{{ value.keys() | first }}</option>
+              {% endif %}
               {% endfor %}
-              <!-- Add more options as needed -->
+              {% else %}
+              <option value="{{ key }}">You have no Mesocycle yet</option>
+              {% endif %}
             </select>
-            <div class=p-3><button class="btn btn-dark" type="submit">Submit</button></div>
           </form>
 
 
-          <!-- --------------------------------------------------------------------------------- -->
-          <!-- <form action="{{ url_for('workout_plan_page') }}" method="post">
-            {% for table_exercises in nested_exercises_list %}
-            <div class="table-responsive">
-              <table class="table table-striped">
-                <thead>
-                  <tr>
-                    <th>Workout {{ loop.index }}</th>
-                  </tr>
-                  <tr>
-                    <th>Exercise</th>
-                    <th>1. Set Reps</th>
-                    <th>Weight</th>
-                    <th>RPE</th>
-                    <th>2. Set Reps</th>
-                    <th>Weight</th>
-                    <th>RPE</th>
-                    <th>3. Set Reps</th>
-                    <th>Weight</th>
-                    <th>RPE</th>
-                    <th>4. Set Reps</th>
-                    <th>Weight</th>
-                    <th>RPE</th>
-                    <th>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for exercise in table_exercises %}
-                  <tr>
-                    <td>{{ exercise.exercise }}</td>
-                    <td>{{ exercise.first_set }}</td>
-                    <td>{{ exercise.weight_first_set }}</td>
-                    <td>{{ exercise.rpe_first_set }}</td>
-                    <td>{{ exercise.second_set }}</td>
-                    <td>{{ exercise.weight_second_set }}</td>
-                    <td>{{ exercise.rpe_second_set }}</td>
-                    <td>{{ exercise.third_set }}</td>
-                    <td>{{ exercise.weight_third_set }}</td>
-                    <td>{{ exercise.rpe_third_set }}</td>
-                    <td>{{ exercise.fourth_set }}</td>
-                    <td>{{ exercise.weight_fourth_set }}</td>
-                    <td>{{ exercise.rpe_fourth_set }}</td>
-                    <td>{{ exercise.notes }}</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+
+          {% if table_population %}
+          {% for workout_name, exercises in table_population.items() %}
+          <div class="container p-3">
+            <div class="row justify-content-center">
+              <div class="col-12 col-md-8 col-sm-12">
+                <h5 class="border-bottom pb-2 mb-3 text-center text-success">{{ workout_name }}</h5>
+                <table class="table table-striped text-center mb-5">
+                  <thead>
+                    <tr>
+                      <th class="text-center col-8">Exercise</th>
+                      <th class="text-center col-2">Sets</th>
+                      <th class="text-center col-2">Rest</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for exercise_name, details in exercises.items() %}
+                    <tr>
+                      <td>{{ exercise_name }}</td>
+                      <td>{{ details.sets }}</td>
+                      <td>{{ details.rest }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            {% endfor %} -->
-          </form>
-        </div>
-      </div>
-    </div>
+          </div>
+          {% endfor %}
 
-    <div clas="p-3">
-      <div class="fixed-bottom">
-        © {{ year }} | Created by Vít Puskajler
-      </div>
-    </div>
+          {% endif %}
 
 
-    <div class="d-flex justify-content-center align-items-center" style="height: 15vh;">
-      <a class="btn btn-primary" href="{{ url_for('table_layout') }}" role="button">
-        Create new mesocycle plan
-      </a>
-    </div>
+          <div class="d-flex justify-content-center align-items-center" style="height: 15vh;">
+            <a class="btn btn-primary" href="{{ url_for('table_layout') }}" role="button">
+              Create new mesocycle plan
+            </a>
+          </div>
 
+
+          <div clas="p-3">
+            <div class="fixed-bottom">
+              © {{ year }} | Created by Vít Puskajler
+            </div>
+          </div>
 
 
   </main>

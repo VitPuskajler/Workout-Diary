@@ -117,9 +117,9 @@
     </div>
 
     <!-- -----------------------------Starting point in here------------------------------- -->
-    <div class="position-absolute top-5 start-50 translate-middle">
+    <div class="position-absolute top-15 start-50 translate-middle">
         <p class="d-inline-flex gap-1">
-            <a class="btn btn-primary" data-bs-toggle="collapse" href="#collapseExample" role="button"
+            <a class="btn btn-success" data-bs-toggle="collapse" href="#collapseExample" role="button"
                 aria-expanded="false" aria-controls="collapseExample">
                 Your Possibilities
             </a>
@@ -127,93 +127,36 @@
     </div>
     <div class="p-3">
         <div class="collapse" id="collapseExample">
-            <div class="card card-body">
-                You can add, or change your exercises during the first week of your mesocycle plan.
-                However, modifications after this period are not recommended (from logical point of view).
-                If you need to make changes after the
-                first week, it's best to create a new mesocycle plan entirely. And I am not allowing to delete any
-                exercise.
+            <div class="card card-body text-center">
+                You can add, or change your exercises.
+                <br>
+                You can see your progress in your mesocycles
+                </br>
             </div>
         </div>
     </div>
 
-    <!-- ------------------------ Load Dynamically Tables ------------------------- -->
-    <div class="container p-3">
-        <form action="{{ url_for('profile') }}" method="get">
-            <label for="trainingSelect">Choose Training Day:</label>
-            <select class="form-select" aria-label="Default select example" id="trainingSelect" name="training_day">
-                {% for x in range(training_session_length)%}
-                <option value="{{x}}">Day {{x+1}}</option>
-                {% endfor %}
-                <!-- Add more options as needed -->
-            </select>
-            <div class=p-3><button class="btn btn-dark" type="submit">Submit</button></div>
-        </form>
-    </div>
-    <!-- -------------------------------------------------------------------------- -->
-    <div class="container">
-        <h2 class="mt-5">Change day {{table_title}}</h2>
-        <h5>To see changes you need to refresh the page (one / two times)</h5>
-        <form action="{{ url_for('profile') }}" method="post">
-            <table class="table table-bordered text-center">
-                <thead>
-                    <tr>
-                        <th class="exercise">Exercise</th>
-                        <th>Sets</th>
-                        <th>Pauses</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in exercises_meso_one %}
-                    <tr>
-                        <td>
-                            {% set placeholder_color_class = 'placeholder-blue' if row.date == today else
-                            'placeholder-red' %}
-                            <input type="hidden" name="add_exercise{{ loop.index }}" value="{{ row.exercise }}">
-                            <input type="text" name="exercise{{ loop.index }}"
-                                class="form-control {{ placeholder_color_class }}" placeholder="{{ row.exercise }}"
-                                onfocus="this.style.color='inherit';">
-                        </td>
-                        <td>
-                            <input type="hidden" name="add_sets{{ loop.index }}" value="{{ row.sets }}">
-                            <input type="text" name="sets{{ loop.index }}"
-                                class="form-control {{ placeholder_color_class }}" placeholder="{{ row.sets }}"
-                                onfocus="this.style.color='inherit';">
-                        </td>
-                        <td>
-                            <input type="hidden" name="add_pauses{{ loop.index }}" value="{{ row.pauses }}">
-                            <input type="text" name="pauses{{ loop.index }}"
-                                class="form-control {{ placeholder_color_class }}" placeholder="{{ row.pauses }}"
-                                onfocus="this.style.color='inherit';">
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    <!-- Empty field to add new exercise -->
-                    <tr>
-                        <td>
-                            <input type="text" name="new_exercise" class="form-control" placeholder="New Exercise"
-                                onfocus="this.style.color='inherit';">
-                        </td>
-                        <td>
-                            <input type="text" name="new_sets" class="form-control" placeholder="eg. 3"
-                                onfocus="this.style.color='inherit';">
-                        </td>
-                        <td>
-                            <input type="text" name="new_pauses" class="form-control" placeholder="eg. 2"
-                                onfocus="this.style.color='inherit';">
-                        </td>
-                    </tr>
-                    <!-- -------------------------------- -->
-                </tbody>
-            </table>
+    <!-- ------------------------ Table-like Container for Buttons ------------------------- -->
+    <form method="post" action="{{ url_for('profile')}}">
+        <div class="position-absolute top-50 start-50 translate-middle">
+            <div class="border rounded p-4" style="width: 300px;"> <!-- Added border and width -->
+                <!-- Modify Current Mesocycle Button -->
+                <div class="d-grid gap-2 mb-3">
+                    <button type="submit" class="btn btn-primary btn-block" name="action"
+                        value="change_mesocycle">Change Current Mesocycle</button>
+                    <!-- Show Progress Button -->
+                    <button type="submit" class="btn btn-primary btn-block" name="action" value="show_progress">Show
+                        Progress</button>
 
-            <div class="p-3">
-                <div style="position: fixed; bottom: 50px; right: 20px;">
-                    <button type="submit" class="btn btn-success">Confirm</button>
+                    <button type="submit" class="btn btn-primary btn-block" name="action"
+                        value="statistics">Statistics</button>
+
+                    <button type="submit" class="btn btn-primary btn-block" name="action" value="change_password">Change
+                        Password</button>
                 </div>
             </div>
-        </form>
-    </div>
+        </div>
+    </form>
 
     <!-- -------------------------------------------------------------------------- -->
     <div clas="p-3">
