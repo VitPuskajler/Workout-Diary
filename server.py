@@ -73,8 +73,9 @@ class Base(DeclarativeBase):
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app.config["SQLALCHEMY_DATABASE_URI"] = (
-    f"sqlite:///{os.path.join(basedir, "instance/workout.db")}"
+    f"sqlite:///{os.path.join(basedir, 'instance/workout.db')}"
 )
+
 # app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///workout.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -1431,3 +1432,4 @@ def profile():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+    app.run(debug=True) # Delete this before pushing
