@@ -81,52 +81,56 @@
   </div>
 
 
-  <div class="container col-md-10 col-sm-12 text-center">
-    <div class="my-4 p-4 bg-body ">
-      <div class="row justify-contentcenter">
-        <p class="h2">Choose how your table layout</p>
-        
+  <!-- First Section -->
+<div class="container text-center">
+  <div class="my-4 p-4 bg-body">
+    <div class="row justify-content-center">
+      <div class="col-12">
+        <p class="h2">Provide Mesocycle Information</p>
+        <!-- Additional content if needed -->
         <p class="h3"><b></b></p>
       </div>
     </div>
   </div>
-  <div class="container col-md-8 col-lg-10 col-sm-12">
-    <div class="row justify-contentcenter">
+</div>
 
-      <div class="row justify-content-center">
-        <div class="col-md-10">
-          <div class="my-3 p-3 bg-body rounded shadow-sm">
-            <form action="{{ url_for('table_layout') }}" method="post">
-              <!-- How many exercises per session-->
-              <div class="mb-3">
-                <label for="meso_name" class="form-label"><b>Mesocycle Name</b></label>
-                <input type="text" id="name" name="meso_name" class="form-control"
-                  placeholder="Eg. Hypertrophy Mesocycle... Beast mode. Or leave this blank">
-              </div>
-              
-              <!-- How long will last mesocycle -->
-              <div class="mb-3">
-                <label for="period" class="form-label"><b>Mesocycle Period</b></label>
-                <input type="text" id="period" name="mesocycle"
-                  placeholder="How many weeks will last your mesocycle? Usually 4 - 12 weeks" class="form-control">
-              </div>
-
-              <!-- How many times per week user want to workout -->
-              <div class="mb-3">
-                <label for="per_week" class="form-label"><b>Workouts Per Week</b></label>
-                <input type="text" id="per_week" name="per_week"
-                  placeholder="How many times you want to exercise per week? " class="form-control">
-              </div>
-  
-              <div class="my-1 p-3 text-center">
-                <button type="submit" class="btn btn-dark">Confirm</button>
-              </div>
-            </form>
+<!-- Second Section -->
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-sm-12 col-md-10 col-lg-8">
+      <div class="my-3 p-3 bg-body rounded shadow-sm">
+        <form action="{{ url_for('table_layout') }}" method="post">
+          <!-- Mesocycle Name -->
+          <div class="mb-3">
+            <label for="meso_name" class="form-label"><b>Mesocycle Name</b></label>
+            <input type="text" id="name" name="meso_name" class="form-control"
+              placeholder="Eg. Hypertrophy Mesocycle... Beast mode. Or leave this blank">
           </div>
-        </div>
+
+          <!-- Mesocycle Period -->
+          <div class="mb-3">
+            <label for="period" class="form-label"><b>Mesocycle Period</b></label>
+            <input type="text" id="period" name="mesocycle" class="form-control"
+              placeholder="How many weeks will last your mesocycle? Usually 4 - 12 weeks">
+          </div>
+
+          <!-- Workouts Per Week -->
+          <div class="mb-3">
+            <label for="per_week" class="form-label"><b>Workouts Per Week</b></label>
+            <input type="text" id="per_week" name="per_week" class="form-control"
+              placeholder="How many times you want to exercise per week?">
+          </div>
+
+          <!-- Submit Button -->
+          <div class="my-1 p-3 text-center">
+            <button type="submit" class="btn btn-dark">Confirm</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
+</div>
+
 
   <div class="p-3">
     <div class="fixed-bottom text-center py-2">

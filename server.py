@@ -373,113 +373,263 @@ def default_order(weekly):
 
 # Overwrite exercises, sets or rest period
 def overwrite_exercise(submitted_data, weekly, workouts_id, jinja_exercises):
-    count, count_sets, count_pauses = -1, -1, -1
-
     for day in range(weekly):
-        user_exe = submitted_data.get(f"workout_name_{day}", "")
+        # Reset counters for each day
+        count, count_sets, count_pauses = -1, -1, -1
 
-        for i, x in enumerate(submitted_data):
-            # Catch exercise renaming
-            if x.startswith(f"exercise_{day}"):
-                count += 1
+        # Filter keys for the current day
+        day_exercise_keys = sorted([k for k in submitted_data if k.startswith(f"exercise_{day}")])
+        day_sets_keys = sorted([k for k in submitted_data if k.startswith(f"sets_{day}")])
+        day_pauses_keys = sorted([k for k in submitted_data if k.startswith(f"pauses_{day}")])
 
-                exe_name = submitted_data[x]
-                # print(f"day {day}: {exe_name}")
+        # Process exercises for the current day
+        for key in day_exercise_keys:
+            count += 1
+            exe_name = submitted_data[key]
 
-                exercise_id_query = (
+            # Get the new exercise ID
+            exercise_id_query = (
+                db.session.query(Exercise.exercise_id)
+                .filter_by(exercise_name=exe_name)
+                .first()
+            )
+
+            if exercise_id_query:
+                current_exercise_id = exercise_id_query[0]
+
+                # Get the previous exercise ID from jinja_exercises
+                try:
+                    previous_exercise = jinja_exercises[day][count]["exercise"][0]
+                    previous_exercise_id_query = (
+                        db.session.query(Exercise.exercise_id)
+                        .filter_by(exercise_name=previous_exercise)
+                        .first()
+                    )
+
+                    if previous_exercise_id_query:
+                        # Update the exercise ID in WorkoutExercises
+                        db.session.query(WorkoutExercises).filter_by(
+                            workout_id=workouts_id[day],
+                            exercise_id=previous_exercise_id_query[0],
+                        ).update({"exercise_id": current_exercise_id})
+                except IndexError as ie:
+                    print(f"You are out of range {ie}")
+
+        # Process sets for the current day
+        count_sets = -1
+        for key in day_sets_keys:
+            count_sets += 1
+            exe_sets = submitted_data[key]
+
+            # Get the current exercise ID from jinja_exercises
+            try:
+                current_exercise_name = jinja_exercises[day][count_sets]["exercise"][0]
+                current_exercise_id_query = (
                     db.session.query(Exercise.exercise_id)
-                    .filter_by(exercise_name=exe_name)
+                    .filter_by(exercise_name=current_exercise_name)
                     .first()
                 )
 
-                if exercise_id_query:
-                    current_exercise_id = exercise_id_query[0]
+                if current_exercise_id_query:
+                    current_exercise_id = current_exercise_id_query[0]
 
-                    current_workout_exercise_id = (
-                        db.session.query(WorkoutExercises.workout_exercise_id)
-                        .filter_by(
-                            workout_id=workouts_id[day],
-                            exercise_id=current_exercise_id,
-                        )
-                        .first()
-                    )
+                    # Update the prescribed sets in WorkoutExercises
+                    db.session.query(WorkoutExercises).filter_by(
+                        workout_id=workouts_id[day],
+                        exercise_id=current_exercise_id,
+                    ).update({"prescribed_sets": exe_sets})
+            except IndexError as ie:
+                print(f"You are out of range for sets {ie}")
 
-                    if not current_workout_exercise_id:
-                        try:
-                            previous_exercise = jinja_exercises[day][count]["exercise"][
-                                0
-                            ]
-                            previous_exercise_id_query = (
-                                db.session.query(Exercise.exercise_id)
-                                .filter_by(exercise_name=previous_exercise)
-                                .first()
-                            )
+        # Process pauses for the current day
+        count_pauses = -1
+        for key in day_pauses_keys:
+            count_pauses += 1
+            exe_pauses = submitted_data[key]
 
-                            update_databse_exercise = (
-                                db.session.query(WorkoutExercises)
-                                .filter_by(
-                                    workout_id=workouts_id[day],
-                                    exercise_id=previous_exercise_id_query.exercise_id,
-                                )
-                                .update({"exercise_id": exercise_id_query.exercise_id})
-                            )
-                        except IndexError as ie:
-                            print(f"you are out of range {ie}")
+            # Get the current exercise ID from jinja_exercises
+            try:
+                current_exercise_name = jinja_exercises[day][count_pauses]["exercise"][0]
+                current_exercise_id_query = (
+                    db.session.query(Exercise.exercise_id)
+                    .filter_by(exercise_name=current_exercise_name)
+                    .first()
+                )
 
-            # Catch change in sets
-            if x.startswith(f"sets_{day}"):
-                count_sets += 1
-                exe_sets = submitted_data[x]
+                if current_exercise_id_query:
+                    current_exercise_id = current_exercise_id_query[0]
 
-                if exercise_id_query:
-                    current_workout_exercise_sets = (
-                        db.session.query(WorkoutExercises.prescribed_sets)
-                        .filter_by(
-                            workout_id=workouts_id[day],
-                            exercise_id=current_exercise_id,
-                        )
-                        .first()
-                    )
+                    # Update the rest period in WorkoutExercises
+                    db.session.query(WorkoutExercises).filter_by(
+                        workout_id=workouts_id[day],
+                        exercise_id=current_exercise_id,
+                    ).update({"rest_period": exe_pauses})
+            except IndexError as ie:
+                print(f"You are out of range for pauses {ie}")
 
-                    if current_workout_exercise_sets:
-                        update_databse_sets = (
-                            db.session.query(WorkoutExercises)
-                            .filter_by(
-                                workout_id=workouts_id[day],
-                                exercise_id=current_exercise_id,
-                            )
-                            .update({"prescribed_sets": exe_sets})
-                        )
-
-            # Catch change in pauses
-            if x.startswith(f"pauses_{day}"):
-                count_pauses += 1
-                exe_pauses = submitted_data[x]
-                print(f"day {day}: name: {exe_name} sets:{exe_pauses}")
-
-                if exercise_id_query:
-                    current_workout_exercise_pauses = (
-                        db.session.query(WorkoutExercises.rest_period)
-                        .filter_by(
-                            workout_id=workouts_id[day],
-                            exercise_id=current_exercise_id,
-                        )
-                        .first()
-                    )
-
-                    if current_workout_exercise_pauses:
-                        update_databse_sets = (
-                            db.session.query(WorkoutExercises)
-                            .filter_by(
-                                workout_id=workouts_id[day],
-                                exercise_id=current_exercise_id,
-                            )
-                            .update({"rest_period": exe_pauses})
-                        )
-
+        # Commit changes after processing each day
         db.session.commit()
 
 
+def find_workout_name_from_user(submitted_data, weekly, workout_names) -> None:
+        # Save to DB - WorkoutPlan
+        user = Users.query.filter_by(username=current_user.username).first()
+        user_id_db = user.user_id
+
+        for day in range(weekly):
+            workout_name = request.form.get(f"workout_name_{day}", None)
+
+            if workout_name != "":
+                workout_names[day] = workout_name
+                # Save / rename workout in database
+                # Find the corresponding workout by user_id and some identifier like day or created_at
+                workout = (
+                    WorkoutPlan.query.filter_by(user_id=user_id_db)
+                    .order_by(WorkoutPlan.created_at.desc())
+                    .offset(day)
+                    .first()
+                )
+                if workout:
+                    workout.workout_name = workout_name  # Update workout name
+                    db.session.add(workout)
+
+            db.session.commit()
+        return workout_names
+
+ # Add exercise to database --- add weekly to arguments
+def add_exercise(submitted_data, order, weekly, jinja_exercises, workouts_id):
+    user = Users.query.filter_by(username=current_user.username).first()
+    user_id_db = user.user_id
+    new_exercise_order = 0
+    exercise_count = 0
+
+    # Function to make exercise dict: if no set /values are provided then set default values
+    def user_input_or_defualt():
+        prescribed_sets_user = submitted_data.get(f"new_sets_{day}", None)
+        rest_period_user = submitted_data.get(f"new_pauses_{day}", None)
+
+        rest_period = rest_period_user if rest_period_user else 120
+        prescribed_sets = prescribed_sets_user if prescribed_sets_user else 2
+
+        return rest_period, prescribed_sets
+
+    for day in range(weekly):
+        user_exe = submitted_data.get(f"new_exercise_{day}", "")
+
+        # Find exercise_id for exercise user have inputed
+        exe_id = (
+            db.session.query(Exercise).filter_by(exercise_name=user_exe).first()
+        )
+
+        if exe_id:
+
+            # Give me last exercise_id from workout_exercises
+            exe_in_db = (
+                db.session.query(WorkoutExercises.exercise_id)
+                .filter_by(workout_id=workouts_id[day])
+                .order_by(WorkoutExercises.workout_exercise_id.desc())
+                .all()
+            )
+
+            exercise_ids = [exercise_id[0] for exercise_id in exe_in_db]
+
+            if exe_id.exercise_id in exercise_ids:
+                # In this case don't save exercise to db -> maybe give user some info
+                print("I have this exercise in db. Nothing is going to happen.")
+
+            else:
+                print("This exercise is not in db yet. I am saving it now.")
+
+                exercise_count = (
+                    db.session.query(WorkoutExercises)
+                    .filter_by(workout_id=workouts_id[day])
+                    .count()
+                )
+
+                rest, sets = user_input_or_defualt()
+                if exercise_count >= 1:
+
+                    print(f"total exercises in this workout: {exercise_count + 1}")
+                    # Add new exercise to database
+                    new_exercise_order = exercise_count + 1
+                    new_exercise_entry = {
+                        "order_in_workout": new_exercise_order,  # Match with the unique input name
+                        "exercise_id": exe_id.exercise_id,  # Match with the unique input name
+                        "prescribed_sets": sets,
+                        "rest_period": rest,
+                        "workout_id": workouts_id[day],
+                    }
+
+                    new_exercise = WorkoutExercises(**new_exercise_entry)
+                    db.session.add(new_exercise)
+                    db.session.commit()
+
+                elif exercise_count == 0:
+                    new_exercise_order = exercise_count + 1
+                    new_exercise_entry = {
+                        "order_in_workout": new_exercise_order,  # Match with the unique input name
+                        "exercise_id": exe_id.exercise_id,  # Match with the unique input name
+                        "prescribed_sets": int(sets),
+                        "rest_period": int(rest),
+                        "workout_id": workouts_id[day],
+                    }
+
+                    new_exercise = WorkoutExercises(**new_exercise_entry)
+                    db.session.add(new_exercise)
+                    db.session.commit()
+
+                    print("No exercise")
+
+    return order
+
+# Delete function
+def delete_exercise(submitted_data, weekly, workouts_id):
+    for day in range(weekly):
+        delete_keys = [
+            key for key in submitted_data.keys() if key.startswith(f"remove_{day}_")
+        ]
+
+        for key in delete_keys:
+            parts = key.split("_")
+
+            if len(parts) == 3:
+                _, day_str, idx_str = parts
+                idx = int(idx_str)
+                delete_value = submitted_data.get(key)
+
+                exercise = submitted_data.get(f"exercise_{day}_{idx}")
+
+                specific_exercise_id = (
+                    db.session.query(Exercise.exercise_id)
+                    .filter_by(exercise_name=exercise)
+                    .first()
+                )
+
+                if specific_exercise_id:
+                    workout_id_found = (
+                        db.session.query(WorkoutExercises.workout_exercise_id)
+                        .filter_by(
+                            workout_id=workouts_id[day],
+                            exercise_id=specific_exercise_id[0],
+                        )
+                        .first()
+                    )
+                    # Remove the exercise
+                    # DELTE FROM WorkoutExercises
+                    # WHERE workout_exercise_id = workout_id_found.workout_exercise_id
+
+                    remove_exe_from_db = (
+                        db.session.query(WorkoutExercises)
+                        .filter(
+                            WorkoutExercises.workout_exercise_id
+                            == workout_id_found.workout_exercise_id
+                        )
+                        .delete(synchronize_session=False)
+                    )
+                    db.session.commit()
+
+            else:
+                print(f"Unexpected key format: {key}")
 # For tryining sessions mainly ---------------------------------------
 def add_session_to_db(chosen_day_by_user, workouts_id):
     user = Users.query.filter_by(username=current_user.username).first()
@@ -1092,167 +1242,6 @@ def table_layout():
 @app.route("/create_workout", methods=["GET", "POST"])
 @login_required
 def create_workout():
-    # Delete function
-    def delete_exercise(submitted_data):
-        for day in range(weekly):
-            delete_keys = [
-                key for key in submitted_data.keys() if key.startswith(f"remove_{day}_")
-            ]
-
-            for key in delete_keys:
-                parts = key.split("_")
-
-                if len(parts) == 3:
-                    _, day_str, idx_str = parts
-                    idx = int(idx_str)
-                    delete_value = submitted_data.get(key)
-
-                    exercise = submitted_data.get(f"exercise_{day}_{idx}")
-
-                    specific_exercise_id = (
-                        db.session.query(Exercise.exercise_id)
-                        .filter_by(exercise_name=exercise)
-                        .first()
-                    )
-
-                    if specific_exercise_id:
-                        workout_id_found = (
-                            db.session.query(WorkoutExercises.workout_exercise_id)
-                            .filter_by(
-                                workout_id=workouts_id[day],
-                                exercise_id=specific_exercise_id[0],
-                            )
-                            .first()
-                        )
-                        # Remove the exercise
-                        # DELTE FROM WorkoutExercises
-                        # WHERE workout_exercise_id = workout_id_found.workout_exercise_id
-
-                        remove_exe_from_db = (
-                            db.session.query(WorkoutExercises)
-                            .filter(
-                                WorkoutExercises.workout_exercise_id
-                                == workout_id_found.workout_exercise_id
-                            )
-                            .delete(synchronize_session=False)
-                        )
-                        db.session.commit()
-
-                else:
-                    print(f"Unexpected key format: {key}")
-
-    # Add exercise to database --- add weekly to arguments
-    def add_exercise(submitted_data, order, weekly, jinja_exercises):
-        user = Users.query.filter_by(username=current_user.username).first()
-        user_id_db = user.user_id
-        new_exercise_order = 0
-        exercise_count = 0
-
-        # Function to make exercise dict: if no set /values are provided then set default values
-        def user_input_or_defualt():
-            prescribed_sets_user = submitted_data.get(f"new_sets_{day}", None)
-            rest_period_user = submitted_data.get(f"new_pauses_{day}", None)
-
-            rest_period = rest_period_user if rest_period_user else 120
-            prescribed_sets = prescribed_sets_user if prescribed_sets_user else 2
-
-            return rest_period, prescribed_sets
-
-        for day in range(weekly):
-            user_exe = submitted_data.get(f"new_exercise_{day}", "")
-
-            # Find exercise_id for exercise user have inputed
-            exe_id = (
-                db.session.query(Exercise).filter_by(exercise_name=user_exe).first()
-            )
-
-            if exe_id:
-
-                # Give me last exercise_id from workout_exercises
-                exe_in_db = (
-                    db.session.query(WorkoutExercises.exercise_id)
-                    .filter_by(workout_id=workouts_id[day])
-                    .order_by(WorkoutExercises.workout_exercise_id.desc())
-                    .all()
-                )
-
-                exercise_ids = [exercise_id[0] for exercise_id in exe_in_db]
-
-                if exe_id.exercise_id in exercise_ids:
-                    # In this case don't save exercise to db -> maybe give user some info
-                    print("I have this exercise in db. Nothing is going to happen.")
-
-                else:
-                    print("This exercise is not in db yet. I am saving it now.")
-
-                    exercise_count = (
-                        db.session.query(WorkoutExercises)
-                        .filter_by(workout_id=workouts_id[day])
-                        .count()
-                    )
-
-                    rest, sets = user_input_or_defualt()
-                    if exercise_count >= 1:
-
-                        print(f"total exercises in this workout: {exercise_count + 1}")
-                        # Add new exercise to database
-                        new_exercise_order = exercise_count + 1
-                        new_exercise_entry = {
-                            "order_in_workout": new_exercise_order,  # Match with the unique input name
-                            "exercise_id": exe_id.exercise_id,  # Match with the unique input name
-                            "prescribed_sets": sets,
-                            "rest_period": rest,
-                            "workout_id": workouts_id[day],
-                        }
-
-                        new_exercise = WorkoutExercises(**new_exercise_entry)
-                        db.session.add(new_exercise)
-                        db.session.commit()
-
-                    elif exercise_count == 0:
-                        new_exercise_order = exercise_count + 1
-                        new_exercise_entry = {
-                            "order_in_workout": new_exercise_order,  # Match with the unique input name
-                            "exercise_id": exe_id.exercise_id,  # Match with the unique input name
-                            "prescribed_sets": int(sets),
-                            "rest_period": int(rest),
-                            "workout_id": workouts_id[day],
-                        }
-
-                        new_exercise = WorkoutExercises(**new_exercise_entry)
-                        db.session.add(new_exercise)
-                        db.session.commit()
-
-                        print("No exercise")
-
-        return order
-
-    # Create workout name / tag - user can change workout name in database
-    def find_workout_name_from_user(submitted_data, weekly) -> None:
-        # Save to DB - WorkoutPlan
-        user = Users.query.filter_by(username=current_user.username).first()
-        user_id_db = user.user_id
-
-        for day in range(weekly):
-            workout_name = request.form.get(f"workout_name_{day}", None)
-
-            if workout_name != "":
-                workout_names[day] = workout_name
-                # Save / rename workout in database
-                # Find the corresponding workout by user_id and some identifier like day or created_at
-                workout = (
-                    WorkoutPlan.query.filter_by(user_id=user_id_db)
-                    .order_by(WorkoutPlan.created_at.desc())
-                    .offset(day)
-                    .first()
-                )
-                if workout:
-                    workout.workout_name = workout_name  # Update workout name
-                    db.session.add(workout)
-
-            db.session.commit()
-        return workout_names
-
     weekly, workout_names, workouts_id = find_users_weeks()
 
     # Default order
@@ -1276,13 +1265,13 @@ def create_workout():
         submitted_data = request.form.to_dict()
 
         # Name of workout is default set 1-x and user can change it
-        workout_names = find_workout_name_from_user(submitted_data, weekly)
+        workout_names = find_workout_name_from_user(submitted_data, weekly, workout_names)
 
         # Save new exercise into database - return order number
-        exercises_dict = add_exercise(submitted_data, order, weekly, jinja_exercises)
+        exercises_dict = add_exercise(submitted_data, order, weekly, jinja_exercises, workouts_id)
 
         # Call function to delete exercise from workout
-        delete_exercise(submitted_data)
+        delete_exercise(submitted_data, weekly, workouts_id)
 
         # Call function to overwrite exercise
         overwrite_exercise(submitted_data, weekly, workouts_id, jinja_exercises)
@@ -1432,4 +1421,4 @@ def profile():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=True) # Delete this before pushing
+    #app.run(debug=True) # Delete this before pushing
