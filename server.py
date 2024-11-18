@@ -306,7 +306,7 @@ def find_users_weeks():
                 .limit(per_week_db[0])
                 .all()
             )
-            print(f"Last workout IDs: {last_workouts_id}")
+            #print(f"Last workout IDs: {last_workouts_id}")
 
             workouts_id = [x[0] for x in last_workouts_id] if last_workouts_id else []
         except Exception as e:
@@ -315,7 +315,6 @@ def find_users_weeks():
             db.session.rollback()
 
         workout_names_in_db = [workout.workout_name for workout in last_workouts]
-        print(f"Workout names in DB: {workout_names_in_db}")
 
         return per_week_db[0], workout_names_in_db, workouts_id
 
@@ -1082,7 +1081,78 @@ def tables_informations(chosen_mesocycle: str, mesocycle_info: dict) -> dict:
                 workouts_from_db[w_name_to_dict] = exercise_dict
 
     return workouts_from_db
-                        
+
+def workout_day_information(chosen_mesocycle: str, mesocycle_info: dict) -> dict:
+    # Initialize variables with default values
+    mesocycle_id = None
+    duration = None
+    per_week = None
+    workout_ids = None
+
+    workouts_from_db = {}
+    # Search and assign mesocycle name to relevant dict
+    for key, value in mesocycle_info.items():
+        if chosen_mesocycle in value:
+            mesocycle_id = value[chosen_mesocycle]
+            duration = value.get('duration')
+            per_week = value.get('per_week')
+            workout_ids = value.get('workout_ids')
+            break     
+    
+    
+    if workout_ids:
+        for wid in workout_ids:
+            workouts_list = []
+            workout_name_db = db.session.query(WorkoutPlan.workout_name).filter(
+                WorkoutPlan.workout_id == wid,
+            ).first()  
+            if workout_name_db:
+                w_name_to_dict = workout_name_db[0]
+                workout_exercises = db.session.query(WorkoutExercises).filter(
+                    WorkoutExercises.workout_id == wid,
+                ).all()       
+            
+                #print(f"what do we have here{workout_name_db[0]} - {wid}")
+
+                for exrs in workout_exercises:
+                    exercise_name_for_list = find_exercise_name_db(exrs.exercise_id)[0]
+                    workouts_list.append(exercise_name_for_list)
+                workouts_from_db[w_name_to_dict] = workouts_list
+    
+    return workouts_from_db
+def exercise_progress_data(workout_info, chosen_day):
+    current_user_id = current_user_id_db()
+    for key, value in workout_info.items():
+     if chosen_day in key:
+        #print(key, value)
+        # I need to get first exercise user made in his mesocycle and last one -> date, reps weight, rpe
+        workout_id = db.session.query(WorkoutPlan.workout_id).filter(
+            WorkoutPlan.user_id == current_user_id,
+            WorkoutPlan.workout_name == key
+        ).order_by(desc(WorkoutPlan.created_at)).first()
+
+        #print(f"Workout {key} have id [{workout_id[0]}]")
+
+        # First session exercise_entry
+        if workout_id:
+            first_session = db.session.query(Sessions.session_id).filter(
+                Sessions.user_id == current_user_id,
+                Sessions.workout_id == workout_id[0]
+            ).first()
+
+            if first_session:
+                print(f"first_session_is == {first_session[0]}")
+                last_session = db.session.query(Sessions.session_id).filter(
+                Sessions.user_id == current_user_id,
+                Sessions.workout_id == workout_id[0]
+            ).order_by(desc(Sessions.session_date)).first()[0]
+                print("last session:", last_session)
+        
+        else:
+            return None
+        
+        break
+        
     # --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -1395,14 +1465,14 @@ def execute_workout_plan_exercises():
 @login_required
 def profile():
     action = request.form.get('action')
-    
+
     if action == 'change_mesocycle':
 
         # Handle changing the mesocycle
         return redirect(url_for("create_workout"))
     elif action == 'show_progress':
         # Handle showing progress
-        return "Show Progress clicked"
+        return redirect(url_for("progress"))
     elif action == 'statistics':
         # Handle statistics
         return "I am working on this page :-)"
@@ -1413,12 +1483,108 @@ def profile():
 
     return render_template(
         "profile.html",
+    )
+
+# --------------------------------------------------------------------------
+@login_required
+@app.route("/progress", methods=["GET", "POST"])
+def progress():
+    current_user_id = current_user_id_db()
+    # Function to access workout day / data from database
+    weekly, workout_names, workout_id = find_users_weeks()
+
+    # Load amount of mesocycles
+    all_users_mesocycles_query = db.session.query(WorkoutPlan).filter(
+        WorkoutPlan.user_id == current_user_id
+    )
+
+    # Initialize variables
+    chosen_mesocycle = session.get("chosen_mesocycle")
+    chosen_day = session.get("chosen_day")
+    chosen_exercise = session.get("chosen_exercise")
+    dropdown_menu_info = {}
+    workout_day_info = {}
+
+    if all_users_mesocycles_query:
+        print("There are some workouts already in your mesocycle")
+        dropdown_menu_info = show_tables_to_user(current_user_id)
+
+        if request.method == "POST":
+            # Handle mesocycle selection
+            submitted_data = request.form.to_dict()
+            chosen_mesocycle = submitted_data.get("mesocycle")
+            if chosen_mesocycle:
+                session["chosen_mesocycle"] = chosen_mesocycle
+            else:
+                # If no mesocycle selected, remove from session
+                session.pop("chosen_mesocycle", None)
+                chosen_mesocycle = None
+
+        # Ensure `chosen_mesocycle` is set before generating `workout_day_info`
+        if chosen_mesocycle:
+            workout_day_info = workout_day_information(chosen_mesocycle, dropdown_menu_info)
+            
+        else:
+            workout_day_info = {}
+    else:
+        return render_template("table_layout.html", year=YEAR)
+
+    if weekly is None:
+        return redirect(url_for("home"))
+
+    order, jinja_exercises = default_order(weekly)
+    exercises_for_jinja(jinja_exercises, weekly, workout_id)
+
+    workouts_id_name = {}
+    # Make dict like this: {1: "Upper Body"}
+    for i in range(weekly):
+        workouts_id_name[i] = workout_names[i]
+
+    # Create list of exercises -> for Jinja purposes
+    workout_key = next((k for k, v in workouts_id_name.items() if v == chosen_day), 0)
+    exercises_from_user = jinja_exercises.get(workout_key, [])
+    exercises_in_workout = [x["exercise"][0] for x in exercises_from_user]
+
+    # Handle GET parameters
+    if request.method == "GET":
+        load_workout_day = request.args.get("training_day")
+        if load_workout_day is not None:
+            if load_workout_day == "":
+                session.pop("chosen_day", None)
+                chosen_day = None
+            else:
+                session["chosen_day"] = load_workout_day
+                chosen_day = load_workout_day
+                # If day is changed, pop session
+                session.pop("chosen_exercise", None)
+                chosen_exercise = None
+                return redirect(url_for("progress"))
+
+        load_chosen_exercise = request.args.get("chosen_exercise")
+        if load_chosen_exercise is not None:
+            if load_chosen_exercise == "":
+                session.pop("chosen_exercise", None)
+                chosen_exercise = None
+            else:
+                session["chosen_exercise"] = load_chosen_exercise
+                chosen_exercise = load_chosen_exercise
+        
+        if workout_day_info:
+            exercise_progress = exercise_progress_data(workout_day_info, chosen_day)
+
+    return render_template(
+        "progress.html",
         today=DATE,
         year=YEAR,
+        w_names=workouts_id_name,
+        chosen_day=chosen_day,
+        dropdown=dropdown_menu_info,
+        chosen_mesocycle=chosen_mesocycle,
+        workouts_info=workout_day_info,
     )
 
 
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    #app.run(debug=True) # Delete this before pushing
+    app.run(debug=True) # Delete this before pushing

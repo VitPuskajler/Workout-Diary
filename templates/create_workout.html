@@ -72,7 +72,7 @@
     <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
       <div class="container-fluid">
         <a class="navbar-brand" href="{{ url_for('index_page')}}">Personal Workout Periodization</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
+        <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
           aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
         </button>
@@ -194,11 +194,11 @@
                 </td>
               </tr>
               {% endfor %}
-
+              
               <tr>
                 <td>
                   <input type="text" id="new_exercise_{{ x }}" name="new_exercise_{{ x }}"
-                    class="form-control text-center" placeholder="Pull-Up" autocomplete="off" />
+                    class="form-control text-center bg-info-subtle" placeholder="Select Exercise" autocomplete="off" />
                   <!-- Suggestions dropdown -->
                   <div class="dropdown">
                     <ul id="exercise_suggestions_{{ x }}" class="dropdown-menu show" style="width: 100%; display: none">
@@ -206,11 +206,11 @@
                   </div>
                 </td>
                 <td class="col-2">
-                  <input type="number" name="new_sets_{{ x }}" class="form-control text-center" placeholder="2"
+                  <input type="number" name="new_sets_{{ x }}" class="form-control text-center bg-info-subtle" placeholder="2"
                     maxlength="1" />
                 </td>
                 <td class="col-2">
-                  <input type="number" name="new_pauses_{{ x }}" class="form-control text-center" placeholder="120"
+                  <input type="number" name="new_pauses_{{ x }}" class="form-control text-center bg-info-subtle" placeholder="120"
                     maxlength="3" />
                 </td>
                 <td>

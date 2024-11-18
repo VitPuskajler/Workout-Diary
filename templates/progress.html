@@ -8,37 +8,8 @@
   <link rel="icon" href="/static/title/barbell_title.jpg">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
-  <style>
-    /* Additional styles for fixed-bottom container */
-    .fixed-bottom {
-      position: fixed;
-      bottom: 0;
-      width: 100%;
-      background-color: #f8f9fa;
-      /* Background color for visibility */
-      text-align: center;
-      /* Center align text */
-      padding: 10px 0;
-      /* Add padding for spacing */
-      z-index: 1030;
-      /* Ensure above other fixed elements */
-    }
-  </style>
-  <script>
-    function addFields() {
-      var num = document.getElementById("num_fields").value;
-      var container = document.getElementById("container");
-      container.innerHTML = "";
-      for (i = 0; i < num; i++) {
-        container.appendChild(document.createTextNode("Field " + (i + 1) + ": "));
-        var input = document.createElement("input");
-        input.type = "text";
-        input.name = "field_" + (i + 1);
-        container.appendChild(input);
-        container.appendChild(document.createElement("br"));
-      }
-    }
-  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@3">
+
 </head>
 
 <body>
@@ -67,12 +38,10 @@
     </symbol>
   </svg>
 
-
-
-  <div class="p-3 mb-5">
+  <div class="p-5">
     <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
       <div class="container-fluid">
-        <a class="navbar-brand" href="{{ url_for('home')}}">Personal Workout Periodization</a>
+        <a class="navbar-brand" href="{{ url_for('home') }}">Personal Workout Periodization</a>
         <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
           aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
@@ -80,18 +49,19 @@
         <div class="collapse navbar-collapse" id="navbarCollapse">
           <ul class="navbar-nav me-auto mb-2 mb-md-0">
             <li class="nav-item">
-              <a class="nav-link" aria-current="page" href="{{url_for('training_session_redirect')}}">Training
-                Session</a>
+              <a class="nav-link" aria-current="page" href="{{ url_for('training_session')}}">Training Session</a>
             </li>
-            <li class="nav-item active">
-              <a class="nav-link active" href="#">Workout Plan</a>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('workout_plan_page')}}">Workout Plan</a>
+            </li>
 
           </ul>
+          <!-- Login and register buttons on the right -->
           <ul class="navbar-nav ms-auto">
             {% if current_user.is_authenticated %}
             <li class="nav-item">
               <!-- Change path to profile.html after clicking on UserName-->
-              <a class="nav-link" href="{{ url_for('profile')}}">{{ current_user.username }}</a>
+              <a class="nav-link active" href="{{ url_for('profile')}}">{{ current_user.username }}</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
@@ -109,88 +79,82 @@
       </div>
     </nav>
   </div>
-  <main class="container">
-    <div class="my-3 p-3 bg-body rounded shadow-sm">
-      <div class="d-flex text-body-secondary pt-3 text-center">
-        <div class="container col-12">
-          <form action="{{ url_for('workout_plan_page') }}" method="post">
-            <label for="mesocycleSelect">Mesocycle:</label>
-            <select class="form-select" aria-label="Default select example" id="mesocycleSelect" name="mesocycle"
-              onchange="this.form.submit()">
 
-              {% if chosen_mesocycle is not none %}
-              <option>{{chosen_mesocycle}}</option>
-              {% else %}
-              <option>Choose Mesocycle</option>
-              {% endif %}
-
-              {% if dropdown is not none %}
+  <div class="p-5">
+    <div class="container">
+      <div class="row justify-content-center">
+        <!-- First Form -->
+        <div class="col-md-6 col-sm-5 mb-1 p-1">
+          <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="post">
+            <select class="form-select mb-1 mx-auto text-center" aria-label="Default select example"
+              id="MesocycleSelect" name="mesocycle" onchange="this.form.submit()">
+              <option value="">Choose Mesocycle</option>
+              {% if dropdown %}
               {% for key, value in dropdown.items() %}
-              {%if chosen_mesocycle == value.keys() | first %}
-              {{pass}}
-              {% else %}
-              <option>{{ value.keys() | first }}</option>
-              {% endif %}
+              {% set mesocycle_name = value.keys()|first %}
+              <option value="{{ mesocycle_name }}" {% if chosen_mesocycle==mesocycle_name %}selected{% endif %}>{{
+                mesocycle_name }}</option>
               {% endfor %}
               {% else %}
-              <option value="{{ key }}">You have no Mesocycle yet</option>
+              <option value="">You have no Mesocycle yet</option>
               {% endif %}
             </select>
           </form>
+        </div>
 
 
-
-          {% if table_population %}
-          {% for workout_name, exercises in table_population.items() %}
-          <div class="container p-3">
-            <div class="row justify-content-center">
-              <div class="col-12 col-md-8 col-sm-12">
-                <h5 class="border-bottom pb-2 mb-3 text-center text-success">{{ workout_name }}</h5>
-                <table class="table table-striped text-center mb-5">
-                  <thead>
-                    <tr>
-                      <th class="text-center col-8">Exercise</th>
-                      <th class="text-center col-2">Sets</th>
-                      <th class="text-center col-2">Rest</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for exercise_name, details in exercises.items() %}
-                    <tr>
-                      <td>{{ exercise_name }}</td>
-                      <td>{{ details.sets }}</td>
-                      <td>{{ details.rest }}</td>
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          {% endfor %}
-
+        <div class="col-md-7 col-sm-7 mb-5 p-1">
+          {% if workouts_info %}
+          <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="get">
+            <select class="form-select mb-1 mx-auto text-center" aria-label="Default select example"
+              id="WorkoutDaySelect" name="training_day" onchange="this.form.submit()">
+              <option value="">Choose Training Day</option>
+              {% for key, value in workouts_info.items() %}
+              <option value="{{ key }}" {% if key==session.get('chosen_day') %}selected{% endif %}>{{ key }}</option>
+              {% endfor %}
+            </select>
+          </form>
+          {% else %}
+          <!-- Optionally, display a message if no workouts are available -->
+          <p></p>
           {% endif %}
-
-
-          <div class="d-flex justify-content-center align-items-center" style="height: 15vh;">
-            <a class="btn btn-primary" href="{{ url_for('table_layout') }}" role="button">
-              Create new mesocycle plan
-            </a>
+        </div>
+      </div>
+      
+      {% if workouts_info %}
+      <div class="text-center">
+        <p class="d-inline-flex gap-1">
+          <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExample"
+            aria-expanded="false" aria-controls="collapseExample">
+            Button with data-bs-target
+          </button>
+        </p>
+        <div class="collapse" id="collapseExample">
+          <div class="card card-body">
+            Some placeholder content for the collapse component. This panel is hidden by default but revealed when the
+            user activates the relevant trigger.
           </div>
+        </div>
+
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
 
 
-          <div clas="p-3">
-            <div class="fixed-bottom">
-              © {{ year }} | Created by Vít Puskajler
-            </div>
-          </div>
+  <div class="p-3">
+    <div class="fixed-bottom text-center py-2">
+      © {{ year }} | Created by Vít Puskajler
+    </div>
+  </div>
+  </div>
 
-
-  </main>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
     crossorigin="anonymous"></script>
+
 </body>
 
 </html>
