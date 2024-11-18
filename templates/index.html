@@ -46,11 +46,13 @@
   <div class="p-3 mb-5">
     <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
       <div class="container-fluid">
-        <a class="navbar-brand" href="{{ url_for('home') }}">Personal Workout Periodization</a>
-        <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
-          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
+        <div class="d-flex justify-content-between w-100">
+          <a class="navbar-brand" href="{{ url_for('home') }}">Personal Workout Periodization</a>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
+            aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+        </div>
         <div class="collapse navbar-collapse" id="navbarCollapse">
           <ul class="navbar-nav me-auto mb-2 mb-md-0">
             <li class="nav-item">
@@ -92,10 +94,10 @@
           <h2 class="display-5 link-body-emphasis mb-1 p-2"><b>Quick overview</b></h2>
           <hr>
 
-          <div class="flip-card mb-4 mb-md-3">
+          <div class="flip-card mb-5 mb-md-3">
             <div class="flip-card-inner">
               <div class="flip-card-front">
-                <p class="fs-6 fs-md-5 "></br><b>Training Session:</b><br> Provide input for your pre-created workout plan. During your training session, open this tab and enter your info from the workout</p>
+                <p class="fs-6 fs-md-3 "></br><b>Training Session:</b><br> Provide input for your pre-created workout plan. During your training session, open this tab and enter your info from the workout</p>
               </div>
               <div class="flip-card-back">
                 <p class="fs-6 fs-md-5"><b>Example:</b><br> Training Session for Upper Body: Bench Press - 3 sets of 10 reps, Deadlift - 3 sets of 8 reps</p>
@@ -103,7 +105,7 @@
             </div>
           </div>
           
-          <div class="flip-card mb-4 mb-md-3">
+          <div class="flip-card mb-3 mb-md-3">
             <div class="flip-card-inner">
               <div class="flip-card-front">
                 <p class="fs-6 fs-md-5"><b>Workout Plan:</b><br> Information about all your exercises and mesocycles so far. Also, you can create a new mesocycle plan throughout this page</p>
@@ -114,7 +116,7 @@
             </div>
           </div>
           
-          <div class="flip-card mb-4 mb-md-3">
+          <div class="flip-card mb-3 mb-md-3">
             <div class="flip-card-inner">
               <div class="flip-card-front">
                 <p><b class="fs-6 fs-md-5">Create New Mesocycle Plan:</b><br> Create a new mesocycle plan and populate the table</p>
