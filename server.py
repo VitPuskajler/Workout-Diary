@@ -38,6 +38,7 @@ from sqlalchemy import (
     select,
     desc,
     delete,
+    distinct
 )
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import DeclarativeBase
@@ -296,7 +297,7 @@ def find_users_weeks():
             .limit(per_week_db[0])
             .all()
         )
-        print(f"Last workouts: {last_workouts}")
+        #print(f"Last workouts: {last_workouts}")
 
         try:
             last_workouts_id = (
@@ -1120,38 +1121,73 @@ def workout_day_information(chosen_mesocycle: str, mesocycle_info: dict) -> dict
                 workouts_from_db[w_name_to_dict] = workouts_list
     
     return workouts_from_db
+
 def exercise_progress_data(workout_info, chosen_day):
     current_user_id = current_user_id_db()
-    for key, value in workout_info.items():
-     if chosen_day in key:
-        #print(key, value)
-        # I need to get first exercise user made in his mesocycle and last one -> date, reps weight, rpe
-        workout_id = db.session.query(WorkoutPlan.workout_id).filter(
-            WorkoutPlan.user_id == current_user_id,
-            WorkoutPlan.workout_name == key
-        ).order_by(desc(WorkoutPlan.created_at)).first()
 
-        #print(f"Workout {key} have id [{workout_id[0]}]")
+    first_result_set = {}
+    last_result_set = {}
 
-        # First session exercise_entry
-        if workout_id:
-            first_session = db.session.query(Sessions.session_id).filter(
-                Sessions.user_id == current_user_id,
-                Sessions.workout_id == workout_id[0]
-            ).first()
+    result_set = {}
 
-            if first_session:
-                print(f"first_session_is == {first_session[0]}")
-                last_session = db.session.query(Sessions.session_id).filter(
-                Sessions.user_id == current_user_id,
-                Sessions.workout_id == workout_id[0]
-            ).order_by(desc(Sessions.session_date)).first()[0]
-                print("last session:", last_session)
-        
-        else:
-            return None
-        
-        break
+    if chosen_day:
+        for key, value in workout_info.items():
+            if chosen_day in key:
+                # I need to get first exercise user made in his mesocycle and last one -> date, reps weight, rpe
+                workout_id = db.session.query(WorkoutPlan.workout_id).filter(
+                    WorkoutPlan.user_id == current_user_id,
+                    WorkoutPlan.workout_name == key
+                ).order_by(desc(WorkoutPlan.created_at)).first()[0]
+
+
+                # First session exercise_entry
+                if workout_id:
+                    first_session = db.session.query(Sessions.session_id).filter(
+                        Sessions.user_id == current_user_id,
+                        Sessions.workout_id == workout_id
+                    ).first()[0]
+                    
+                    all_sessions = db.session.query(Sessions).filter(
+                        Sessions.user_id == current_user_id,
+                        Sessions.workout_id == workout_id
+                    ).all()
+                    
+                    exercises_in_workout = db.session.query(WorkoutExercises).filter(
+                                WorkoutExercises.workout_id == workout_id
+                            ).all()
+                    
+
+                    if exercises_in_workout:
+                        for exrs in exercises_in_workout:
+                            exercise_name = find_exercise_name_db(exrs.exercise_id)[0]
+                            small_data_list = []
+
+                            for sess in all_sessions:
+                                find_exe = db.session.query(ExerciseEntries).filter(
+                                    ExerciseEntries.session_id == sess.session_id,
+                                    ExerciseEntries.exercise_id == exrs.exercise_id
+                                ).all()
+
+                                for som in find_exe:
+                                    # Create a new small_data_set dictionary for each entry
+                                    small_data_set = {
+                                        "date": sess.session_date.strftime("%d-%m-%Y"),
+                                        "reps": som.reps or 0,
+                                        "weight": som.weight or 0,
+                                        "rpe": som.rpe or 0,
+                                        "notes": som.notes or ""
+                                    }
+                                    small_data_list.append(small_data_set)
+
+                            # Add the list of exercise data to the result_set
+                            result_set[exercise_name] = small_data_list
+
+                        print(result_set)
+                        return result_set
+    else: 
+        return {None:None}
+
+                    
         
     # --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
@@ -1489,6 +1525,8 @@ def profile():
 @login_required
 @app.route("/progress", methods=["GET", "POST"])
 def progress():
+    exercise_progress = session.get("exercise_progress") 
+
     current_user_id = current_user_id_db()
     # Function to access workout day / data from database
     weekly, workout_names, workout_id = find_users_weeks()
@@ -1572,6 +1610,7 @@ def progress():
         if workout_day_info:
             exercise_progress = exercise_progress_data(workout_day_info, chosen_day)
 
+
     return render_template(
         "progress.html",
         today=DATE,
@@ -1581,10 +1620,11 @@ def progress():
         dropdown=dropdown_menu_info,
         chosen_mesocycle=chosen_mesocycle,
         workouts_info=workout_day_info,
+        progress= exercise_progress,
     )
 
 
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=True) # Delete this before pushing
+    #app.run(debug=True) # Delete this before pushing
