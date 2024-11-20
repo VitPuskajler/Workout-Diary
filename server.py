@@ -810,7 +810,11 @@ def jinja_sets_function(chosen_day, chosen_exercise):
     user = Users.query.filter_by(username=current_user.username).first()
     user_id_db = user.user_id
 
-    exercise_id = find_exercise_id_db(chosen_exercise)[0]
+    if chosen_exercise:
+        exercise_id = find_exercise_id_db(chosen_exercise)[0]
+    else:
+        return None
+    
     if not exercise_id:
         print(f"Exercise '{chosen_exercise}' not found.")
         return None
@@ -1159,7 +1163,7 @@ def exercise_progress_data(workout_info, chosen_day):
                         first_session = db.session.query(Sessions.session_id).filter(
                             Sessions.user_id == current_user_id,
                             Sessions.workout_id == workout_id
-                        ).first()[0]
+                        ).first()
                     except:
                         first_session = None
                         print("No data yet bro")
