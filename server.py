@@ -640,7 +640,7 @@ def add_session_to_db(chosen_day_by_user, workouts_id):
 
     # Check if a session already exists for today
     does_session_exist = (
-        db.session.query(Sessions.session_date, Sessions.session_id)
+        db.session.query(Sessions.session_id)
         .filter(
             and_(
                 Sessions.workout_id == workout_id_hopefully,
@@ -743,6 +743,7 @@ def find_exercise_name_db(id):
 def add_set_to_db(submitted_data, exercise, chosen_day) -> dict:
     user = Users.query.filter_by(username=current_user.username).first()
     user_id_db = user.user_id
+    print(f"user id to add set:{user_id_db}")
 
     if exercise is not None:
         workout_id_from_db = (
@@ -757,8 +758,8 @@ def add_set_to_db(submitted_data, exercise, chosen_day) -> dict:
 
         # Add set to database - exercise_entries
         # SELECT session_id FROM Sessions WHERE workout_id = my_workout_id ORDER BY session_id DESC
-        if workout_id_from_db[0] is not None:
-
+        if workout_id_from_db is not None:
+            
             session_id_form_db = (
                 db.session.query(Sessions.session_id)
                 .filter(Sessions.workout_id == workout_id_from_db[0])
@@ -778,9 +779,9 @@ def add_set_to_db(submitted_data, exercise, chosen_day) -> dict:
                     .count()
                 )
             except TypeError:
+                db.session.rollback()
                 print("Bro, there is no session yet, but I will set 0 for you")
                 sets_yet = 0
-
                 sets_yet += 1
 
             # Check if user didn't refresh website / if so it would add another set
@@ -809,28 +810,32 @@ def jinja_sets_function(chosen_day, chosen_exercise):
     user = Users.query.filter_by(username=current_user.username).first()
     user_id_db = user.user_id
 
-    exercise_id = find_exercise_id_db(chosen_exercise)
+    exercise_id = find_exercise_id_db(chosen_exercise)[0]
     if not exercise_id:
         print(f"Exercise '{chosen_exercise}' not found.")
         return None
 
     workout_id_from_db = (
-        db.session.query(WorkoutPlan.workout_id)
-        .filter(WorkoutPlan.workout_name == chosen_day)
-        .order_by(desc(WorkoutPlan.created_at))
-        .first()
+    db.session.query(WorkoutPlan.workout_id)
+    .filter(
+        WorkoutPlan.workout_name == chosen_day,
+        WorkoutPlan.user_id == user_id_db
     )
+    .order_by(desc(WorkoutPlan.created_at))
+    .first()
+)
 
     if workout_id_from_db:
         desired_session = (
             db.session.query(Sessions.session_id)
             .filter(
-                Sessions.workout_id == workout_id_from_db[0],
                 Sessions.user_id == user_id_db,
                 func.DATE(Sessions.session_date) == func.DATE(NOW),
             )
             .first()
         )
+
+        print(f"desired session for user is: {desired_session}")
 
         if desired_session:
             try:
@@ -838,11 +843,10 @@ def jinja_sets_function(chosen_day, chosen_exercise):
                     db.session.query(ExerciseEntries)
                     .filter(
                         ExerciseEntries.session_id == desired_session[0],
-                        ExerciseEntries.exercise_id == exercise_id[0],
+                        ExerciseEntries.exercise_id == exercise_id,
                     )
                     .all()
                 )
-
 
                 return relevant_exercise_sets
             except Exception as e:
@@ -996,14 +1000,22 @@ def current_exercise_info(chosen_exercise, chosen_day):
         print(f"exercise_id is None probably: {e}")
 
     if exercise_id:
-        previous_exercise_entry = db.session.query(ExerciseEntries).filter(
-            ExerciseEntries.exercise_id == exercise_id,
-        ).order_by(desc(ExerciseEntries.entry_id)).first()
+        previous_exercise_entry = (
+            db.session.query(ExerciseEntries)
+            .join(Sessions, ExerciseEntries.session_id == Sessions.session_id)
+            .filter(
+                ExerciseEntries.exercise_id == exercise_id,
+                Sessions.user_id == current_user_id,
+            )
+            .order_by(desc(ExerciseEntries.entry_id))
+            .first()
+        )
 
         if previous_exercise_entry:
             return previous_exercise_entry
         else:
             return None
+
 
 def show_tables_to_user(current_user) -> dict:
     current_user_id = current_user_id_db()
@@ -1142,11 +1154,15 @@ def exercise_progress_data(workout_info, chosen_day):
 
                 # First session exercise_entry
                 if workout_id:
-                    first_session = db.session.query(Sessions.session_id).filter(
-                        Sessions.user_id == current_user_id,
-                        Sessions.workout_id == workout_id
-                    ).first()[0]
                     
+                    try:
+                        first_session = db.session.query(Sessions.session_id).filter(
+                            Sessions.user_id == current_user_id,
+                            Sessions.workout_id == workout_id
+                        ).first()[0]
+                    except:
+                        first_session = None
+                        print("No data yet bro")
                     all_sessions = db.session.query(Sessions).filter(
                         Sessions.user_id == current_user_id,
                         Sessions.workout_id == workout_id
@@ -1470,6 +1486,7 @@ def training_session():
     sets_for_jinja = jinja_sets_function(chosen_day, chosen_exercise)
     preview = exercise_preview(workout_id, workout_key, chosen_exercise)
     sets_to_do_jinja = sets_to_do(chosen_exercise, chosen_day)
+    
     exercise_placeholders = current_exercise_info(chosen_exercise, chosen_day)
     
     return render_template(
