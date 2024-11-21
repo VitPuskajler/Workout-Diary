@@ -743,7 +743,6 @@ def find_exercise_name_db(id):
 def add_set_to_db(submitted_data, exercise, chosen_day) -> dict:
     user = Users.query.filter_by(username=current_user.username).first()
     user_id_db = user.user_id
-    print(f"user id to add set:{user_id_db}")
 
     if exercise is not None:
         workout_id_from_db = (
@@ -838,8 +837,6 @@ def jinja_sets_function(chosen_day, chosen_exercise):
             )
             .first()
         )
-
-        print(f"desired session for user is: {desired_session}")
 
         if desired_session:
             try:
@@ -1236,7 +1233,7 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         user = Users.query.filter_by(username=form.username.data).first()
-        print(f"test: {form.password.data}")
+        #print(f"test: {form.password.data}")
         if user and check_password_hash(user.password, form.password.data):
             login_user(user)
             return redirect(url_for("index_page"))
@@ -1648,4 +1645,4 @@ def progress():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=True) # Delete this before pushing
+    #app.run(debug=True) # Delete this before pushing
