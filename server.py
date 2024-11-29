@@ -916,17 +916,22 @@ def exercise_preview(workout_id, workout_key, chosen_exercise, chosen_day_by_use
                 workout_id_hopefully = workouts_id[chosen_day_by_user]
 
                 # Check if a session already exists for today
-                today_session = (
-                    db.session.query(Sessions.session_id)
-                    .filter(
-                        and_(
-                            Sessions.workout_id == workout_id_hopefully,
-                            Sessions.user_id == user_id_db,
-                            func.DATE(Sessions.session_date) == func.DATE(NOW),
+                try:
+                    today_session = (
+                        db.session.query(Sessions.session_id)
+                        .filter(
+                            and_(
+                                Sessions.workout_id == workout_id_hopefully,
+                                Sessions.user_id == user_id_db,
+                                func.DATE(Sessions.session_date) == func.DATE(NOW),
+                            )
                         )
+                        .first()[0]
                     )
-                    .first()[0]
-                )
+                except TypeError as e:
+                    print("You have nothing chosen so far")
+                    db.session.rollback()
+                    today_session = None
 
                 done = None
 
@@ -939,6 +944,8 @@ def exercise_preview(workout_id, workout_key, chosen_exercise, chosen_day_by_use
                         """ print(latest_entry.session_id, ' : ', today_session)
                         print("We are not green bro") """
                         done = "yes"
+                else:
+                    pass
                 
                 # Populate the preview entry with data from the latest_entry or default values
                 preview_entry = {
@@ -1673,4 +1680,4 @@ def progress():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=True) # Delete this before pushing
+    #app.run(debug=True) # Delete this before pushing
