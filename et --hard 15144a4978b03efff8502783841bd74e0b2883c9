@@ -1,0 +1,46 @@
+* [33m08e01ca[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Change order od kg / reps in training session
+* [33m15144a4[m[33m ([m[1;31morigin/main[m[33m)[m Jinja repair in training session
+* [33ma1c09b3[m Trying to repair training session none error
+* [33mae8989e[m Repair placeholders preview and new session adding
+* [33mb03bd61[m Hopefully this will work
+* [33m55ddc3a[m Test of commitment ignor
+* [33m7066f58[m Stop tracking files listed in .gitignore
+* [33maeba694[m Progress page finished
+* [33m4e8d288[m Shorter title
+* [33m089c83b[m Hopefully working!
+* [33m771a2dd[m Repair dropdown
+* [33md4e02ce[m Fix androind navbar
+* [33maed5a07[m Change rolldown button position
+* [33ma3c620c[m Deleting debug mode
+* [33mf525a53[m Fix rollbar button position. Change of the color
+* [33md307892[m Reapir exercaise name change...now it works for all weeks
+* [33m8fd4401[m Table layout - fixed title and footer
+* [33m0294731[m forgot to remove debug mode
+* [33mcad69c6[m Fixed problem with problematic layout on home page
+* [33md88fdd2[m Fully working app, just some missing parts
+*   [33m17c7b7b[m 14:21 - hopefully all
+[32m|[m[33m\[m  
+[32m|[m * [33mb6a1a5a[m Update README.txt
+[32m|[m * [33m9de4986[m Update README.txt
+[32m|[m * [33m7260ab5[m Update README.txt
+* [33m|[m [33m85c694c[m What to ignore
+* [33m|[m [33ma3c2552[m Fully working app. No workout progression yet.
+* [33m|[m [33m926f229[m Seassions are adding to db. Finish jinja input...
+* [33m|[m [33ma1dd5f0[m Fully working workout creation
+* [33m|[m [33ma3ea3cf[m Proper tables in db
+* [33m|[m [33m2392a06[m A little more JavaScript
+[33m|[m[33m/[m  
+* [33md7cdd58[m Delete useless files
+*   [33m077e212[m Merge branch 'main' of https://github.com/VitPuskajler/Workout-Diary
+[34m|[m[35m\[m  
+[34m|[m * [33mca218df[m Update requirements.txt
+* [35m|[m [33m2c935c6[m Work with 4 set, for larger variety
+[35m|[m[35m/[m  
+* [33m0ffa784[m final way
+* [33m3e4dfd3[m Basic information in README
+* [33m01666ac[m Final version. Just need for security and logs.
+* [33m708c68f[m Fully working page, ready to upload
+* [33m3f8b37f[m Almost a good looking home page
+* [33m6ec941d[m Possibility to change exercises in current meso
+* [33md7f1bc6[m Workout Plan - show all written exercises in order
+* [33m7a9525c[m Basic workout diary functions

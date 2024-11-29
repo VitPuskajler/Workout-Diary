@@ -219,8 +219,8 @@
             <table class="table table-striped text-center mb-5">
               <thead>
                 <tr>
-                  <th class="col-1">Kg</th>
-                  <th class="col-2">Reps</th>
+                  <th class="col-2">Kg</th>
+                  <th class="col-1">Reps</th>
                   <th class="col-1">RPE</th>
                   <th class="col-3">Notes</th>
                   <th class="col-1">Del</th>
@@ -232,11 +232,12 @@
                 {% for set in sets_for_jinja %}
 
                 <tr>
+                  
+                  <td><input type="number" class="form-control text-center" name="update_reps_{{ set.entry_id }}"
+                    placeholder="{{set.reps}}" /></td>
+
                   <td><input type="number" class="form-control text-center" name="update_weight_{{ set.entry_id }}"
                     placeholder="{{set.weight}}" /></td>
-
-                  <td><input type="number" class="form-control text-center" name="update_reps_{{ set.entry_id }}"
-                      placeholder="{{set.reps}}" /></td>
 
                   <td><input type="number" class="form-control text-center" name="update_rpe_{{ set.entry_id }}"
                       placeholder="{{set.rpe}}" /></td>
@@ -257,54 +258,57 @@
                 {% if placeholders is not none %}
                 <tr class="table-success">
                   <td>
-                    <div class="col-12 center-container">
-                      <input type="number" name="kg" class="form-control col-7 text-center"
+                    <div class="center-container">
+                      <input type="number" name="kg" class="form-control text-center text-warning"
                         placeholder="{{ placeholders.weight }}" />
                     </div>
                   </td>
                   <td>
-                    <div class="col-10 center-container">
-                      <input type="number" name="reps" class="form-control text-center"
+                    <div class="center-container">
+                      <input type="number" name="reps" class="form-control text-center text-warning"
                         placeholder="{{ placeholders.reps }}" />
                     </div>
                   </td>
                   <td>
-                    <div class="col-10 center-container">
-                      <input type="number" name="rpe" class="form-control col-2 text-center"
+                    <div class="center-container">
+                      <input type="number" name="rpe" class="form-control text-center text-warning"
                         placeholder="{{ placeholders.rpe }}" />
                     </div>
                   </td>
                   <td>
-                    <div class="col-12 center-container">
-                      <input type="text" name="notes" class="form-control text-center"
+                    <div class="center-container">
+                      <input type="text" name="notes" class="form-control text-center text-warning"
                         placeholder="{{ placeholders.notes }}" />
                     </div>
                   </td>
                   <td>.</td>
                 </tr>
+                
                 {% else %}
                 <tr>
                   <td>
+                    <div class="col-12 center-container">
+                      <input type="number" name="kg" class="form-control text-center bg-success-subtle text-warning"
+                        placeholder="0" />
+                    </div>
+                  </td>
+
+                  <td>
                     <div class="col-10 center-container">
-                      <input type="number" name="reps" class="form-control text-center bg-success-subtle"
+                      <input type="number" name="reps" class="form-control text-center bg-success-subtle text-warning"
+                        placeholder="0" />
+                    </div>
+                  </td>
+                  
+                  <td>
+                    <div class="col-10 center-container">
+                      <input type="number" name="rpe" class="form-control text-center bg-success-subtle text-warning"
                         placeholder="0" />
                     </div>
                   </td>
                   <td>
                     <div class="col-12 center-container">
-                      <input type="number" name="kg" class="form-control col-7 text-center bg-success-subtle"
-                        placeholder="0" />
-                    </div>
-                  </td>
-                  <td>
-                    <div class="col-10 center-container">
-                      <input type="number" name="rpe" class="form-control col-2 text-center bg-success-subtle"
-                        placeholder="0" />
-                    </div>
-                  </td>
-                  <td>
-                    <div class="col-12 center-container">
-                      <input type="text" name="notes" class="form-control text-center bg-success-subtle"
+                      <input type="text" name="notes" class="form-control text-center bg-success-subtle text-warning"
                         placeholder="..." />
                     </div>
                   </td>
@@ -327,42 +331,39 @@
   <form action="{{ url_for('training_session') }}" method="GET">
     <div class="container">
       <div class="row justify-content-center">
-        <div class="col-12 col-md-9">
-          <h4 class="text-center p-5 mb-1 ">
-            {% if preview["exercise"] is not none %}
-            Next: <br><b>{{ preview["exercise"] }} </b></br>
-            {% else %}
-            Select an exercise
-            {% endif %}
-          </h4>
+        <div class="col-12 col-md-9 p-4">
 
-          {% if preview["exercise"] is not none %}
+          {% if preview is not none %}
+          
           <table class="table table-striped text-center mb-5">
             <thead class="table-striped ">
               <tr>
-                <th class="col-1">Kg</th>
-                <th class="col-2">Reps</th>
-                <th class="col-1">RPE</th>
-                <th class="col-3">Notes</th>
+                <th class="col-2">Exercise</th>
+                <th class="col-1">Weight</th>
+                <th class="col-1">Sets</th>
+                <th class="col-1">Reps</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
+              {% for row in preview %}
+              <tr class="{% if row.done is not none %}table-success{% endif %}">
                 <td>
-                  <div class="col-12 center-container text-success">{{ preview["weight"] }}</div>
+                  <div class="col-12 center-container {% if row.done is not none %}text-success-emphasis{% endif %}"> {{row.exercise}} </div>
                 </td>
                 <td>
-                  <div class="col-10 center-container text-success">{{ preview["reps"] }}</div>
+                  <div class="col-10 center-container "> {{row.weight}} </div>
                 </td>
                 <td>
-                  <div class="col-10 center-container text-success">{{ preview["rpe"] }}</div>
+                  <div class="col-10 center-container "> {{row.sets}} </div>
                 </td>
                 <td>
-                  <div class="col-12 center-container text-success">{{ preview["notes"] }}</div>
+                  <div class="col-12 center-container "> {{row.reps}} </div>
                 </td>
               </tr>
+              {% endfor %}
             </tbody>
           </table>
+          
           {% endif %}
         </div>
       </div>

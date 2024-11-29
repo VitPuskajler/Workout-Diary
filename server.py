@@ -886,8 +886,10 @@ def delete_set(submitted_data):
         print(f"Error during deletion: {e}")
 
 
-def exercise_preview(workout_id, workout_key, chosen_exercise):
-    preview = {"exercise": None,"sets": None, "reps": None, "weight": None, "rpe": None, "notes": None}
+def exercise_preview(workout_id, workout_key, chosen_exercise, chosen_day_by_user, workouts_id):
+    user_id_db = current_user_id_db()
+    preview = {"exercise": None,"sets": None, "reps": None, "weight": None, "rpe": None, "notes": None, "done": None}
+    preview_data = []
 
     if workout_id and workout_key is not None:
         select_all_exercises = (
@@ -895,49 +897,68 @@ def exercise_preview(workout_id, workout_key, chosen_exercise):
             .filter(WorkoutExercises.workout_id == workout_id[workout_key])
             .all()
         )
-
+        
         exe_list = []
         if select_all_exercises:
-            for exercise in select_all_exercises:
-                name = find_exercise_name_db(exercise.exercise_id)
-                exe_list.append(name[0])
-            
-            finisher = 0
-            for next in exe_list:
-                if finisher == 1:
-                    preview["exercise"] = next
-                    break
-                if str(next) == str(chosen_exercise):
-                    finisher += 1
+            # Populate dict with exercises
+            for exers in select_all_exercises:
+                exercise_name = find_exercise_name_db(exers.exercise_id)[0]
+    
+                # Fetch the latest ExerciseEntries for the current exercise
+                latest_entry = (
+                    db.session.query(ExerciseEntries)
+                    .filter(ExerciseEntries.exercise_id == exers.exercise_id)
+                    .order_by(desc(ExerciseEntries.entry_id))
+                    .first()
+                )
 
-            # Select preview exercise from last session
-            try:
-                preview_exercise_id = find_exercise_id_db(preview["exercise"])[0]
-            except TypeError as te:
-                preview_exercise_id = None
-                print("There is no exercise! ")
+                # Map the chosen day to the actual workout_id
+                workout_id_hopefully = workouts_id[chosen_day_by_user]
 
-            if preview_exercise_id:
-                try:
-                    # Select user's last exercise entry
-                    select_preview_exercise = (
-                        db.session.query(ExerciseEntries)
-                        .filter(
-                            ExerciseEntries.exercise_id == preview_exercise_id
+                # Check if a session already exists for today
+                today_session = (
+                    db.session.query(Sessions.session_id)
+                    .filter(
+                        and_(
+                            Sessions.workout_id == workout_id_hopefully,
+                            Sessions.user_id == user_id_db,
+                            func.DATE(Sessions.session_date) == func.DATE(NOW),
                         )
-                        .order_by(desc(ExerciseEntries.entry_id)).first()
                     )
-                except Exception as e:
-                    print(f"Didn't find your exercise {e}")
+                    .first()[0]
+                )
 
-                if select_preview_exercise:
-                    # Add data to dict
-                    preview["reps"] = select_preview_exercise.reps if select_preview_exercise.reps else None
-                    preview["weight"] = select_preview_exercise.weight if select_preview_exercise.weight else None
-                    preview["rpe"] = select_preview_exercise.rpe if select_preview_exercise.rpe else None
-                    preview["notes"] = select_preview_exercise.notes if select_preview_exercise.notes else None
+                done = None
 
-    return preview                
+                if latest_entry and today_session:
+                    if latest_entry.session_id != today_session:
+                        """ print(latest_entry.session_id, ' : ', today_session)
+                        print("We are green bro") """
+                        pass
+                    else:
+                        """ print(latest_entry.session_id, ' : ', today_session)
+                        print("We are not green bro") """
+                        done = "yes"
+                
+                # Populate the preview entry with data from the latest_entry or default values
+                preview_entry = {
+                    "exercise": exercise_name,
+                    "sets": exers.prescribed_sets,
+                    "reps": latest_entry.reps if latest_entry and latest_entry.reps is not None else 0,
+                    "weight": latest_entry.weight if latest_entry and latest_entry.weight is not None else 0,
+                    "rpe": latest_entry.rpe if latest_entry and latest_entry.rpe is not None else 0,
+                    "notes": latest_entry.notes if latest_entry and latest_entry.notes else "",
+                    "done" : done
+                }
+                
+                preview_data.append(preview_entry)
+
+            print(preview_data)
+            return preview_data
+
+        else:
+
+            return {None : None}           
 
 
 # Modify sets which user already saved
@@ -1204,7 +1225,9 @@ def exercise_progress_data(workout_info, chosen_day):
     else: 
         return {None:None}
 
-                    
+# Create preview table
+def preview_table_data(chosen_day) -> dict:
+    print(f"preview table data: alive!")
         
     # --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
@@ -1485,10 +1508,16 @@ def training_session():
         modify_set(submitted_data)
 
     sets_for_jinja = jinja_sets_function(chosen_day, chosen_exercise)
-    preview = exercise_preview(workout_id, workout_key, chosen_exercise)
+
+    # Reset placeholders to zero after the first set is saved
+    if sets_for_jinja:
+        exercise_placeholders = {'weight': 0, 'reps': 0, 'rpe': 0, 'notes': '...'}
+    else:
+        exercise_placeholders = current_exercise_info(chosen_exercise, chosen_day)
+
+    preview = exercise_preview(workout_id, workout_key, chosen_exercise, workout_key, workout_id)
     sets_to_do_jinja = sets_to_do(chosen_exercise, chosen_day)
-    
-    exercise_placeholders = current_exercise_info(chosen_exercise, chosen_day)
+
     
     return render_template(
         "training_session.html",
@@ -1503,7 +1532,6 @@ def training_session():
         preview=preview,
         placeholders= exercise_placeholders
     )
-
 
 # --------------------------------------------------------------------------
 
