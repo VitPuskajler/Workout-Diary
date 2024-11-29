@@ -219,8 +219,8 @@
             <table class="table table-striped text-center mb-5">
               <thead>
                 <tr>
-                  <th class="col-1">Reps</th>
-                  <th class="col-2">Kg</th>
+                  <th class="col-1">Kg</th>
+                  <th class="col-2">Reps</th>
                   <th class="col-1">RPE</th>
                   <th class="col-3">Notes</th>
                   <th class="col-1">Del</th>
@@ -232,13 +232,11 @@
                 {% for set in sets_for_jinja %}
 
                 <tr>
+                  <td><input type="number" class="form-control text-center" name="update_weight_{{ set.entry_id }}"
+                    placeholder="{{set.weight}}" /></td>
+
                   <td><input type="number" class="form-control text-center" name="update_reps_{{ set.entry_id }}"
                       placeholder="{{set.reps}}" /></td>
-
-
-                  <td><input type="number" class="form-control text-center" name="update_weight_{{ set.entry_id }}"
-                      placeholder="{{set.weight}}" /></td>
-
 
                   <td><input type="number" class="form-control text-center" name="update_rpe_{{ set.entry_id }}"
                       placeholder="{{set.rpe}}" /></td>
@@ -259,15 +257,15 @@
                 {% if placeholders is not none %}
                 <tr class="table-success">
                   <td>
-                    <div class="col-10 center-container">
-                      <input type="number" name="reps" class="form-control text-center"
-                        placeholder="{{ placeholders.reps }}" />
-                    </div>
-                  </td>
-                  <td>
                     <div class="col-12 center-container">
                       <input type="number" name="kg" class="form-control col-7 text-center"
                         placeholder="{{ placeholders.weight }}" />
+                    </div>
+                  </td>
+                  <td>
+                    <div class="col-10 center-container">
+                      <input type="number" name="reps" class="form-control text-center"
+                        placeholder="{{ placeholders.reps }}" />
                     </div>
                   </td>
                   <td>
@@ -342,8 +340,8 @@
           <table class="table table-striped text-center mb-5">
             <thead class="table-striped ">
               <tr>
-                <th class="col-1">Reps</th>
-                <th class="col-2">Kg</th>
+                <th class="col-1">Kg</th>
+                <th class="col-2">Reps</th>
                 <th class="col-1">RPE</th>
                 <th class="col-3">Notes</th>
               </tr>
@@ -351,10 +349,10 @@
             <tbody>
               <tr>
                 <td>
-                  <div class="col-10 center-container text-success">{{ preview["reps"] }}</div>
+                  <div class="col-12 center-container text-success">{{ preview["weight"] }}</div>
                 </td>
                 <td>
-                  <div class="col-12 center-container text-success">{{ preview["weight"] }}</div>
+                  <div class="col-10 center-container text-success">{{ preview["reps"] }}</div>
                 </td>
                 <td>
                   <div class="col-10 center-container text-success">{{ preview["rpe"] }}</div>
