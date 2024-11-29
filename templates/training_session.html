@@ -232,12 +232,11 @@
                 {% for set in sets_for_jinja %}
 
                 <tr>
-                  
-                  <td><input type="number" class="form-control text-center" name="update_reps_{{ set.entry_id }}"
-                    placeholder="{{set.reps}}" /></td>
-
                   <td><input type="number" class="form-control text-center" name="update_weight_{{ set.entry_id }}"
                     placeholder="{{set.weight}}" /></td>
+
+                  <td><input type="number" class="form-control text-center" name="update_reps_{{ set.entry_id }}"
+                    placeholder="{{set.reps}}" /></td>
 
                   <td><input type="number" class="form-control text-center" name="update_rpe_{{ set.entry_id }}"
                       placeholder="{{set.rpe}}" /></td>
