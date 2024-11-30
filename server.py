@@ -1,6 +1,5 @@
-import re
 import os
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 from flask import (
     Flask,
@@ -33,12 +32,11 @@ from sqlalchemy import (
     and_,
     func,
     create_engine,
-    inspect,
-    text,
     select,
     desc,
     delete,
-    distinct
+    cast,
+    Date
 )
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import DeclarativeBase
@@ -630,12 +628,14 @@ def delete_exercise(submitted_data, weekly, workouts_id):
                 print(f"Unexpected key format: {key}")
 # For tryining sessions mainly ---------------------------------------
 def add_session_to_db(chosen_day_by_user, workouts_id):
-    NOW = datetime.now()
     user = Users.query.filter_by(username=current_user.username).first()
     user_id_db = user.user_id
 
     # Map the chosen day to the actual workout_id
     workout_id_hopefully = workouts_id[chosen_day_by_user]
+
+    today = datetime.combine(date.today(), datetime.min.time())
+    tomorrow = today + timedelta(days=1)
 
     # Check if a session already exists for today
     does_session_exist = (
@@ -644,18 +644,20 @@ def add_session_to_db(chosen_day_by_user, workouts_id):
             and_(
                 Sessions.workout_id == workout_id_hopefully,
                 Sessions.user_id == user_id_db,
-                func.DATE(Sessions.session_date) == func.DATE(NOW),
+                Sessions.session_date >= today,
+                Sessions.session_date < tomorrow,
             )
         )
         .first()
     )
+
 
     if does_session_exist:
         print("Sorry, there is already a workout session for today")
     else:
         # No session exists for today; create a new one
         new_session_query = Sessions(
-            user_id=user_id_db, workout_id=workout_id_hopefully, notes="Null"
+            user_id=user_id_db, workout_id=workout_id_hopefully, notes="Null",
         )
         db.session.add(new_session_query)
         db.session.commit()  # Commit here to assign session_id
@@ -696,7 +698,7 @@ def add_session_to_db(chosen_day_by_user, workouts_id):
         db.session.query(Sessions.session_id)
         .filter(
             Sessions.user_id == user_id_db,
-            func.DATE(Sessions.session_date) == func.DATE(NOW),
+            func.DATE(Sessions.session_date) == func.current_date(),
             Sessions.workout_id == workout_id_hopefully,
         )
         .order_by(desc(Sessions.session_date))
@@ -805,7 +807,6 @@ def add_set_to_db(submitted_data, exercise, chosen_day) -> dict:
 
 # Sets for jinja
 def jinja_sets_function(chosen_day, chosen_exercise):
-    NOW = datetime.now()
     user = Users.query.filter_by(username=current_user.username).first()
     user_id_db = user.user_id
 
@@ -826,14 +827,19 @@ def jinja_sets_function(chosen_day, chosen_exercise):
     )
     .order_by(desc(WorkoutPlan.created_at))
     .first()
-)
+    )
 
     if workout_id_from_db:
+        today = datetime.combine(date.today(), datetime.min.time())
+        tomorrow = today + timedelta(days=1)
+
         desired_session = (
             db.session.query(Sessions.session_id)
             .filter(
                 Sessions.user_id == user_id_db,
-                func.DATE(Sessions.session_date) == func.DATE(NOW),
+                Sessions.workout_id == workout_id_from_db[0],
+                Sessions.session_date >= today,
+                Sessions.session_date < tomorrow,
             )
             .first()
         )
@@ -887,10 +893,12 @@ def delete_set(submitted_data):
 
 
 def exercise_preview(workout_id, workout_key, chosen_exercise, chosen_day_by_user, workouts_id):
-    NOW = datetime.now()
     user_id_db = current_user_id_db()
     preview = {"exercise": None,"sets": None, "reps": None, "weight": None, "rpe": None, "notes": None, "done": None}
     preview_data = []
+
+    today = datetime.combine(date.today(), datetime.min.time())
+    tomorrow = today + timedelta(days=1)
 
     if workout_id and workout_key is not None:
         select_all_exercises = (
@@ -924,7 +932,8 @@ def exercise_preview(workout_id, workout_key, chosen_exercise, chosen_day_by_use
                             and_(
                                 Sessions.workout_id == workout_id_hopefully,
                                 Sessions.user_id == user_id_db,
-                                func.DATE(Sessions.session_date) == func.DATE(NOW),
+                                Sessions.session_date >= today,
+                                Sessions.session_date < tomorrow,
                             )
                         )
                         .first()[0]
@@ -961,7 +970,6 @@ def exercise_preview(workout_id, workout_key, chosen_exercise, chosen_day_by_use
                 
                 preview_data.append(preview_entry)
 
-            print(preview_data)
             return preview_data
 
         else:
