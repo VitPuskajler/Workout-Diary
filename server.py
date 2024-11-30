@@ -632,6 +632,7 @@ def delete_exercise(submitted_data, weekly, workouts_id):
                 print(f"Unexpected key format: {key}")
 # For tryining sessions mainly ---------------------------------------
 def add_session_to_db(chosen_day_by_user, workouts_id):
+    NOW = datetime.now()
     user = Users.query.filter_by(username=current_user.username).first()
     user_id_db = user.user_id
 
@@ -806,6 +807,7 @@ def add_set_to_db(submitted_data, exercise, chosen_day) -> dict:
 
 # Sets for jinja
 def jinja_sets_function(chosen_day, chosen_exercise):
+    NOW = datetime.now()
     user = Users.query.filter_by(username=current_user.username).first()
     user_id_db = user.user_id
 
@@ -887,6 +889,7 @@ def delete_set(submitted_data):
 
 
 def exercise_preview(workout_id, workout_key, chosen_exercise, chosen_day_by_user, workouts_id):
+    NOW = datetime.now()
     user_id_db = current_user_id_db()
     preview = {"exercise": None,"sets": None, "reps": None, "weight": None, "rpe": None, "notes": None, "done": None}
     preview_data = []
