@@ -51,9 +51,7 @@ from functools import wraps
 
 # training_session_data = wm.find_users_weeks()
 
-NOW = datetime.now()
-DATE = NOW.strftime("%d%m%Y")
-YEAR = NOW.strftime("%Y")
+
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -1291,6 +1289,9 @@ def home():
 
 @app.route("/")
 def index_page():
+    NOW = datetime.now()
+    YEAR = NOW.strftime("%Y")
+
     if current_user.is_authenticated:
         username = current_user.username
     else:
@@ -1308,6 +1309,8 @@ def workout_plan():
 @app.route("/workout_plan_page", methods=["GET", "POST"])
 @login_required
 def workout_plan_page():
+    NOW = datetime.now()
+    YEAR = NOW.strftime("%Y")
     submitted_data = request.form.to_dict()
     current_user_id = current_user_id_db()
     # Load amount of mesocycles
@@ -1349,6 +1352,8 @@ def workout_plan_page():
 @app.route("/table_layout", methods=["GET", "POST"])
 @login_required
 def table_layout():
+    NOW = datetime.now()
+    YEAR = NOW.strftime("%Y")
     user_id = current_user_id_db()
     username = current_user.username
 
@@ -1453,6 +1458,9 @@ def training_session_redirect():
 @app.route("/training_session", methods=["GET", "POST"])
 @login_required
 def training_session():
+    NOW = datetime.now()
+    DATE = NOW.strftime("%d%m%Y")
+    YEAR = NOW.strftime("%Y")
 
     # Function to acces workout day / data from database
     weekly, workout_names, workout_id = find_users_weeks()
@@ -1581,6 +1589,9 @@ def profile():
 @login_required
 @app.route("/progress", methods=["GET", "POST"])
 def progress():
+    NOW = datetime.now()
+    YEAR = NOW.strftime("%Y")
+    DATE = NOW.strftime("%d%m%Y")
     exercise_progress = session.get("exercise_progress") 
 
     current_user_id = current_user_id_db()
