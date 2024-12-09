@@ -1685,21 +1685,27 @@ def progress():
         if workout_day_info:
             exercise_progress = exercise_progress_data(workout_day_info, chosen_day)
 
+@login_required
+@app.route("/intuitive_training", methods=["GET", "POST"])
+def intuitive_training():
+    NOW = datetime.now()
+    YEAR = NOW.strftime("%Y")
+    DATE = NOW.strftime("%d%m%Y")
+
 
     return render_template(
-        "progress.html",
+        "intuitive_training.html",
         today=DATE,
         year=YEAR,
-        w_names=workouts_id_name,
-        chosen_day=chosen_day,
-        dropdown=dropdown_menu_info,
-        chosen_mesocycle=chosen_mesocycle,
-        workouts_info=workout_day_info,
-        progress= exercise_progress,
+       
     )
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
 
 
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    #app.run(debug=True) # Delete this before pushing
+    app.run(debug=True) # Delete this before pushing
