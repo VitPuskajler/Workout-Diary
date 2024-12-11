@@ -232,7 +232,7 @@
                 {% for set in sets_for_jinja %}
 
                 <tr>
-                  <td><input type="number" class="form-control text-center" name="update_weight_{{ set.entry_id }}"
+                  <td><input type="number" step="any" class="form-control text-center" name="update_weight_{{ set.entry_id }}"
                     placeholder="{{set.weight}}" /></td>
 
                   <td><input type="number" class="form-control text-center" name="update_reps_{{ set.entry_id }}"
@@ -258,7 +258,7 @@
                 <tr class="table-success">
                   <td>
                     <div class="center-container">
-                      <input type="number" name="kg" class="form-control text-center text-warning"
+                      <input type="number" min="0" max="501" step="any" name="kg" class="form-control text-center text-warning"
                         placeholder="{{ placeholders.weight }}" />
                     </div>
                   </td>

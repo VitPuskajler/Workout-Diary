@@ -355,7 +355,7 @@ def exercises_for_jinja(jinja_exercises, weekly, workouts_id):
 
 
 # Default order in list
-# Default disct for exercises: jinja_exercises
+# Default dict for exercises: jinja_exercises
 def default_order(weekly):
     jinja_exercises = {}
     default_order = []
@@ -1225,7 +1225,7 @@ def exercise_progress_data(workout_info, chosen_day):
                                 for som in find_exe:
                                     # Create a new small_data_set dictionary for each entry
                                     small_data_set = {
-                                        "date": sess.session_date.strftime("%d-%m-%Y"),
+                                        "date": f"{sess.session_date.day}.{sess.session_date.month}.{sess.session_date.year}",
                                         "reps": som.reps or 0,
                                         "weight": som.weight or 0,
                                         "rpe": som.rpe or 0,
@@ -1241,10 +1241,13 @@ def exercise_progress_data(workout_info, chosen_day):
     else: 
         return {None:None}
 
-# Create preview table
-def preview_table_data(chosen_day) -> dict:
-    print(f"preview table data: alive!")
-        
+# AJAX for exercises preview when creating workout
+def fetch_exercise_suggestions(search_term):
+    exercises = Exercise.query.filter(
+        Exercise.exercise_name.ilike(f"%{search_term}%")
+    ).all()
+    return [exercise.exercise_name for exercise in exercises]
+
     # --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -1422,12 +1425,9 @@ def create_workout():
         # Handle AJAX request for exercise search
         search_term = request.args.get("query")
 
-        if search_term:  # This will be triggered by the AJAX call
-            exercises = Exercise.query.filter(
-                Exercise.exercise_name.ilike(f"%{search_term}%")
-            ).all()
-            exercise_names = [exercise.exercise_name for exercise in exercises]
-            return jsonify(exercise_names)  # Return JSON for AJAX request
+        if search_term:
+            exercise_names = fetch_exercise_suggestions(search_term)
+            return jsonify(exercise_names)
 
     elif request.method == "POST":
         # Process form submission and save the workout data
@@ -1684,6 +1684,18 @@ def progress():
         
         if workout_day_info:
             exercise_progress = exercise_progress_data(workout_day_info, chosen_day)
+    
+        return render_template(
+        "progress.html",
+        today=DATE,
+        year=YEAR,
+        w_names=workouts_id_name,
+        chosen_day=chosen_day,
+        dropdown=dropdown_menu_info,
+        chosen_mesocycle=chosen_mesocycle,
+        workouts_info=workout_day_info,
+        progress= exercise_progress,
+    )
 
 @login_required
 @app.route("/intuitive_training", methods=["GET", "POST"])
@@ -1692,7 +1704,13 @@ def intuitive_training():
     YEAR = NOW.strftime("%Y")
     DATE = NOW.strftime("%d%m%Y")
 
+    if request.method == "GET":
+        search_term = request.args.get("query")
 
+        if search_term:
+            exercise_names = fetch_exercise_suggestions(search_term)
+            return jsonify(exercise_names)
+    
     return render_template(
         "intuitive_training.html",
         today=DATE,
@@ -1702,7 +1720,16 @@ def intuitive_training():
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return render_template('404.html'), 404
+    # I need to put this date variables into function, too many repetiotions
+    NOW = datetime.now()
+    DATE = NOW.strftime("%d%m%Y")
+    YEAR = NOW.strftime("%Y")
+
+    return render_template(
+        '404.html',
+        today=DATE,
+        year=YEAR,
+    ), 404
 
 
 if __name__ == "__main__":
