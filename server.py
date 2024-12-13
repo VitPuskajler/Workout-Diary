@@ -468,29 +468,29 @@ def overwrite_exercise(submitted_data, weekly, workouts_id, jinja_exercises):
 
 
 def find_workout_name_from_user(submitted_data, weekly, workout_names) -> None:
-        # Save to DB - WorkoutPlan
-        user = Users.query.filter_by(username=current_user.username).first()
-        user_id_db = user.user_id
+    # Save to DB - WorkoutPlan
+    user = Users.query.filter_by(username=current_user.username).first()
+    user_id_db = user.user_id
 
-        for day in range(weekly):
-            workout_name = request.form.get(f"workout_name_{day}", None)
+    for day in range(weekly):
+        workout_name = request.form.get(f"workout_name_{day}", None)
 
-            if workout_name != "":
-                workout_names[day] = workout_name
-                # Save / rename workout in database
-                # Find the corresponding workout by user_id and some identifier like day or created_at
-                workout = (
-                    WorkoutPlan.query.filter_by(user_id=user_id_db)
-                    .order_by(WorkoutPlan.created_at.desc())
-                    .offset(day)
-                    .first()
-                )
-                if workout:
-                    workout.workout_name = workout_name  # Update workout name
-                    db.session.add(workout)
+        if workout_name != "":
+            workout_names[day] = workout_name
+            # Save / rename workout in database
+            # Find the corresponding workout by user_id and some identifier like day or created_at
+            workout = (
+                WorkoutPlan.query.filter_by(user_id=user_id_db)
+                .order_by(WorkoutPlan.created_at.desc())
+                .offset(day)
+                .first()
+            )
+            if workout:
+                workout.workout_name = workout_name  # Update workout name
+                db.session.add(workout)
 
-            db.session.commit()
-        return workout_names
+        db.session.commit()
+    return workout_names
 
  # Add exercise to database --- add weekly to arguments
 def add_exercise(submitted_data, order, weekly, jinja_exercises, workouts_id):
@@ -1395,6 +1395,8 @@ def table_layout():
                 for i in range(int(workouts_per_week)):
                     user = Users.query.filter_by(username=current_user.username).first()
                     user_id_db = user.user_id
+
+                    # For OOP this have to go away into reausable function
                     table = WorkoutPlan(
                         workout_name=i,
                         user_id=user_id_db,
@@ -1606,6 +1608,8 @@ def progress():
     # Function to access workout day / data from database
     weekly, workout_names, workout_id = find_users_weeks()
 
+
+
     # Load amount of mesocycles
     all_users_mesocycles_query = db.session.query(WorkoutPlan).filter(
         WorkoutPlan.user_id == current_user_id
@@ -1685,17 +1689,17 @@ def progress():
         if workout_day_info:
             exercise_progress = exercise_progress_data(workout_day_info, chosen_day)
     
-        return render_template(
-        "progress.html",
-        today=DATE,
-        year=YEAR,
-        w_names=workouts_id_name,
-        chosen_day=chosen_day,
-        dropdown=dropdown_menu_info,
-        chosen_mesocycle=chosen_mesocycle,
-        workouts_info=workout_day_info,
-        progress= exercise_progress,
-    )
+    return render_template(
+    "progress.html",
+    today=DATE,
+    year=YEAR,
+    w_names=workouts_id_name,
+    chosen_day=chosen_day,
+    dropdown=dropdown_menu_info,
+    chosen_mesocycle=chosen_mesocycle,
+    workouts_info=workout_day_info,
+    progress= exercise_progress,
+)
 
 @login_required
 @app.route("/intuitive_training", methods=["GET", "POST"])
@@ -1706,11 +1710,15 @@ def intuitive_training():
 
     if request.method == "GET":
         search_term = request.args.get("query")
-
         if search_term:
             exercise_names = fetch_exercise_suggestions(search_term)
             return jsonify(exercise_names)
-    
+        
+    elif request.method ==  "POST":
+        submitted_data = request.form.to_dict()
+        print(submitted_data)
+
+
     return render_template(
         "intuitive_training.html",
         today=DATE,
