@@ -75,6 +75,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = (
 
 # app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///workout.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=20)
 
 # Create engine so I can work with dynamic tables
 engine = create_engine(app.config["SQLALCHEMY_DATABASE_URI"])
@@ -279,6 +280,11 @@ def find_users_weeks():
 
     user_id_db = user.user_id
     # Retrieve last mesocycle's data from my table
+    last_meso_query = (db.session.query(Mesocycles)
+                       .filter(Mesocycles.user_id == user_id_db)
+                       .order_by(Mesocycles.mesocycle_id.desc())
+                       .first())
+
     per_week_db = (
         db.session.query(Mesocycles.workouts_per_week)
         .filter(Mesocycles.user_id == user_id_db)
@@ -288,7 +294,7 @@ def find_users_weeks():
 
     if per_week_db and per_week_db[0]:  # Check if per_week_db exists and contains a value
         last_workouts = (
-            WorkoutPlan.query.filter_by(user_id=user_id_db)
+            WorkoutPlan.query.filter_by(user_id=user_id_db, mesocycle_id=per_week_db[0])
             .order_by(desc(WorkoutPlan.created_at))
             .limit(per_week_db[0])
             .all()
@@ -298,7 +304,7 @@ def find_users_weeks():
         try:
             last_workouts_id = (
                 db.session.query(WorkoutPlan.workout_id)
-                .filter(WorkoutPlan.user_id == user_id_db)
+                .filter(WorkoutPlan.user_id == user_id_db, WorkoutPlan.mesocycle_id == last_meso_query.mesocycle_id)
                 .order_by(WorkoutPlan.created_at.desc())
                 .limit(per_week_db[0])
                 .all()
@@ -1248,7 +1254,156 @@ def fetch_exercise_suggestions(search_term):
     ).all()
     return [exercise.exercise_name for exercise in exercises]
 
-    # --------------------------------------------------------------------
+
+# I know these functions are not supposed to be in here :D But I am fine with it so far
+def create_intuitive_training_name(name):
+    user_id = current_user_id_db()
+
+    if name: 
+        # If today already exists some exercise - rename logic
+        today = datetime.combine(date.today(), datetime.min.time())
+        tomorrow = today + timedelta(days=1)
+
+        # Check if workout plan already exists for today
+        does_workout_exist = (
+            db.session.query(WorkoutPlan)
+            .filter(
+                and_(
+                    WorkoutPlan.user_id == user_id,
+                    WorkoutPlan.created_at >= today,
+                    WorkoutPlan.created_at < tomorrow,
+                    WorkoutPlan.workout_name.like("%_intuitive")
+                )
+            )
+            .order_by(desc(WorkoutPlan.created_at))
+            .first()
+        )
+
+        last_meso = (
+                db.session.query(Mesocycles)
+                .filter(Mesocycles.user_id == user_id)
+                .order_by(Mesocycles.mesocycle_id.desc())
+                .limit(1)
+                .scalar()
+                ) 
+                # last_meso.mesocycle_id
+
+        if last_meso:
+            intuitive_name = f'{last_meso.mesocycle_id}_{name}_intuitive'
+
+            if does_workout_exist:
+                # Rename workout plan name
+                print(f"your workoutplan id: {does_workout_exist.workout_id}")
+                workout_name_to_update = db.session.query(WorkoutPlan).filter_by(workout_id=does_workout_exist.workout_id).first()
+                workout_name_to_update.workout_name = intuitive_name
+                db.session.commit()
+
+                return name
+            else:
+                # Create new workout play
+                # Find last mesocycle from user and place new workout there
+                
+
+                # Create new workout
+                if last_meso:
+                    change_workout_name_query = WorkoutPlan(user_id=user_id, workout_name=intuitive_name, mesocycle_id=0)
+                    db.session.add(change_workout_name_query)
+                    db.session.commit()
+
+                    return name
+
+def get_today_intuitive_traing():
+    current_user_id = current_user_id_db()
+    today = datetime.combine(date.today(), datetime.min.time())
+    tomorrow = today + timedelta(days=1)
+
+    today_check_query = (
+            db.session.query(WorkoutPlan)
+            .filter(
+                and_(
+                    WorkoutPlan.user_id == current_user_id,
+                    WorkoutPlan.created_at >= today,
+                    WorkoutPlan.created_at < tomorrow,
+                    WorkoutPlan.workout_name.like("%_intuitive")
+                )
+            )
+            .order_by(desc(WorkoutPlan.created_at))
+            .first()
+        )
+    if today_check_query:
+        name = today_check_query.workout_name.split("_")[1]
+        return name
+    else:
+        return None
+
+# Function to add exercise to database for intuitive training
+def add_intuitive_exercise(exercise):
+    user_id_db = current_user_id_db()
+
+    # Check if there is exercise in database
+    exercise_in_db = (db.session.query(Exercise)
+                      .filter(Exercise.exercise_name == exercise)
+                      .first())
+
+
+    if exercise_in_db:
+        # Create new session
+        today = datetime.combine(date.today(), datetime.min.time())
+        tomorrow = today + timedelta(days=1)
+        workout_id_query = (
+            db.session.query(WorkoutPlan)
+            .filter(
+                and_(
+                    WorkoutPlan.user_id == user_id_db,
+                    WorkoutPlan.created_at >= today,
+                    WorkoutPlan.created_at < tomorrow,
+                    WorkoutPlan.workout_name.like("%_intuitive")
+                )
+            )
+            .order_by(desc(WorkoutPlan.created_at))
+            .first()
+        )
+
+        if workout_id_query:
+            # Check if exercise is in WorkoutExercises table
+            exercise_already_in_table = (db.session.query(WorkoutExercises)
+                                        .filter(WorkoutExercises.workout_id == workout_id_query.workout_id,
+                                                WorkoutExercises.exercise_id == exercise_in_db.exercise_id)
+                                        .first())
+
+            if exercise_already_in_table is None:
+                order = (db.session.query(WorkoutExercises)
+                        .filter(WorkoutExercises.workout_id == workout_id_query.workout_id)
+                        .count())
+                if order == 0:
+                    order = 1
+
+                new_workout_exercise = WorkoutExercises(workout_id=workout_id_query.workout_id, exercise_id=exercise_in_db.exercise_id, order_in_workout=order, prescribed_sets=2, rest_period=90)
+
+                try:
+                    db.session.add(new_workout_exercise)
+                    db.session.commit()
+
+                    added_exercise = (db.session.query(WorkoutExercises)
+                                        .filter(WorkoutExercises.workout_id == workout_id_query.workout_id,
+                                                WorkoutExercises.exercise_id == exercise_in_db.exercise_id)
+                                        .first())
+                    
+                    print(find_exercise_name_db(added_exercise.exercise_id)[0])
+                    return find_exercise_name_db(added_exercise.exercise_id)[0]
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"Sorry, but there was some problem adding you exercise into database: {e}")
+                    return None
+            else:
+                print("You already have this exercise in your workout plan so don't be stupid")
+                return None
+        else:
+            return None
+    else:
+        return None
+            
+# --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
 def register():
     form = RegistrationForm()
@@ -1686,8 +1841,6 @@ def progress():
                 session["chosen_exercise"] = load_chosen_exercise
                 chosen_exercise = load_chosen_exercise
         
-        if workout_day_info:
-            exercise_progress = exercise_progress_data(workout_day_info, chosen_day)
     
     return render_template(
     "progress.html",
@@ -1708,22 +1861,62 @@ def intuitive_training():
     YEAR = NOW.strftime("%Y")
     DATE = NOW.strftime("%d%m%Y")
 
+    session.permanent = True  # Mark session as permanent (uses configured timeout - 24 hours in my case)
+
+    # If no name in session - try to check in db, if nothing user need to input some name
+    workout_name_user = get_today_intuitive_traing()
+    if workout_name_user is not None:
+        workout_name_user
+    elif workout_name_user is None:
+        workout_name_user = session.get("workout_name_user")
+   
+    # Check existance of the 
+
     if request.method == "GET":
+        # Check if there are already some exercies in workout - In case website / webbrowser would crash and we had no POST after openin :)
         search_term = request.args.get("query")
         if search_term:
             exercise_names = fetch_exercise_suggestions(search_term)
             return jsonify(exercise_names)
         
-    elif request.method ==  "POST":
+    else:  # POST
         submitted_data = request.form.to_dict()
-        print(submitted_data)
+        action = submitted_data.get("action")
 
+        if action == "set_workout_name":
+            workout_name = submitted_data.get("workout_name", "")
+            if workout_name:
+                session["workout_name_user"] = create_intuitive_training_name(workout_name)
+                workout_name_user = session["workout_name_user"]
+
+        elif action == "choose_exercise":
+            chosen_exercise = submitted_data.get("chosen_exercise")
+            # If chosen exercise is not none place it into database
+
+        
+        elif action == "add_exercise_name":
+            # Handle the new exercise name input (like store it in the database or session)
+            # Do NOT overwrite workout_name_user here
+            new_exercise = submitted_data.get("exercise")
+
+            if new_exercise:
+                add_intuitive_exercise(new_exercise)
+                
+            else:
+                print(f"Please give me some real exercise - from db ")
+            
+
+        elif action == "update_exercise_data":
+            # Handle weight/reps/notes updates
+            # Again, do NOT overwrite workout_name_user
+            pass
+    
 
     return render_template(
         "intuitive_training.html",
         today=DATE,
         year=YEAR,
-       
+        user_workout_name = workout_name_user
     )
 
 @app.errorhandler(404)
