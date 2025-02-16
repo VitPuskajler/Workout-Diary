@@ -294,7 +294,7 @@ def find_users_weeks():
 
     if per_week_db and per_week_db[0]:  # Check if per_week_db exists and contains a value
         last_workouts = (
-            WorkoutPlan.query.filter_by(user_id=user_id_db, mesocycle_id=per_week_db[0])
+            WorkoutPlan.query.filter_by(user_id=user_id_db, mesocycle_id=last_meso_query.mesocycle_id)
             .order_by(desc(WorkoutPlan.created_at))
             .limit(per_week_db[0])
             .all()
@@ -1055,8 +1055,26 @@ def current_exercise_info(chosen_exercise, chosen_day):
             .first()
         )
 
+        # Get the heaviest weight for the exercise in the last session
+        # Ensure previous_exercise_entry exists
         if previous_exercise_entry:
-            return previous_exercise_entry
+            # Get the heaviest weight entry for that session and exercise
+            heaviest_weight_entry = (
+                db.session.query(ExerciseEntries)
+                .filter(
+                    ExerciseEntries.exercise_id == previous_exercise_entry.exercise_id,
+                    ExerciseEntries.session_id == previous_exercise_entry.session_id
+                )
+                .order_by(desc(ExerciseEntries.weight))
+                .first()
+            )
+        else:
+            heaviest_weight_entry = None
+
+
+
+        if heaviest_weight_entry:
+            return heaviest_weight_entry
         else:
             return None
 
@@ -1841,6 +1859,8 @@ def progress():
                 session["chosen_exercise"] = load_chosen_exercise
                 chosen_exercise = load_chosen_exercise
         
+        if workout_day_info:
+            exercise_progress = exercise_progress_data(workout_day_info, chosen_day)
     
     return render_template(
     "progress.html",
