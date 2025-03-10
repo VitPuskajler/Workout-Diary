@@ -1,4 +1,5 @@
-Workout Periodization WebApp
+## Workout Periodization WebApp
+
 Workout Periodization WebApp is a lightweight, customizable workout diary designed for athletes and fitness enthusiasts who want to plan and track their training sessions with a focus on periodization. This personal web app offers a simple yet effective way to manage your workouts, making it easy to log progress and adjust your routine over time.
 
 Key Features
