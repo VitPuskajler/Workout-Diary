@@ -19,7 +19,7 @@ Fork, customize, and use Workout Periodization as your personal training compani
 ## Preview
 
 
-<img src="https://drive.google.com/uc?export=view&id=1IhfS2ZntWCGg7LOn6VyE7UXdEuhFUylD)" width="300" height="400">
+<img src='https://drive.google.com/file/d/1GeLs6sRQSpLDVY0x9w2zPOPSRUYc4CPb/view?usp=sharing' width="300" height="400">
 
 
 
