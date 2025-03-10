@@ -1,16 +1,19 @@
 ## Workout Periodization
 
-Workout Periodization is a lightweight, customizable workout diary designed for athletes and fitness enthusiasts who want to plan and track their training sessions with a focus on periodization. This personal web app offers a simple yet effective way to manage your workouts, making it easy to log progress and adjust your routine over time.
+Workout Periodization is a lightweight, customizable workout diary tailored for athletes and fitness enthusiasts. This personal web app is built to help you plan and track your training sessions with a strong focus on periodization, ensuring your workouts evolve with your progress.
 
-Key Features
-Intuitive Workout Logging: Keep track of your exercises and progress with an easy-to-use diary interface.
-Customizable Periodization: Designed around a specific structure that allows for up to 4 working sets per session—perfect for focused training routines.
-Exercise Modifications: Update your exercise details seamlessly to reflect changes in your workout plan. 
-Inclusive Registration: Registration is open and validated, allowing anyone to get started quickly.
-Try It Out
+### Key Features
 
-Experience the app in action by visiting the live demo: https://vito.pythonanywhere.com/.
+- **Intuitive Workout Logging:** Effortlessly record your exercises and monitor progress with a user-friendly diary interface.
+- **Customizable Periodization:** Structure your training with up to 4 working sets per session, making it ideal for focused, periodized routines.
+- **Dynamic Exercise Modifications:** Easily update and modify exercise details to match your evolving workout plan.
+- **Inclusive Registration:** Seamless, validated sign-up enables anyone to start quickly.
+- **Lightweight & Responsive:** Designed for optimal performance with fast load times and smooth navigation.
 
-Feel free to fork, customize, and use this tool as your personal workout diary. Whether you’re an experienced lifter or just starting out, this web app is your companion for a well-structured training plan.
+### Try It Out
 
-App is still under development. 
+Experience the app in action by visiting the [Live Demo](https://vito.pythonanywhere.com/).
+
+Fork, customize, and use Workout Periodization as your personal training companion. Whether you're an experienced lifter or just beginning your fitness journey, this app provides the structured approach you need to achieve your goals.
+
+> **Note:** The app is still under development, with new features and improvements on the horizon.
