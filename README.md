@@ -17,8 +17,8 @@ Experience the app in action by visiting the [Live Demo](https://vito.pythonanyw
 Fork, customize, and use Workout Periodization as your personal training companion. Whether you're an experienced lifter or just beginning your fitness journey, this app provides the structured approach you need to achieve your goals.
 
 ## Preview
-
+<div style="text-align: center;">
 <img src="https://drive.google.com/uc?export=view&id=1GeLs6sRQSpLDVY0x9w2zPOPSRUYc4CPb" width="300" height="400" alt="Demo" style="display: block; margin: 0 auto;">
-
+</div>
 
 > **Note:** The app is still under development, with new features and improvements on the horizon.
