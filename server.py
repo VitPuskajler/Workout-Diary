@@ -1781,8 +1781,6 @@ def progress():
     # Function to access workout day / data from database
     weekly, workout_names, workout_id = find_users_weeks()
 
-
-
     # Load amount of mesocycles
     all_users_mesocycles_query = db.session.query(WorkoutPlan).filter(
         WorkoutPlan.user_id == current_user_id
@@ -1803,11 +1801,15 @@ def progress():
             # Handle mesocycle selection
             submitted_data = request.form.to_dict()
             chosen_mesocycle = submitted_data.get("mesocycle")
+            training_day = submitted_data.get("training_day")
+
             if chosen_mesocycle:
                 session["chosen_mesocycle"] = chosen_mesocycle
+                session["training_day"] = training_day
             else:
                 # If no mesocycle selected, remove from session
                 session.pop("chosen_mesocycle", None)
+                session.pop("training_day", None)
                 chosen_mesocycle = None
 
         # Ensure `chosen_mesocycle` is set before generating `workout_day_info`
