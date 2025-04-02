@@ -1,0 +1,41 @@
+Custom workout:
+	1) Empty webpage, only button to confirm you are about to do custom workout
+		
+	 Sessions - session should be valid for that specific day
+		session_id = automatic
+		user_id = current_user
+		workout_id = "c" -> custom
+		session_date = Now
+
+	 SessionMesocycles
+		session_id = take from sessions
+		mesocycle_id = user's last mesocycle
+		traning_day_number = count all session days
+
+	2) Add exercise 
+	workout_plan - create custom w. day - no way around 
+		user_id = current user
+		workout_name = 'c'
+ 
+	
+	workout_exercises - fill workout exercices and load data into list so user can see what he added
+		workout_id = ...
+		exercise_id = 'id of chosen exercise'
+		order_in_workout = Count all exercises in curr. session and +1
+		prescribed_sets = 2
+		rest_period = 120	
+
+TO DO NEXT:
+	
+	1) take data from user about chosen exercise -> placeholder info
+
+	- View for user - after he add new exercise he will see table same as in training sessions
+	- Chosen exercise must be clicked on - table should change it's color from gray to green
+
+	
+	
+
+
+
+
+	

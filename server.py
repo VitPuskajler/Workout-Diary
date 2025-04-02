@@ -1,4 +1,5 @@
 import os
+import inspect
 from datetime import datetime, date, timedelta
 
 from flask import (
@@ -294,7 +295,13 @@ def find_users_weeks():
 
     if per_week_db and per_week_db[0]:  # Check if per_week_db exists and contains a value
         last_workouts = (
-            WorkoutPlan.query.filter_by(user_id=user_id_db, mesocycle_id=last_meso_query.mesocycle_id)
+            WorkoutPlan.query
+            .filter(
+                WorkoutPlan.user_id == user_id_db,
+                WorkoutPlan.mesocycle_id == last_meso_query.mesocycle_id,
+                WorkoutPlan.workout_name.isnot(None),
+                WorkoutPlan.workout_name != "c"
+            )
             .order_by(desc(WorkoutPlan.created_at))
             .limit(per_week_db[0])
             .all()
@@ -304,24 +311,27 @@ def find_users_weeks():
         try:
             last_workouts_id = (
                 db.session.query(WorkoutPlan.workout_id)
-                .filter(WorkoutPlan.user_id == user_id_db, WorkoutPlan.mesocycle_id == last_meso_query.mesocycle_id)
+                .filter(WorkoutPlan.workout_name != "c",
+                        WorkoutPlan.user_id == user_id_db,
+                         WorkoutPlan.mesocycle_id == last_meso_query.mesocycle_id,
+                         WorkoutPlan.workout_name.isnot(None),)
                 .order_by(WorkoutPlan.created_at.desc())
                 .limit(per_week_db[0])
                 .all()
             )
-            #print(f"Last workout IDs: {last_workouts_id}")
+            
 
             workouts_id = [x[0] for x in last_workouts_id] if last_workouts_id else []
         except Exception as e:
-            print(f"Probably no workout created yet: {e}")
             workouts_id = []
             db.session.rollback()
 
         workout_names_in_db = [workout.workout_name for workout in last_workouts]
 
+        print(f"workout names in db: {workout_names_in_db}")
+
         return per_week_db[0], workout_names_in_db, workouts_id
 
-    print("No mesocycles found or per_week_db is None.")
     return None, None, None
 
 
@@ -772,6 +782,13 @@ def add_set_to_db(submitted_data, exercise, chosen_day) -> dict:
                 .order_by(desc(Sessions.session_date)).first()
             )
 
+            if not session_id_form_db:
+                session_id_form_db = (
+                db.session.query(Sessions.session_id)
+                .filter(Sessions.workout_id == chosen_day)
+                .order_by(desc(Sessions.session_date)).first()
+            )
+
             exe_id = find_exercise_id_db(exercise)
 
             try:
@@ -807,7 +824,7 @@ def add_set_to_db(submitted_data, exercise, chosen_day) -> dict:
                 db.session.add(exercise_entry_add)
                 db.session.commit()
             except Exception as e:
-                print(f"Exception line cca 573: {e}")
+                print(f"Exception line {inspect.currentframe().f_lineno}: {e}")
                 db.session.rollback()
 
 
@@ -1273,63 +1290,6 @@ def fetch_exercise_suggestions(search_term):
     return [exercise.exercise_name for exercise in exercises]
 
 
-# I know these functions are not supposed to be in here :D But I am fine with it so far
-def create_intuitive_training_name(name):
-    user_id = current_user_id_db()
-
-    if name: 
-        # If today already exists some exercise - rename logic
-        today = datetime.combine(date.today(), datetime.min.time())
-        tomorrow = today + timedelta(days=1)
-
-        # Check if workout plan already exists for today
-        does_workout_exist = (
-            db.session.query(WorkoutPlan)
-            .filter(
-                and_(
-                    WorkoutPlan.user_id == user_id,
-                    WorkoutPlan.created_at >= today,
-                    WorkoutPlan.created_at < tomorrow,
-                    WorkoutPlan.workout_name.like("%_intuitive")
-                )
-            )
-            .order_by(desc(WorkoutPlan.created_at))
-            .first()
-        )
-
-        last_meso = (
-                db.session.query(Mesocycles)
-                .filter(Mesocycles.user_id == user_id)
-                .order_by(Mesocycles.mesocycle_id.desc())
-                .limit(1)
-                .scalar()
-                ) 
-                # last_meso.mesocycle_id
-
-        if last_meso:
-            intuitive_name = f'{last_meso.mesocycle_id}_{name}_intuitive'
-
-            if does_workout_exist:
-                # Rename workout plan name
-                print(f"your workoutplan id: {does_workout_exist.workout_id}")
-                workout_name_to_update = db.session.query(WorkoutPlan).filter_by(workout_id=does_workout_exist.workout_id).first()
-                workout_name_to_update.workout_name = intuitive_name
-                db.session.commit()
-
-                return name
-            else:
-                # Create new workout play
-                # Find last mesocycle from user and place new workout there
-                
-
-                # Create new workout
-                if last_meso:
-                    change_workout_name_query = WorkoutPlan(user_id=user_id, workout_name=intuitive_name, mesocycle_id=0)
-                    db.session.add(change_workout_name_query)
-                    db.session.commit()
-
-                    return name
-
 def get_today_intuitive_traing():
     current_user_id = current_user_id_db()
     today = datetime.combine(date.today(), datetime.min.time())
@@ -1353,6 +1313,61 @@ def get_today_intuitive_traing():
         return name
     else:
         return None
+
+# Add exercise into workout_exercises 
+def create_custom_workout_exercise(exercise_name):
+    user_id_db = current_user_id_db()
+    today = datetime.combine(date.today(), datetime.min.time())
+    tomorrow = today + timedelta(days=1)
+    # Find exercise_id for exercise user have inputed
+    exe_id = (
+        db.session.query(Exercise).filter_by(exercise_name=exercise_name).first()
+    )
+
+    # Find workout id and order in workout
+    workout_id_query =  (
+            db.session.query(WorkoutPlan)
+            .filter(
+                and_(
+                    WorkoutPlan.user_id == user_id_db,
+                    WorkoutPlan.created_at >= today,
+                    WorkoutPlan.created_at < tomorrow,
+                    WorkoutPlan.workout_name == "c"
+                )
+            )
+            .order_by(desc(WorkoutPlan.created_at))
+            .first()
+        )
+
+    if workout_id_query:
+        # Check if exercise is in WorkoutExercises table
+        exercise_already_in_table = (db.session.query(WorkoutExercises)
+                                    .filter(WorkoutExercises.workout_id == workout_id_query.workout_id,
+                                            WorkoutExercises.exercise_id == exe_id.exercise_id)
+                                    .first())
+        if exercise_already_in_table is None:
+                order = (db.session.query(WorkoutExercises)
+                        .filter(WorkoutExercises.workout_id == workout_id_query.workout_id)
+                        .count())
+                if order == 0:
+                    order = 1
+
+                new_workout_exercise = WorkoutExercises(workout_id=workout_id_query.workout_id, exercise_id=exe_id.exercise_id, order_in_workout=order, prescribed_sets=2, rest_period=120)
+
+                try:
+                    db.session.add(new_workout_exercise)
+                    db.session.commit()
+
+                    added_exercise = (db.session.query(WorkoutExercises)
+                                        .filter(WorkoutExercises.workout_id == workout_id_query.workout_id,
+                                                WorkoutExercises.exercise_id == exe_id.exercise_id)
+                                        .first())
+                    
+                    return True
+                except Exception as e:
+                    db.session.rollback()
+                    return False
+          
 
 # Function to add exercise to database for intuitive training
 def add_intuitive_exercise(exercise):
@@ -1420,7 +1435,151 @@ def add_intuitive_exercise(exercise):
             return None
     else:
         return None
-            
+
+
+# Custom workout - check if current day exists
+def check_c_session():
+    user = Users.query.filter_by(username=current_user.username).first()
+    user_id_db = user.user_id
+
+    # Help function to determine current day - sessions are valid only for that day
+    today = datetime.combine(date.today(), datetime.min.time())
+    tomorrow = today + timedelta(days=1)
+
+    # Check if a session already exists for today
+    does_session_exist = (
+        db.session.query(Sessions.session_id)
+        .filter(
+            and_(
+                Sessions.workout_id == "c",
+                Sessions.user_id == user_id_db,
+                Sessions.session_date >= today,
+                Sessions.session_date < tomorrow,
+            )
+        )
+        .first()
+    )
+
+    if does_session_exist:
+        return True
+    else:
+        return False
+
+def create_custom_session():
+    user = Users.query.filter_by(username=current_user.username).first()
+    user_id_db = user.user_id
+
+    today = datetime.combine(date.today(), datetime.min.time())
+    tomorrow = today + timedelta(days=1)
+
+    # Create custom session - 'c' for simple search in DB
+    new_session_query = Sessions(
+            user_id=user_id_db, workout_id="c", notes="Null",
+        )
+    db.session.add(new_session_query)
+    db.session.commit()
+
+    # Retrieve the assigned session_id
+    session_id_result = new_session_query.session_id
+
+    # Also add data to session_mesocycles
+    training_day_number_query = (
+        db.session.query(Sessions)
+        .filter(
+            Sessions.user_id == user_id_db,
+            Sessions.session_id == session_id_result,
+        )
+        .count()
+    )
+
+    # Find mmesocycle ID to assign my current session to - I want it to be assigned to user's last mesoc
+    mesocycle_id_query = (
+        db.session.query(Mesocycles.mesocycle_id)
+        .filter(
+            Mesocycles.user_id == user_id_db,
+        )
+        .order_by(desc(Mesocycles.mesocycle_id))
+        .first()
+    )
+
+    if session_id_result is not None and mesocycle_id_query is not None:
+        new_session_mesocycles_query = SessionMesocycles(
+            session_id=session_id_result,
+            mesocycle_id=mesocycle_id_query[0],
+            training_day_number=training_day_number_query,
+        )
+        db.session.add(new_session_mesocycles_query)
+        db.session.commit()
+        
+# Insert custom exercise into workout_exercises
+def create_custom_workout_plan():
+    # If there is no custom workout for today, just make it happen
+    user = Users.query.filter_by(username=current_user.username).first()
+    user_id_db = user.user_id
+
+    today = datetime.combine(date.today(), datetime.min.time())
+    tomorrow = today + timedelta(days=1)
+
+    mesocycle_id_query = (
+        db.session.query(Mesocycles.mesocycle_id)
+        .filter(
+            Mesocycles.user_id == user_id_db,
+        )
+        .order_by(desc(Mesocycles.mesocycle_id))
+        .first()
+    )
+
+    today_workout = db.session.query(WorkoutPlan).filter(
+        WorkoutPlan.user_id == user_id_db,
+        WorkoutPlan.created_at >= today,
+        WorkoutPlan.created_at < tomorrow,
+        WorkoutPlan.workout_name == "c",
+    ).first()
+    
+    if not today_workout:
+        create_custom_workout_day = WorkoutPlan(
+            user_id=user_id_db,
+            workout_name="c",
+            mesocycle_id=mesocycle_id_query[0],
+        )
+        try:
+            db.session.add(create_custom_workout_day)
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            return False
+    else:
+        return False
+
+# Load into list all custom exercises for this day        
+def load_custom_exercises_for_day():
+    user = Users.query.filter_by(username=current_user.username).first()
+    user_id_db = user.user_id
+    today = datetime.combine(date.today(), datetime.min.time())
+    tomorrow = today + timedelta(days=1)
+
+    result = []
+
+    today_workout = db.session.query(WorkoutPlan).filter(
+        WorkoutPlan.user_id == user_id_db,
+        WorkoutPlan.created_at >= today,
+        WorkoutPlan.created_at < tomorrow,
+        WorkoutPlan.workout_name == "c",
+    ).first()
+
+    if today_workout:
+        find_saved_exercises_query = db.session.query(WorkoutExercises).filter(
+            WorkoutExercises.workout_id == today_workout.workout_id
+        ).all()
+
+        for x in find_saved_exercises_query:
+            result.append(find_exercise_name_db(x.exercise_id)[0])
+
+    return result
+
+
+
 # --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -1648,9 +1807,11 @@ def training_session():
     # Function to acces workout day / data from database
     weekly, workout_names, workout_id = find_users_weeks()
 
+    # If user did not create training and wants to do workouts... not on my watch
     if weekly is None:
         return redirect(url_for("home"))
 
+    # NOTE: Order will be used later for strict oder of exercises during session and option to change it
     order, jinja_exercises = default_order(weekly)
     
     exercises_for_jinja(jinja_exercises, weekly, workout_id)
@@ -1882,19 +2043,46 @@ def intuitive_training():
     NOW = datetime.now()
     YEAR = NOW.strftime("%Y")
     DATE = NOW.strftime("%d%m%Y")
+    
+    selected_exercise = None
+
+    # If new exercise, then pop cookie for chosen exe and vice versa 
+    new_exercise = session.get("new_exercise", None)
+    chosen_exercise_dropdown = session.get("chosen_exercise_by_user", None)
+
+    
+    # Provide to jinja as result set to know what is now exercised
+
+    if new_exercise: 
+        selected_exercise = new_exercise
+    elif chosen_exercise_dropdown:
+        selected_exercise = chosen_exercise_dropdown
+
+    # Read data for current exercise 
+    placeholders = None
+
+    today_session = check_c_session() # Return true / false
 
     session.permanent = True  # Mark session as permanent (uses configured timeout - 24 hours in my case)
 
-    # If no name in session - try to check in db, if nothing user need to input some name
-    workout_name_user = get_today_intuitive_traing()
-    if workout_name_user is not None:
-        workout_name_user
-    elif workout_name_user is None:
-        workout_name_user = session.get("workout_name_user")
-   
-    # Check existance of the 
+    saved_exercises = load_custom_exercises_for_day()
 
     if request.method == "GET":
+        # Check existance of the today's custom workout 
+        user_confirm = request.args.get("confirm_freestyle")
+
+        if user_confirm:
+            # Create new session for today
+            try_to_create_custom_w_plan = create_custom_workout_plan()
+
+            if try_to_create_custom_w_plan:
+                create_custom_session()
+            
+                return redirect(url_for('intuitive_training'))
+        else:
+            print('No confirmation yet')
+            
+
         # Check if there are already some exercies in workout - In case website / webbrowser would crash and we had no POST after openin :)
         search_term = request.args.get("query")
         if search_term:
@@ -1905,40 +2093,39 @@ def intuitive_training():
         submitted_data = request.form.to_dict()
         action = submitted_data.get("action")
 
-        if action == "set_workout_name":
-            workout_name = submitted_data.get("workout_name", "")
-            if workout_name:
-                session["workout_name_user"] = create_intuitive_training_name(workout_name)
-                workout_name_user = session["workout_name_user"]
-
-        elif action == "choose_exercise":
+        if action == "choose_exercise":
             chosen_exercise = submitted_data.get("chosen_exercise")
-            # If chosen exercise is not none place it into database
+            if chosen_exercise:
+                session["chosen_exercise_by_user"] = chosen_exercise
+                session.pop("new_exercise", None)
 
-        
         elif action == "add_exercise_name":
-            # Handle the new exercise name input (like store it in the database or session)
-            # Do NOT overwrite workout_name_user here
+            # Same as choose_exercise this will aslo set new exercise as
+            # currently exercised
             new_exercise = submitted_data.get("exercise")
 
             if new_exercise:
-                add_intuitive_exercise(new_exercise)
+               create_custom_workout_exercise(new_exercise)
+               session["new_exercise"] = new_exercise
+               session.pop("chosen_exercise_by_user", None)
+               return redirect(url_for("intuitive_training"))
                 
             else:
-                print(f"Please give me some real exercise - from db ")
+                pass
             
-
-        elif action == "update_exercise_data":
-            # Handle weight/reps/notes updates
-            # Again, do NOT overwrite workout_name_user
-            pass
-    
+        if submitted_data.get("reps"):
+            day_for_function = "c"
+            add_set_to_db(submitted_data, selected_exercise, day_for_function)
+            print('reps_to_save are provided correctly')
 
     return render_template(
         "intuitive_training.html",
         today=DATE,
         year=YEAR,
-        user_workout_name = workout_name_user
+        today_session = today_session,
+        saved_exercises = saved_exercises,
+        selected_exercise = selected_exercise,
+        placeholders = placeholders
     )
 
 @app.errorhandler(404)
