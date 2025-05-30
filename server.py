@@ -2101,6 +2101,7 @@ def intuitive_training():
         
     else:  # POST
         submitted_data = request.form.to_dict()
+        delete_set(submitted_data)
         action = submitted_data.get("action")
 
         if action == "choose_exercise":
