@@ -178,16 +178,17 @@
     <div class="row justify-content-center">
       <!-- Column that adjusts width based on screen size -->
       <div class="col-12 col-md-7">
-        
+
         {% if not today_session %}
 
         <!-- Cnfirm button to create today's session-->
-        <form method ="GET" action ="{{ url_for('intuitive_training') }}">
-        <div class="d-flex flex-column align-items-center justify-content-center mb-2">
-          <h3 class="mb-3">Are you aiming for free style workout?</h3>
-          <button type="submit" name ="confirm_freestyle" value="confirm_freestyle" class="btn btn-success btn-lg col-8 col-lg-4 col-md-6">Yop</button>
-        </div>
-      </form>
+        <form method="GET" action="{{ url_for('intuitive_training') }}">
+          <div class="d-flex flex-column align-items-center justify-content-center mb-2">
+            <h3 class="mb-3">Are you aiming for free style workout?</h3>
+            <button type="submit" name="confirm_freestyle" value="confirm_freestyle"
+              class="btn btn-success btn-lg col-8 col-lg-4 col-md-6">Yop</button>
+          </div>
+        </form>
 
         {% else %}
 
@@ -210,7 +211,7 @@
 
               {% for x in saved_exercises %}
               {% if x == selected_exercise %}
-                {# do nothing #}
+              {# do nothing #}
               {% else %}
               <option> {{x}} </option>
 
@@ -256,36 +257,36 @@
 
                   {% if sets_for_jinja is not none %}
                   {% for set in sets_for_jinja %}
-  
+
                   <tr>
-                    <td><input type="number" step="any" class="form-control text-center" name="update_weight_{{ set.entry_id }}"
-                      placeholder="{{set.weight}}" /></td>
-  
+                    <td><input type="number" step="any" class="form-control text-center"
+                        name="update_weight_{{ set.entry_id }}" placeholder="{{set.weight}}" /></td>
+
                     <td><input type="number" class="form-control text-center" name="update_reps_{{ set.entry_id }}"
-                      placeholder="{{set.reps}}" /></td>
-  
+                        placeholder="{{set.reps}}" /></td>
+
                     <td><input type="number" class="form-control text-center" name="update_rpe_{{ set.entry_id }}"
                         placeholder="{{set.rpe}}" /></td>
-  
+
                     <td><input type="text" class="form-control text-center" name="update_notes_{{ set.entry_id }}"
                         placeholder="{{set.notes}}" /></td>
-  
+
                     <td class="w-auto">
                       <input class="form-check-input" type="checkbox" name="delete" value="{{ set.entry_id }}" />
                     </td>
-  
+
                   </tr>
-  
+
                   {% endfor %}
                   {% endif %}
-  
+
                   <!-- Current Exercise -->
                   {% if selected_exercise is not none %}
                   <tr class="table-success">
                     <td>
                       <div class="center-container">
-                        <input type="number" min="0" max="501" step="any" name="kg" class="form-control text-center text-warning"
-                          placeholder="{{ placeholders.weight }}" />
+                        <input type="number" min="0" max="501" step="any" name="kg"
+                          class="form-control text-center text-warning" placeholder="{{ placeholders.weight }}" />
                       </div>
                     </td>
                     <td>
@@ -308,7 +309,7 @@
                     </td>
                     <td>.</td>
                   </tr>
-                  
+
                   {% else %}
                   <tr>
                     <td>
@@ -317,14 +318,14 @@
                           placeholder="0" />
                       </div>
                     </td>
-  
+
                     <td>
                       <div class="col-10 center-container">
                         <input type="number" name="reps" class="form-control text-center bg-success-subtle text-warning"
                           placeholder="0" />
                       </div>
                     </td>
-                    
+
                     <td>
                       <div class="col-10 center-container">
                         <input type="number" name="rpe" class="form-control text-center bg-success-subtle text-warning"
@@ -340,22 +341,54 @@
                     <td>.</td>
                   </tr>
                   {% endif %}
-  
+
                   </tr>
+
                 </tbody>
               </table>
-                        
+
 
               <div class="d-flex justify-content-center mb-2">
                 <button type="submit" class="btn btn-success btn-lg col-8 col-lg-4 col-md-6">Confirm</button>
               </div>
             </div>
           </form>
+          {% endif %}
 
-       
-        {% endif %}
+          <div class="container">
+            <div class="row justify-content-center">
+              <div class="col-12 col-md-9 p-4">
 
-
+                {% if preview is not none %}
+                <h5 class="text-center mb-3">Previous sets for <strong>{{current_exercise_name}}</strong></h5>
+                <table class="table table-striped text-center mb-5">
+                  <thead class="table-striped ">
+                    <tr>
+                      <th class="col-1">Weight</th>
+                      <th class="col-1">Reps</th>
+                      <th class="col-1">RPE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in preview %}
+                    <tr class="{% if row.done is not none %}table-info{% endif %}">
+                      <td>
+                        <div class="col-10 center-container "> {{row.weight}} </div>
+                      </td>
+                      <td>
+                        <div class="col-12 center-container "> {{row.reps}} </div>
+                      </td>
+                      <td>
+                        <div class="col-12 center-container "> {{row.rpe}} </div>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+                {% endif %}
+              </div>
+            </div>
+          </div>
 
 
           <div class="p-2 m-3">

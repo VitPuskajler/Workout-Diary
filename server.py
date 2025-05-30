@@ -1562,17 +1562,36 @@ def exercises_progress():
         temp_last.append(exercise.exercise_id)
 
     return last_exercise
-# Load last custom workout day for jinja_sets_function
-def last_custom_day():
+# Load last 3 sets for chosen exercise
+def last_custom_day(exercise):
     user = Users.query.filter_by(username=current_user.username).first()
     user_id_db = user.user_id
-
+    exercise_id = find_exercise_id_db(exercise)[0]
     # SELECT last workout FROM  WorkoutPlan
     last_c_work_query = db.session.query(WorkoutPlan).filter(
         WorkoutPlan.user_id == user_id_db
     ).order_by(WorkoutPlan.created_at.desc()).first()
 
-    return last_c_work_query
+    # User's sessions
+    user_session_query = db.session.query(Sessions).filter(
+        Sessions.user_id == user_id_db,
+    ).order_by(Sessions.session_date.desc()).all()
+
+    session_list =[]
+    for sess in user_session_query:
+        session_list.append(sess.session_id)
+
+    # Find all user's sets
+    if session_list:
+        relevant_exercise_query = db.session.query(ExerciseEntries).filter(
+            ExerciseEntries.session_id.in_(session_list),
+            ExerciseEntries.exercise_id == exercise_id
+        ).order_by(ExerciseEntries.entry_id.desc()).limit(3)
+        
+        if relevant_exercise_query:
+            return relevant_exercise_query
+        else:
+            return None
 
 # --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
@@ -1804,7 +1823,6 @@ def training_session():
         workouts_id_name[i] = workout_names[i]
 
     chosen_day = session.get("chosen_day")
-    print(f"chosen day : {chosen_day}")
     chosen_exercise = session.get("chosen_exercise")
 
     # Create list of exercises -> for jinja purposes
@@ -2029,7 +2047,7 @@ def intuitive_training():
     DATE = NOW.strftime("%d%m%Y")
     
     selected_exercise = None
-
+    exercise_name_for_last_sets = None
     sets_for_jinja = None
 
     # If new exercise, then pop cookie for chosen exe and vice versa 
@@ -2097,13 +2115,21 @@ def intuitive_training():
             print('reps_to_save are provided correctly')
     
     # Check for last sets
-    last_day = last_custom_day()
+    if chosen_exercise_dropdown_i:
+        last_day = last_custom_day(chosen_exercise_dropdown_i)
+        exercise_name_for_last_sets = chosen_exercise_dropdown_i
     if chosen_exercise_dropdown_i:
         sets_for_jinja = jinja_sets_function("c", chosen_exercise_dropdown_i)
-        print(f"Sets for jinja: {sets_for_jinja}")
+        
 
     if not sets_for_jinja:
         sets_for_jinja = None
+    
+    # Reset placeholders to zero after the first set is saved
+    if sets_for_jinja:
+        exercise_placeholders = {'weight': 0, 'reps': 0, 'rpe': 0, 'notes': '...'}
+    else:
+        exercise_placeholders = current_exercise_info(chosen_exercise_dropdown_i, "c")
 
     return render_template(
         "intuitive_training.html",
@@ -2112,8 +2138,10 @@ def intuitive_training():
         today_session = today_session,
         saved_exercises = saved_exercises,
         selected_exercise = selected_exercise,
-        placeholders = placeholders,
-        sets_for_jinja = sets_for_jinja
+        sets_for_jinja = sets_for_jinja,
+        placeholders= exercise_placeholders,
+        preview = last_day,
+        current_exercise_name = exercise_name_for_last_sets
     )
 
 @app.errorhandler(404)
