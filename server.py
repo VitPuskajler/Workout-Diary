@@ -1187,9 +1187,15 @@ def exercise_progress_data(workout_info, chosen_day, mesocycle_name):
                     WorkoutPlan.mesocycle_id == mesocycle_id
                 ).order_by(desc(WorkoutPlan.created_at)).first()[0]
 
+                # Find if workout Name == "c" 
+                workout_id_c = db.session.query(WorkoutPlan).filter(
+                    WorkoutPlan.user_id == current_user_id,
+                    WorkoutPlan.workout_name == "c",
+                    WorkoutPlan.mesocycle_id == mesocycle_id
+                ).order_by(desc(WorkoutPlan.created_at)).first()
+
                 # First session exercise_entry
                 if workout_id:
-                    
                     try:
                         first_session = db.session.query(Sessions.session_id).filter(
                             Sessions.user_id == current_user_id,
@@ -1202,7 +1208,14 @@ def exercise_progress_data(workout_info, chosen_day, mesocycle_name):
                         Sessions.user_id == current_user_id,
                         Sessions.workout_id == workout_id
                     ).all()
-                    
+
+                    # Check if these is custom (c) workout
+                    if not all_sessions:
+                        all_sessions = db.session.query(Sessions).filter(
+                        Sessions.user_id == current_user_id,
+                        Sessions.workout_id == "c"
+                    ).all()
+
                     exercises_in_workout = db.session.query(WorkoutExercises).filter(
                                 WorkoutExercises.workout_id == workout_id
                             ).all()
@@ -1231,7 +1244,7 @@ def exercise_progress_data(workout_info, chosen_day, mesocycle_name):
 
                             # Add the list of exercise data to the result_set
                             result_set[exercise_name] = small_data_list
-
+                        #print(f"result_set : {result_set}")
                         return result_set
     else: 
         return {None:None}
@@ -1931,7 +1944,7 @@ def progress():
     YEAR = NOW.strftime("%Y")
     DATE = NOW.strftime("%d%m%Y")
     exercise_progress = session.get("exercise_progress")
-    # session.pop("chosen_day", None) 
+    #session.pop("chosen_day", None) 
 
     current_user_id = current_user_id_db()
     # Function to access workout day / data from database
