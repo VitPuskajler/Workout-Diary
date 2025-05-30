@@ -2049,6 +2049,7 @@ def intuitive_training():
     selected_exercise = None
     exercise_name_for_last_sets = None
     sets_for_jinja = None
+    last_day = None
 
     # If new exercise, then pop cookie for chosen exe and vice versa 
     new_exercise = session.get("new_exercise", None)
