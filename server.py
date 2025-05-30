@@ -1016,7 +1016,7 @@ def current_exercise_info(chosen_exercise, chosen_day):
                 ExerciseEntries.exercise_id == exercise_id,
                 Sessions.user_id == current_user_id,
             )
-            .order_by(desc(ExerciseEntries.weight), desc(ExerciseEntries.reps))
+            .order_by(desc(ExerciseEntries.session_id), desc(ExerciseEntries.weight), desc(ExerciseEntries.reps))
             .first()
         )
 
@@ -1030,7 +1030,7 @@ def current_exercise_info(chosen_exercise, chosen_day):
                     ExerciseEntries.exercise_id == previous_exercise_entry.exercise_id,
                     ExerciseEntries.session_id == previous_exercise_entry.session_id
                 )
-                .order_by(desc(ExerciseEntries.weight))
+                .order_by(desc(ExerciseEntries.entry_id), desc(ExerciseEntries.weight))
                 .first()
             )
         else:
@@ -1506,6 +1506,48 @@ def load_custom_exercises_for_day():
             result.append(find_exercise_name_db(x.exercise_id)[0])
 
     return result
+# Load data for each user's exercise - first and last entry 
+def exercises_progress():
+    user = Users.query.filter_by(username=current_user.username).first()
+    user_id_db = user.user_id
+    all_sessions = []
+    first_exercise = []
+    last_exercise = []
+    temp = []
+    temp_last = []
+    
+    # Select * sessions for current user
+    sessions_query = db.session.query(Sessions).filter(
+        Sessions.user_id == user_id_db
+    ).all()
+    
+    for sess in sessions_query:
+        all_sessions.append(sess.session_id)
+
+    # Select all exercises with corresponding sesions
+    first_exercise_query = db.session.query(ExerciseEntries).filter(
+        ExerciseEntries.session_id.in_(all_sessions)
+    ).all()
+
+    last_exercise_query = db.session.query(ExerciseEntries).filter(
+        ExerciseEntries.session_id.in_(all_sessions)
+    ).order_by(ExerciseEntries.session_id.desc()).all()
+
+
+    # Filter out first time exercises
+    for exercise in first_exercise_query:
+        if exercise.exercise_id not in temp:
+            first_exercise.append(exercise.exercise_id)
+        temp.append(exercise.exercise_id)
+
+    # Filter out last time exercises
+    for exercise in last_exercise_query:
+        if exercise.exercise_id not in temp_last:
+            last_exercise.append(exercise.exercise_id)
+        temp_last.append(exercise.exercise_id)
+
+    return last_exercise
+
 
 # --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
@@ -1722,7 +1764,7 @@ def training_session():
     # Function to acces workout day / data from database
     weekly, workout_names, workout_id = find_users_weeks()
 
-    # If user did not create training and wants to do workouts... not on my watch
+    # If user did not 'create training and wants to do workouts... not on my watch
     if weekly is None:
         return redirect(url_for("home"))
 
@@ -1822,7 +1864,6 @@ def profile():
     action = request.form.get('action')
 
     if action == 'change_mesocycle':
-
         # Handle changing the mesocycle
         return redirect(url_for("create_workout"))
     elif action == 'show_progress':
@@ -1830,11 +1871,10 @@ def profile():
         return redirect(url_for("progress"))
     elif action == 'statistics':
         # Handle statistics
-        return "I am working on this page :-)"
+        return redirect(url_for("statistics"))
     elif action == 'change_password':
         # Handle changing password
         return "For now you need to contact admit to change your password. <br>This function will be added in the future.</br>" 
-
 
     return render_template(
         "profile.html",
@@ -1847,7 +1887,8 @@ def progress():
     NOW = datetime.now()
     YEAR = NOW.strftime("%Y")
     DATE = NOW.strftime("%d%m%Y")
-    exercise_progress = session.get("exercise_progress") 
+    exercise_progress = session.get("exercise_progress")
+    session.pop("chosen_day", None) 
 
     current_user_id = current_user_id_db()
     # Function to access workout day / data from database
@@ -1946,6 +1987,14 @@ def progress():
     workouts_info=workout_day_info,
     progress= exercise_progress,
 )
+
+@login_required
+@app.route("/statistics", methods=["GET", "POST"])
+def statistics():
+    data = exercises_progress()
+    print(data)
+    return render_template("statistics.html")
+
 
 @login_required
 @app.route("/intuitive_training", methods=["GET", "POST"])
@@ -2054,4 +2103,4 @@ def page_not_found(e):
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=False) # Delete this before pushing
+    app.run(debug=True) # Delete this before pushing
