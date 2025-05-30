@@ -18,7 +18,7 @@ Fork, customize, and use Workout Periodization as your personal training compani
 
 ## Preview
 <center>
-<img src="https://drive.google.com/uc?export=view&id=1GeLs6sRQSpLDVY0x9w2zPOPSRUYc4CPb" width="300" height="400">
+<img src="" width="300" height="400">
 </center>
 
 > **Note:** The app is still under development, with new features and improvements on the horizon.

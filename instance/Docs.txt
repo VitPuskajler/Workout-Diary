@@ -1,0 +1,10 @@
+Profile / Show Progress:
+	- Show progress for each exercise from chosen mesocycle -> entry of each exercise 
+	
+Statistics:
+	Difference between this and "Show Progress" -> how stronger / weaker am I for specific exercise
+	- 2 views: 
+		- show progress for exercise -> from first time you have used it
+		- progress from specific mesocycle
+		
+	

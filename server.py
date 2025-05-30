@@ -613,7 +613,8 @@ def add_session_to_db(chosen_day_by_user, workouts_id):
 
     # Map the chosen day to the actual workout_id
     workout_id_hopefully = workouts_id[chosen_day_by_user]
-
+    
+    print(f"day {chosen_day_by_user} and workouts_id {workouts_id}")
     today = datetime.combine(date.today(), datetime.min.time())
     tomorrow = today + timedelta(days=1)
 
@@ -812,16 +813,28 @@ def jinja_sets_function(chosen_day, chosen_exercise):
         today = datetime.combine(date.today(), datetime.min.time())
         tomorrow = today + timedelta(days=1)
 
-        desired_session = (
-            db.session.query(Sessions.session_id)
-            .filter(
-                Sessions.user_id == user_id_db,
-                Sessions.workout_id == workout_id_from_db[0],
-                Sessions.session_date >= today,
-                Sessions.session_date < tomorrow,
+        if chosen_day != "c":
+            desired_session = (
+                db.session.query(Sessions.session_id)
+                .filter(
+                    Sessions.user_id == user_id_db,
+                    Sessions.workout_id == workout_id_from_db[0],
+                    Sessions.session_date >= today,
+                    Sessions.session_date < tomorrow,
+                )
+                .first()
             )
-            .first()
-        )
+        else:
+            desired_session = (
+                db.session.query(Sessions.session_id)
+                .filter(
+                    Sessions.user_id == user_id_db,
+                    Sessions.workout_id == "c",
+                    Sessions.session_date >= today,
+                    Sessions.session_date < tomorrow,
+                )
+                .first()
+            )
 
         if desired_session:
             try:
@@ -839,6 +852,7 @@ def jinja_sets_function(chosen_day, chosen_exercise):
                 print(f"Exception in jinja_sets_function: {e}")
                 db.session.rollback()  # Rollback the session
                 return None
+
         else:
             print("Desired session not found.")
             return None
@@ -1478,6 +1492,7 @@ def create_custom_workout_plan():
             return True
         except Exception as e:
             db.session.rollback()
+            print(f"Exception line {inspect.currentframe().f_lineno}: {e}")
             return False
     else:
         return False
@@ -1547,7 +1562,17 @@ def exercises_progress():
         temp_last.append(exercise.exercise_id)
 
     return last_exercise
+# Load last custom workout day for jinja_sets_function
+def last_custom_day():
+    user = Users.query.filter_by(username=current_user.username).first()
+    user_id_db = user.user_id
 
+    # SELECT last workout FROM  WorkoutPlan
+    last_c_work_query = db.session.query(WorkoutPlan).filter(
+        WorkoutPlan.user_id == user_id_db
+    ).order_by(WorkoutPlan.created_at.desc()).first()
+
+    return last_c_work_query
 
 # --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
@@ -1779,6 +1804,7 @@ def training_session():
         workouts_id_name[i] = workout_names[i]
 
     chosen_day = session.get("chosen_day")
+    print(f"chosen day : {chosen_day}")
     chosen_exercise = session.get("chosen_exercise")
 
     # Create list of exercises -> for jinja purposes
@@ -1836,7 +1862,6 @@ def training_session():
 
     preview = exercise_preview(workout_id, workout_key, chosen_exercise, workout_key, workout_id)
     sets_to_do_jinja = sets_to_do(chosen_exercise, chosen_day)
-
     
     return render_template(
         "training_session.html",
@@ -2007,23 +2032,18 @@ def intuitive_training():
 
     # If new exercise, then pop cookie for chosen exe and vice versa 
     new_exercise = session.get("new_exercise", None)
-    chosen_exercise_dropdown = session.get("chosen_exercise_by_user", None)
+    chosen_exercise_dropdown_i = session.get("chosen_exercise_by_user", None)
 
-    
     # Provide to jinja as result set to know what is now exercised
-
     if new_exercise: 
         selected_exercise = new_exercise
-    elif chosen_exercise_dropdown:
-        selected_exercise = chosen_exercise_dropdown
+    elif chosen_exercise_dropdown_i:
+        selected_exercise = chosen_exercise_dropdown_i
 
     # Read data for current exercise 
     placeholders = None
-
     today_session = check_c_session() # Return true / false
-
     session.permanent = True  # Mark session as permanent (uses configured timeout - 24 hours in my case)
-
     saved_exercises = load_custom_exercises_for_day()
 
     if request.method == "GET":
@@ -2033,15 +2053,12 @@ def intuitive_training():
         if user_confirm:
             # Create new session for today
             try_to_create_custom_w_plan = create_custom_workout_plan()
-
             if try_to_create_custom_w_plan:
                 create_custom_session()
-            
                 return redirect(url_for('intuitive_training'))
         else:
             print('No confirmation yet')
             
-
         # Check if there are already some exercies in workout - In case website / webbrowser would crash and we had no POST after openin :)
         search_term = request.args.get("query")
         if search_term:
@@ -2057,6 +2074,7 @@ def intuitive_training():
             if chosen_exercise:
                 session["chosen_exercise_by_user"] = chosen_exercise
                 session.pop("new_exercise", None)
+                return redirect(url_for("intuitive_training"))
 
         elif action == "add_exercise_name":
             # Same as choose_exercise this will aslo set new exercise as
@@ -2068,7 +2086,6 @@ def intuitive_training():
                session["new_exercise"] = new_exercise
                session.pop("chosen_exercise_by_user", None)
                return redirect(url_for("intuitive_training"))
-                
             else:
                 pass
             
@@ -2076,6 +2093,12 @@ def intuitive_training():
             day_for_function = "c"
             add_set_to_db(submitted_data, selected_exercise, day_for_function)
             print('reps_to_save are provided correctly')
+    
+    # Check for last sets
+    last_day = last_custom_day()
+    if chosen_exercise_dropdown_i:
+        sets_for_jinja = jinja_sets_function("c", chosen_exercise_dropdown_i)
+        print(f"Sets for jinja: {sets_for_jinja}")
 
     return render_template(
         "intuitive_training.html",
@@ -2084,7 +2107,8 @@ def intuitive_training():
         today_session = today_session,
         saved_exercises = saved_exercises,
         selected_exercise = selected_exercise,
-        placeholders = placeholders
+        placeholders = placeholders,
+        sets_for_jinja = sets_for_jinja
     )
 
 @app.errorhandler(404)
@@ -2103,4 +2127,4 @@ def page_not_found(e):
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=True) # Delete this before pushing
+    app.run(debug=False) # Delete this before pushing

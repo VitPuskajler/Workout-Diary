@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Periodization</title>
+  <link rel="icon" href="/static/title/barbell_title.jpg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@3">
+
+  <meta name="viewport" content="width=device-width, initial-scale=.7" />
+
+</head>
+
+<body>
+
+  <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
+    <symbol id="check2" viewBox="0 0 16 16">
+      <path
+        d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z">
+      </path>
+    </symbol>
+    <symbol id="circle-half" viewBox="0 0 16 16">
+      <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"></path>
+    </symbol>
+    <symbol id="moon-stars-fill" viewBox="0 0 16 16">
+      <path
+        d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z">
+      </path>
+      <path
+        d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.734 1.734 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.734 1.734 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.734 1.734 0 0 0 1.097-1.097l.387-1.162zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L13.863.1z">
+      </path>
+    </symbol>
+    <symbol id="sun-fill" viewBox="0 0 16 16">
+      <path
+        d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z">
+      </path>
+    </symbol>
+  </svg>
+
+  <div class="p-3 mb-5">
+    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
+        <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
+          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarCollapse">
+          <ul class="navbar-nav me-auto mb-2 mb-md-0">
+            <li class="nav-item">
+              <a class="nav-link" aria-current="page" href="{{ url_for('training_session')}}">Training Session</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('workout_plan_page')}}">Workout Plan</a>
+            </li>
+
+          </ul>
+          <!-- Login and register buttons on the right -->
+          <ul class="navbar-nav ms-auto">
+            {% if current_user.is_authenticated %}
+            <li class="nav-item">
+              <!-- Change path to profile.html after clicking on UserName-->
+              <a class="nav-link active" href="{{ url_for('profile')}}">{{ current_user.username }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+            </li>
+            {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+            </li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </nav>
+  </div>
+
+  <div class="p-4 mb-3">
+    <div class="container">
+      <div class="row justify-content-center">
+        <!-- First Form -->
+        <div class="col-md-6 col-sm-5 mb-1 p-1">
+          <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="post">
+            <select class="form-select mb-1 mx-auto text-center" aria-label="Default select example"
+              id="MesocycleSelect" name="mesocycle" onchange="this.form.submit()">
+              <option value="">Choose Mesocycle</option>
+              {% if dropdown %}
+              {% for key, value in dropdown.items() %}
+              {% set mesocycle_name = value.keys()|first %}
+              <option value="{{ mesocycle_name }}" {% if chosen_mesocycle==mesocycle_name %}selected{% endif %}>{{
+                mesocycle_name }}</option>
+              {% endfor %}
+              {% else %}
+              <option value="">You have no Mesocycle yet</option>
+              {% endif %}
+            </select>
+          </form>
+        </div>
+
+
+        <div class="col-md-7 col-sm-7 mb-5 p-1">
+          {% if workouts_info %}
+          <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="get">
+            <select class="form-select mb-1 mx-auto text-center" aria-label="Default select example"
+              id="WorkoutDaySelect" name="training_day" onchange="this.form.submit()">
+              <option value="">Choose Training Day</option>
+              {% for key, value in workouts_info.items() %}
+              <option value="{{ key }}" {% if key==session.get('chosen_day') %}selected{% endif %}>{{ key }}</option>
+              {% endfor %}
+            </select>
+          </form>
+          {% else %}
+          <!-- Optionally, display a message if no workouts are available -->
+          <p></p>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if workouts_info %}
+  {% if progress %}
+    <div class="container mb-5">
+      {% for key, value in progress.items() %}
+        <div class="row mb-4">
+          <div class="col-12">
+            <h5 class="text-center text-success">{{ key }}</h5>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-12">
+            <table class="table table-striped table-bordered text-center">
+              <thead class="thead-dark">
+                <tr>
+                  <th>Date</th>
+                  <th>Reps</th>
+                  <th>Weight</th>
+                  <th>Notes</th> <!-- Corrected this heading as well to align with data.notes -->
+                </tr>
+              </thead>
+              <tbody>
+                {% if value %}
+                  {% for data in value %}
+                    <tr>
+                      <td class="col-2">{{ data.date }}</td>
+                      <td class="col-2">{{ data.reps }}</td>
+                      <td class="col-2">{{ data.weight }}</td>
+                      <td class="col-4">{{ data.notes }}</td>                  
+                    </tr>
+                  {% endfor %}
+                {% else %}
+                <tr>
+                  <td class="col-2">Never exercised</td>
+                  <td class="col-2">No reps</td>
+                  <td class="col-2">No weight</td>
+                  <td class="col-4">nothing written</td>                  
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endif %}
+
+    
+
+
+
+
+      <div class="p-3">
+        <div class="fixed-bottom text-center py-2">
+          © {{ year }} | Created by Vít Puskajler
+        </div>
+      </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+      crossorigin="anonymous"></script>
+
+</body>
+
+</html>
