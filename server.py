@@ -2030,6 +2030,8 @@ def intuitive_training():
     
     selected_exercise = None
 
+    sets_for_jinja = None
+
     # If new exercise, then pop cookie for chosen exe and vice versa 
     new_exercise = session.get("new_exercise", None)
     chosen_exercise_dropdown_i = session.get("chosen_exercise_by_user", None)
@@ -2099,6 +2101,9 @@ def intuitive_training():
     if chosen_exercise_dropdown_i:
         sets_for_jinja = jinja_sets_function("c", chosen_exercise_dropdown_i)
         print(f"Sets for jinja: {sets_for_jinja}")
+
+    if not sets_for_jinja:
+        sets_for_jinja = None
 
     return render_template(
         "intuitive_training.html",
