@@ -1,6 +1,8 @@
 import os
 import inspect # Example: print(f"Exception line {inspect.currentframe().f_lineno}: {e}")
 from datetime import datetime, date, timedelta
+import pandas as pd
+import io
 
 from flask import (
     Flask,
@@ -11,6 +13,7 @@ from flask import (
     request,
     session,
     url_for,
+    send_file
 )
 from flask_login import (
     LoginManager,
@@ -1215,11 +1218,14 @@ def exercise_progress_data(workout_info, chosen_day, mesocycle_name):
                         Sessions.user_id == current_user_id,
                         Sessions.workout_id == "c"
                     ).all()
+                        
 
                     exercises_in_workout = db.session.query(WorkoutExercises).filter(
                                 WorkoutExercises.workout_id == workout_id
                             ).all()
                     
+                    print(f"all_sessions : {all_sessions}")
+
                     if exercises_in_workout:
                         for exrs in exercises_in_workout:
                             exercise_name = find_exercise_name_db(exrs.exercise_id)[0]
@@ -1230,6 +1236,8 @@ def exercise_progress_data(workout_info, chosen_day, mesocycle_name):
                                     ExerciseEntries.session_id == sess.session_id,
                                     ExerciseEntries.exercise_id == exrs.exercise_id
                                 ).all()
+
+                                print(f"exrs.exercise_id : {exrs.exercise_id}")
 
                                 for som in find_exe:
                                     # Create a new small_data_set dictionary for each entry
@@ -1541,8 +1549,8 @@ def exercises_progress():
     all_sessions = []
     first_exercise = []
     last_exercise = []
-    temp = []
-    temp_last = []
+    temp = set()
+    temp_last = set()
     
     # Select * sessions for current user
     sessions_query = db.session.query(Sessions).filter(
@@ -1555,25 +1563,26 @@ def exercises_progress():
     # Select all exercises with corresponding sesions
     first_exercise_query = db.session.query(ExerciseEntries).filter(
         ExerciseEntries.session_id.in_(all_sessions)
-    ).all()
+    ).order_by(ExerciseEntries.entry_id.asc()).all()
 
     last_exercise_query = db.session.query(ExerciseEntries).filter(
         ExerciseEntries.session_id.in_(all_sessions)
-    ).order_by(ExerciseEntries.session_id.desc()).all()
+    ).order_by(ExerciseEntries.entry_id.desc()).all()
 
 
     # Filter out first time exercises
     for exercise in first_exercise_query:
         if exercise.exercise_id not in temp:
-            first_exercise.append(exercise.exercise_id)
-        temp.append(exercise.exercise_id)
+            first_exercise.append(exercise.entry_id)
+            temp.add(exercise.exercise_id)
 
     # Filter out last time exercises
     for exercise in last_exercise_query:
         if exercise.exercise_id not in temp_last:
-            last_exercise.append(exercise.exercise_id)
-        temp_last.append(exercise.exercise_id)
+            last_exercise.append(exercise.entry_id)
+            temp_last.add(exercise.exercise_id)
 
+    print(f"First exercise : {first_exercise}\nLast exercise : {last_exercise}")
     return last_exercise
 # Load last 3 sets for chosen exercise
 def last_custom_day(exercise):
@@ -1605,6 +1614,147 @@ def last_custom_day(exercise):
             return relevant_exercise_query
         else:
             return None
+# Create downloadable excel file - download workout plan to excel - this one is done by gemini
+def workout_to_excel(data):
+    # If no data is provided, return a minimal empty Excel file
+    if not data:
+        print("No data provided for Excel export. Creating an empty workbook.")
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            writer.book.add_worksheet('Workout Plan')
+        output.seek(0)
+        return output
+
+    output = io.BytesIO()
+    # Use xlsxwriter engine for advanced formatting features like merged cells
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        workbook = writer.book
+        worksheet = workbook.add_worksheet('Workout Plan')
+
+        # Define custom cell formats for aesthetics
+        title_format = workbook.add_format({
+            'bold': True,
+            'font_size': 14,
+            'align': 'center',
+            'valign': 'vcenter',
+            'fg_color': '#A9D08E', # Darker green for workout titles
+            'border': 1,
+            'font_color': '#FFFFFF', # White text for contrast
+            'text_wrap': True,
+            'num_format': '@' # Ensure text format
+        })
+        header_format = workbook.add_format({
+            'bold': True,
+            'text_wrap': True,
+            'valign': 'vcenter',
+            'align': 'center',
+            'fg_color': '#D7E4BC', # Light green background for main headers
+            'border': 1
+        })
+        sub_header_format = workbook.add_format({
+            'bold': True,
+            'text_wrap': True,
+            'valign': 'vcenter',
+            'align': 'center',
+            'fg_color': '#F2F2F2', # Light grey background for sub-headers
+            'border': 1
+        })
+        data_format = workbook.add_format({
+            'border': 1,
+            'align': 'left', # Align exercise names to the left
+            'valign': 'vcenter'
+        })
+        center_data_format = workbook.add_format({
+            'border': 1,
+            'align': 'center', # Center align 'Total'
+            'valign': 'vcenter'
+        })
+        empty_cell_format = workbook.add_format({
+            'fg_color': '#F2F2F2', # Grey background for empty input cells
+            'border': 1,
+            'align': 'center',
+            'valign': 'vcenter'
+        })
+
+        current_col_offset = 0 # Keeps track of the starting column for each new table
+        num_sets_per_exercise = 3 # Number of sets (1. SET, 2. SET, 3. SET)
+        cols_per_set = 3 # Columns per set (Reps, Weight, RPE)
+
+        # Iterate through each workout (e.g., 'Upper Body', 'Lower Body')
+        for workout_name, exercises in data.items():
+            # Calculate the total number of columns for this specific table
+            # Exercise (1) + Total (1) + (3 sets * 3 columns/set) + Notes (1) = 12 columns
+            total_cols_for_table = 1 + 1 + (num_sets_per_exercise * cols_per_set) + 1
+
+            # 1. Write the workout name title (merged across the table's width)
+            # Row 0, spanning from current_col_offset to the end of this table's columns
+            worksheet.merge_range(0, current_col_offset, 0, current_col_offset + total_cols_for_table - 1, workout_name, title_format)
+
+            # 2. Write the main headers (e.g., 'Exercise', 'Total', '1. SET', 'Notes')
+            # These go on Row 1
+            worksheet.write_string(1, current_col_offset, 'Exercise', header_format)
+            worksheet.write_string(1, current_col_offset + 1, 'Total', header_format)
+
+            # Write merged headers for each SET (e.g., '1. SET', '2. SET', '3. SET')
+            for i in range(num_sets_per_exercise):
+                # Calculate the starting column for each merged SET header
+                start_set_col = current_col_offset + 2 + (i * cols_per_set)
+                # Merge cells for the SET header (e.g., merge 3 cells for '1. SET')
+                worksheet.merge_range(1, start_set_col, 1, start_set_col + cols_per_set - 1, f'{i+1}. SET', header_format)
+
+            # Write the 'Notes' header
+            worksheet.write_string(1, current_col_offset + total_cols_for_table - 1, 'Notes', header_format)
+
+            # 3. Write the sub-headers (e.g., 'Reps', 'Weight', 'RPE' under each SET)
+            # These go on Row 2
+            # Leave the 'Exercise' and 'Total' cells empty in this row
+            worksheet.write_string(2, current_col_offset, '', sub_header_format)
+            worksheet.write_string(2, current_col_offset + 1, '', sub_header_format)
+
+            for i in range(num_sets_per_exercise):
+                start_sub_col = current_col_offset + 2 + (i * cols_per_set)
+                worksheet.write_string(2, start_sub_col, 'Reps', sub_header_format)
+                worksheet.write_string(2, start_sub_col + 1, 'Weight', sub_header_format)
+                worksheet.write_string(2, start_sub_col + 2, 'RPE', sub_header_format)
+            # Leave the 'Notes' cell empty in this row
+            worksheet.write_string(2, current_col_offset + total_cols_for_table - 1, '', sub_header_format)
+
+            # 4. Write the exercise data rows
+            # Data starts from row 3 (0-indexed)
+            data_start_row = 3
+            for r_idx, (exercise_name, details) in enumerate(exercises.items()):
+                current_row = data_start_row + r_idx
+
+                # Write Exercise Name
+                worksheet.write_string(current_row, current_col_offset, exercise_name, data_format)
+                # Write Total Sets (e.g., "3x")
+                worksheet.write_string(current_row, current_col_offset + 1, f"{details['sets']}x", center_data_format)
+
+                # Write empty cells for Reps, Weight, RPE for each set
+                for i in range(num_sets_per_exercise):
+                    start_empty_col = current_col_offset + 2 + (i * cols_per_set)
+                    worksheet.write_string(current_row, start_empty_col, '', empty_cell_format) # Reps
+                    worksheet.write_string(current_row, start_empty_col + 1, '', empty_cell_format) # Weight
+                    worksheet.write_string(current_row, start_empty_col + 2, '', empty_cell_format) # RPE
+
+                # Write empty cell for Notes
+                worksheet.write_string(current_row, current_col_offset + total_cols_for_table - 1, '', empty_cell_format)
+
+            # 5. Adjust column widths for readability
+            worksheet.set_column(current_col_offset, current_col_offset, 25) # Exercise column width
+            worksheet.set_column(current_col_offset + 1, current_col_offset + 1, 10) # Total column width
+            for i in range(num_sets_per_exercise):
+                start_set_col = current_col_offset + 2 + (i * cols_per_set)
+                worksheet.set_column(start_set_col, start_set_col + cols_per_set - 1, 10) # Reps, Weight, RPE columns
+            worksheet.set_column(current_col_offset + total_cols_for_table - 1, current_col_offset + total_cols_for_table - 1, 25) # Notes column width
+
+            # 6. Update the column offset for the next table
+            # Add the total columns of the current table plus some spacing (e.g., 2 empty columns)
+            current_col_offset += total_cols_for_table + 2
+
+    writer.close() # Crucial: Close the Excel writer to finalize the file
+    output.seek(0) # Rewind the buffer to the beginning before returning
+    return output # Return the BytesIO object containing the Excel file data
 
 # --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
@@ -1680,24 +1830,42 @@ def workout_plan_page():
     all_users_mesocycles_query = db.session.query(WorkoutPlan).filter(
         WorkoutPlan.user_id == current_user_id
     )
-
+    dropdown_menu_info = None
+    chosen_mesocycle = None
+    table_population = None
+    
     try:
         if all_users_mesocycles_query:
-            print("There are some workout already in your mesocycle")
             dropdown_menu_info = show_tables_to_user(current_user_id)
-
             try:
-                chosen_mesocycle = submitted_data["mesocycle"]
-                session["chosen_mesocycle"] = chosen_mesocycle
+                chosen_mesocycle = submitted_data.get("mesocycle")
+                if chosen_mesocycle:
+                    session["chosen_mesocycle"] = chosen_mesocycle
+                else:
+                    chosen_mesocycle = session.get("chosen_mesocycle")
             except KeyError as ke:
                 chosen_mesocycle = None
-            
-            table_population = tables_informations(chosen_mesocycle, dropdown_menu_info)
-            print(table_population)
-            
+
+            if chosen_mesocycle:
+                table_population = tables_informations(chosen_mesocycle, dropdown_menu_info)
+            else:
+                table_population = {}
+                       
 
     except TypeError:
         return render_template("table_layout.html", year=YEAR)
+    
+    if request.method == 'POST': # Check if a POST request was made
+        if 'action' in request.form and request.form['action'] == 'export_excel':
+            print("Export to Excel button was pressed!") # Debugging print
+            excel_data_stream = workout_to_excel(table_population) 
+            return send_file(
+                excel_data_stream,  # This is the in-memory Excel file (BytesIO object)
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', # Tells the browser it's an Excel .xlsx file
+                as_attachment=True, # Forces the browser to download the file instead of trying to display it
+                download_name='workout_plan.xlsx' # Sets the default filename for the downloaded file
+            )
+
 
 
     return render_template(
@@ -2031,7 +2199,7 @@ def progress():
         
         if workout_day_info:
             exercise_progress = exercise_progress_data(workout_day_info, chosen_day, chosen_mesocycle)
-    
+            print(exercise_progress)
     return render_template(
     "progress.html",
     today=DATE,
@@ -2048,9 +2216,7 @@ def progress():
 @app.route("/statistics", methods=["GET", "POST"])
 def statistics():
     data = exercises_progress()
-    print(data)
     return render_template("statistics.html")
-
 
 @login_required
 @app.route("/intuitive_training", methods=["GET", "POST"])
