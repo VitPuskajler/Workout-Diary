@@ -1,0 +1,472 @@
+[
+    {
+        "entry_id": 92,
+        "exercise_id": 970,
+        "notes": "",
+        "reps": 4,
+        "rpe": 10.0,
+        "session_id": 12,
+        "set_number": 2,
+        "weight": 60.0
+    },
+    {
+        "entry_id": 102,
+        "exercise_id": 259,
+        "notes": "Dych aj sila pa",
+        "reps": 12,
+        "rpe": 10.0,
+        "session_id": 14,
+        "set_number": 1,
+        "weight": 44.0
+    },
+    {
+        "entry_id": 122,
+        "exercise_id": 606,
+        "notes": "Posledné akoby mi hruď trhali v strede",
+        "reps": 15,
+        "rpe": 9.0,
+        "session_id": 17,
+        "set_number": 1,
+        "weight": 11.0
+    },
+    {
+        "entry_id": 127,
+        "exercise_id": 278,
+        "notes": "Šmýka sa lano",
+        "reps": 12,
+        "rpe": 9.0,
+        "session_id": 17,
+        "set_number": 1,
+        "weight": 6.0
+    },
+    {
+        "entry_id": 133,
+        "exercise_id": 943,
+        "notes": "",
+        "reps": 50,
+        "rpe": 10.0,
+        "session_id": 17,
+        "set_number": 2,
+        "weight": 8.0
+    },
+    {
+        "entry_id": 135,
+        "exercise_id": 118,
+        "notes": "",
+        "reps": 14,
+        "rpe": 10.0,
+        "session_id": 17,
+        "set_number": 1,
+        "weight": 0.0
+    },
+    {
+        "entry_id": 157,
+        "exercise_id": 1078,
+        "notes": "Zle som vycentroval tyč",
+        "reps": 5,
+        "rpe": 9.0,
+        "session_id": 28,
+        "set_number": 1,
+        "weight": 120.0
+    },
+    {
+        "entry_id": 187,
+        "exercise_id": 927,
+        "notes": "",
+        "reps": 10,
+        "rpe": 9.0,
+        "session_id": 36,
+        "set_number": 2,
+        "weight": 20.0
+    },
+    {
+        "entry_id": 192,
+        "exercise_id": 1011,
+        "notes": "",
+        "reps": 10,
+        "rpe": 10.0,
+        "session_id": 36,
+        "set_number": 2,
+        "weight": 30.0
+    },
+    {
+        "entry_id": 220,
+        "exercise_id": 350,
+        "notes": "DS",
+        "reps": 5,
+        "rpe": 9.0,
+        "session_id": 42,
+        "set_number": 3,
+        "weight": 115.0
+    },
+    {
+        "entry_id": 232,
+        "exercise_id": 345,
+        "notes": "",
+        "reps": 8,
+        "rpe": 10.0,
+        "session_id": 45,
+        "set_number": 1,
+        "weight": 175.0
+    },
+    {
+        "entry_id": 235,
+        "exercise_id": 1033,
+        "notes": "",
+        "reps": 12,
+        "rpe": 8.0,
+        "session_id": 45,
+        "set_number": 2,
+        "weight": 0.0
+    },
+    {
+        "entry_id": 237,
+        "exercise_id": 310,
+        "notes": "Do zlxhania sily",
+        "reps": 8,
+        "rpe": 10.0,
+        "session_id": 45,
+        "set_number": 1,
+        "weight": 44.0
+    },
+    {
+        "entry_id": 239,
+        "exercise_id": 597,
+        "notes": "",
+        "reps": 8,
+        "rpe": 10.0,
+        "session_id": 46,
+        "set_number": 1,
+        "weight": 30.0
+    },
+    {
+        "entry_id": 289,
+        "exercise_id": 924,
+        "notes": "",
+        "reps": 12,
+        "rpe": 8.0,
+        "session_id": 49,
+        "set_number": 1,
+        "weight": 10.0
+    },
+    {
+        "entry_id": 292,
+        "exercise_id": 124,
+        "notes": "",
+        "reps": 17,
+        "rpe": 8.0,
+        "session_id": 49,
+        "set_number": 2,
+        "weight": 15.0
+    },
+    {
+        "entry_id": 361,
+        "exercise_id": 486,
+        "notes": "Opatrne na ruku",
+        "reps": 12,
+        "rpe": 9.0,
+        "session_id": 56,
+        "set_number": 1,
+        "weight": 12.0
+    },
+    {
+        "entry_id": 377,
+        "exercise_id": 266,
+        "notes": "",
+        "reps": 8,
+        "rpe": 9.0,
+        "session_id": 58,
+        "set_number": 1,
+        "weight": 190.0
+    },
+    {
+        "entry_id": 389,
+        "exercise_id": 742,
+        "notes": "Plus 6 partials",
+        "reps": 12,
+        "rpe": 8.0,
+        "session_id": 59,
+        "set_number": 0,
+        "weight": 120.0
+    },
+    {
+        "entry_id": 395,
+        "exercise_id": 770,
+        "notes": "",
+        "reps": 8,
+        "rpe": 9.0,
+        "session_id": 60,
+        "set_number": 1,
+        "weight": 20.0
+    },
+    {
+        "entry_id": 400,
+        "exercise_id": 450,
+        "notes": "Pravá ruka plesá",
+        "reps": 10,
+        "rpe": 9.0,
+        "session_id": 60,
+        "set_number": 1,
+        "weight": 12.0
+    },
+    {
+        "entry_id": 411,
+        "exercise_id": 631,
+        "notes": "",
+        "reps": 9,
+        "rpe": 9.0,
+        "session_id": 62,
+        "set_number": 2,
+        "weight": 24.0
+    },
+    {
+        "entry_id": 439,
+        "exercise_id": 320,
+        "notes": "",
+        "reps": 10,
+        "rpe": 9.0,
+        "session_id": 71,
+        "set_number": 1,
+        "weight": 44.0
+    },
+    {
+        "entry_id": 441,
+        "exercise_id": 1145,
+        "notes": "",
+        "reps": 11,
+        "rpe": 9.0,
+        "session_id": 72,
+        "set_number": 1,
+        "weight": 72.0
+    },
+    {
+        "entry_id": 448,
+        "exercise_id": 881,
+        "notes": "",
+        "reps": 12,
+        "rpe": 10.0,
+        "session_id": 73,
+        "set_number": 1,
+        "weight": 20.0
+    },
+    {
+        "entry_id": 467,
+        "exercise_id": 359,
+        "notes": "",
+        "reps": 8,
+        "rpe": 10.0,
+        "session_id": 75,
+        "set_number": 1,
+        "weight": 25.0
+    },
+    {
+        "entry_id": 506,
+        "exercise_id": 885,
+        "notes": "",
+        "reps": 12,
+        "rpe": 9.0,
+        "session_id": 81,
+        "set_number": 1,
+        "weight": 12.0
+    },
+    {
+        "entry_id": 509,
+        "exercise_id": 973,
+        "notes": "",
+        "reps": 9,
+        "rpe": 9.0,
+        "session_id": 81,
+        "set_number": 0,
+        "weight": 70.0
+    },
+    {
+        "entry_id": 561,
+        "exercise_id": 415,
+        "notes": "",
+        "reps": 10,
+        "rpe": 9.0,
+        "session_id": 88,
+        "set_number": 1,
+        "weight": 110.0
+    },
+    {
+        "entry_id": 562,
+        "exercise_id": 974,
+        "notes": "",
+        "reps": 9,
+        "rpe": 10.0,
+        "session_id": 88,
+        "set_number": 1,
+        "weight": 80.0
+    },
+    {
+        "entry_id": 592,
+        "exercise_id": 1119,
+        "notes": "",
+        "reps": 10,
+        "rpe": 9.0,
+        "session_id": 91,
+        "set_number": 1,
+        "weight": 85.0
+    },
+    {
+        "entry_id": 594,
+        "exercise_id": 643,
+        "notes": "",
+        "reps": 10,
+        "rpe": 10.0,
+        "session_id": 91,
+        "set_number": 1,
+        "weight": 26.0
+    },
+    {
+        "entry_id": 622,
+        "exercise_id": 525,
+        "notes": "",
+        "reps": 8,
+        "rpe": 10.0,
+        "session_id": 94,
+        "set_number": 0,
+        "weight": 20.0
+    },
+    {
+        "entry_id": 648,
+        "exercise_id": 975,
+        "notes": "9. opáčko som nešiel plný rozsah",
+        "reps": 10,
+        "rpe": 10.0,
+        "session_id": 97,
+        "set_number": 1,
+        "weight": 40.0
+    },
+    {
+        "entry_id": 650,
+        "exercise_id": 685,
+        "notes": "",
+        "reps": 6,
+        "rpe": 10.0,
+        "session_id": 97,
+        "set_number": 1,
+        "weight": 100.0
+    },
+    {
+        "entry_id": 652,
+        "exercise_id": 269,
+        "notes": "",
+        "reps": 9,
+        "rpe": 10.0,
+        "session_id": 97,
+        "set_number": 1,
+        "weight": 190.0
+    },
+    {
+        "entry_id": 654,
+        "exercise_id": 917,
+        "notes": "",
+        "reps": 10,
+        "rpe": 10.0,
+        "session_id": 97,
+        "set_number": 1,
+        "weight": 45.0
+    },
+    {
+        "entry_id": 656,
+        "exercise_id": 499,
+        "notes": "+2 partials",
+        "reps": 8,
+        "rpe": 10.0,
+        "session_id": 97,
+        "set_number": 1,
+        "weight": 35.0
+    },
+    {
+        "entry_id": 660,
+        "exercise_id": 857,
+        "notes": "",
+        "reps": 8,
+        "rpe": 8.0,
+        "session_id": 97,
+        "set_number": 1,
+        "weight": 13.0
+    },
+    {
+        "entry_id": 663,
+        "exercise_id": 1147,
+        "notes": "Mal to byť back off, ale prehĺbil som opáčks",
+        "reps": 8,
+        "rpe": 8.0,
+        "session_id": 98,
+        "set_number": 2,
+        "weight": 150.0
+    },
+    {
+        "entry_id": 665,
+        "exercise_id": 284,
+        "notes": "",
+        "reps": 8,
+        "rpe": 10.0,
+        "session_id": 98,
+        "set_number": 1,
+        "weight": 205.0
+    },
+    {
+        "entry_id": 667,
+        "exercise_id": 1146,
+        "notes": "",
+        "reps": 8,
+        "rpe": 10.0,
+        "session_id": 98,
+        "set_number": 1,
+        "weight": 18.0
+    },
+    {
+        "entry_id": 669,
+        "exercise_id": 1150,
+        "notes": "",
+        "reps": 9,
+        "rpe": 9.0,
+        "session_id": 98,
+        "set_number": 1,
+        "weight": 14.0
+    },
+    {
+        "entry_id": 671,
+        "exercise_id": 1143,
+        "notes": "",
+        "reps": 9,
+        "rpe": 8.0,
+        "session_id": 98,
+        "set_number": 1,
+        "weight": 54.0
+    },
+    {
+        "entry_id": 673,
+        "exercise_id": 399,
+        "notes": "",
+        "reps": 8,
+        "rpe": 10.0,
+        "session_id": 99,
+        "set_number": 1,
+        "weight": 25.0
+    },
+    {
+        "entry_id": 675,
+        "exercise_id": 836,
+        "notes": "Lakte hore ",
+        "reps": 8,
+        "rpe": 8.0,
+        "session_id": 100,
+        "set_number": 1,
+        "weight": 16.0
+    },
+    {
+        "entry_id": 676,
+        "exercise_id": 1118,
+        "notes": "test",
+        "reps": 52,
+        "rpe": 4.0,
+        "session_id": 101,
+        "set_number": 0,
+        "weight": 180.0
+    }
+]

@@ -1,0 +1,472 @@
+[
+    {
+        "entry_id": 1,
+        "exercise_id": 597,
+        "notes": "30stupňov",
+        "reps": 10,
+        "rpe": 9.0,
+        "session_id": 2,
+        "set_number": 0,
+        "weight": 28.0
+    },
+    {
+        "entry_id": 2,
+        "exercise_id": 836,
+        "notes": "Sústreď sa na lakte hore",
+        "reps": 10,
+        "rpe": 9.0,
+        "session_id": 2,
+        "set_number": 0,
+        "weight": 12.0
+    },
+    {
+        "entry_id": 4,
+        "exercise_id": 1150,
+        "notes": "Som nejaký silný na zadné stehná",
+        "reps": 17,
+        "rpe": 9.0,
+        "session_id": 2,
+        "set_number": 0,
+        "weight": 13.0
+    },
+    {
+        "entry_id": 7,
+        "exercise_id": 525,
+        "notes": "Tá šľacha špekuluje. Skúsim pomaly zaťažovať",
+        "reps": 12,
+        "rpe": 5.0,
+        "session_id": 3,
+        "set_number": 0,
+        "weight": 12.0
+    },
+    {
+        "entry_id": 8,
+        "exercise_id": 643,
+        "notes": "",
+        "reps": 7,
+        "rpe": 9.0,
+        "session_id": 4,
+        "set_number": 0,
+        "weight": 32.0
+    },
+    {
+        "entry_id": 10,
+        "exercise_id": 359,
+        "notes": "Easy",
+        "reps": 6,
+        "rpe": 8.0,
+        "session_id": 4,
+        "set_number": 0,
+        "weight": 30.0
+    },
+    {
+        "entry_id": 12,
+        "exercise_id": 881,
+        "notes": "Posledná dopomoc",
+        "reps": 7,
+        "rpe": 10.0,
+        "session_id": 4,
+        "set_number": 0,
+        "weight": 26.0
+    },
+    {
+        "entry_id": 14,
+        "exercise_id": 350,
+        "notes": "Posledné 2 už neboli po hruď dotiahnuté",
+        "reps": 8,
+        "rpe": 10.0,
+        "session_id": 4,
+        "set_number": 0,
+        "weight": 205.0
+    },
+    {
+        "entry_id": 16,
+        "exercise_id": 970,
+        "notes": "",
+        "reps": 10,
+        "rpe": 9.0,
+        "session_id": 4,
+        "set_number": 0,
+        "weight": 80.0
+    },
+    {
+        "entry_id": 21,
+        "exercise_id": 1078,
+        "notes": "Skúsim ísť ešte jednu",
+        "reps": 5,
+        "rpe": 9.0,
+        "session_id": 6,
+        "set_number": 0,
+        "weight": 120.0
+    },
+    {
+        "entry_id": 24,
+        "exercise_id": 259,
+        "notes": "Test",
+        "reps": 12,
+        "rpe": 10.0,
+        "session_id": 6,
+        "set_number": 0,
+        "weight": 44.0
+    },
+    {
+        "entry_id": 28,
+        "exercise_id": 1146,
+        "notes": "Už problém sa rukami držať na stroji",
+        "reps": 12,
+        "rpe": 9.0,
+        "session_id": 6,
+        "set_number": 0,
+        "weight": 17.0
+    },
+    {
+        "entry_id": 34,
+        "exercise_id": 742,
+        "notes": "",
+        "reps": 12,
+        "rpe": 10.0,
+        "session_id": 6,
+        "set_number": 0,
+        "weight": 140.0
+    },
+    {
+        "entry_id": 36,
+        "exercise_id": 124,
+        "notes": "",
+        "reps": 14,
+        "rpe": 8.0,
+        "session_id": 6,
+        "set_number": 0,
+        "weight": 25.0
+    },
+    {
+        "entry_id": 39,
+        "exercise_id": 345,
+        "notes": "Ťažké",
+        "reps": 10,
+        "rpe": 10.0,
+        "session_id": 9,
+        "set_number": 0,
+        "weight": 190.0
+    },
+    {
+        "entry_id": 42,
+        "exercise_id": 606,
+        "notes": "",
+        "reps": 12,
+        "rpe": 9.0,
+        "session_id": 9,
+        "set_number": 0,
+        "weight": 60.0
+    },
+    {
+        "entry_id": 45,
+        "exercise_id": 310,
+        "notes": "Ľavá vyzerá silnešie ako pravá",
+        "reps": 10,
+        "rpe": 10.0,
+        "session_id": 9,
+        "set_number": 0,
+        "weight": 44.0
+    },
+    {
+        "entry_id": 49,
+        "exercise_id": 943,
+        "notes": "Čudný pocit, dobrá technika",
+        "reps": 14,
+        "rpe": 9.0,
+        "session_id": 9,
+        "set_number": 0,
+        "weight": 40.0
+    },
+    {
+        "entry_id": 51,
+        "exercise_id": 278,
+        "notes": "",
+        "reps": 16,
+        "rpe": 9.0,
+        "session_id": 9,
+        "set_number": 0,
+        "weight": 60.0
+    },
+    {
+        "entry_id": 59,
+        "exercise_id": 1118,
+        "notes": "Tn posilka je iná",
+        "reps": 8,
+        "rpe": 8.0,
+        "session_id": 10,
+        "set_number": 0,
+        "weight": 70.0
+    },
+    {
+        "entry_id": 134,
+        "exercise_id": 118,
+        "notes": "",
+        "reps": 12,
+        "rpe": 7.0,
+        "session_id": 17,
+        "set_number": 0,
+        "weight": 0.0
+    },
+    {
+        "entry_id": 150,
+        "exercise_id": 399,
+        "notes": "Zaseknutý na 7… des",
+        "reps": 7,
+        "rpe": 10.0,
+        "session_id": 27,
+        "set_number": 0,
+        "weight": 30.0
+    },
+    {
+        "entry_id": 152,
+        "exercise_id": 927,
+        "notes": "Na stroji shoulder press",
+        "reps": 10,
+        "rpe": 9.0,
+        "session_id": 27,
+        "set_number": 0,
+        "weight": 45.0
+    },
+    {
+        "entry_id": 155,
+        "exercise_id": 499,
+        "notes": "Bál som sa o šlachu dne",
+        "reps": 9,
+        "rpe": 8.0,
+        "session_id": 27,
+        "set_number": 0,
+        "weight": 30.0
+    },
+    {
+        "entry_id": 158,
+        "exercise_id": 320,
+        "notes": "Skúsim viac",
+        "reps": 44,
+        "rpe": 8.0,
+        "session_id": 28,
+        "set_number": 0,
+        "weight": 12.0
+    },
+    {
+        "entry_id": 160,
+        "exercise_id": 1145,
+        "notes": "",
+        "reps": 13,
+        "rpe": 8.0,
+        "session_id": 28,
+        "set_number": 0,
+        "weight": 63.0
+    },
+    {
+        "entry_id": 161,
+        "exercise_id": 1033,
+        "notes": "Po 2 mesiacoch. Dobrý pocit",
+        "reps": 12,
+        "rpe": 9.0,
+        "session_id": 29,
+        "set_number": 0,
+        "weight": 25.0
+    },
+    {
+        "entry_id": 169,
+        "exercise_id": 1011,
+        "notes": "",
+        "reps": 10,
+        "rpe": 9.0,
+        "session_id": 31,
+        "set_number": 0,
+        "weight": 35.0
+    },
+    {
+        "entry_id": 229,
+        "exercise_id": 1147,
+        "notes": "",
+        "reps": 12,
+        "rpe": 8.0,
+        "session_id": 44,
+        "set_number": 0,
+        "weight": 125.0
+    },
+    {
+        "entry_id": 242,
+        "exercise_id": 975,
+        "notes": "",
+        "reps": 10,
+        "rpe": 7.0,
+        "session_id": 47,
+        "set_number": 0,
+        "weight": 30.0
+    },
+    {
+        "entry_id": 245,
+        "exercise_id": 631,
+        "notes": "",
+        "reps": 8,
+        "rpe": 8.0,
+        "session_id": 47,
+        "set_number": 0,
+        "weight": 28.0
+    },
+    {
+        "entry_id": 248,
+        "exercise_id": 770,
+        "notes": "Dummells",
+        "reps": 8,
+        "rpe": 9.0,
+        "session_id": 47,
+        "set_number": 0,
+        "weight": 22.0
+    },
+    {
+        "entry_id": 254,
+        "exercise_id": 486,
+        "notes": "",
+        "reps": 8,
+        "rpe": 8.0,
+        "session_id": 47,
+        "set_number": 0,
+        "weight": 55.0
+    },
+    {
+        "entry_id": 257,
+        "exercise_id": 266,
+        "notes": "",
+        "reps": 10,
+        "rpe": 9.0,
+        "session_id": 47,
+        "set_number": 0,
+        "weight": 160.0
+    },
+    {
+        "entry_id": 260,
+        "exercise_id": 924,
+        "notes": "",
+        "reps": 10,
+        "rpe": 10.0,
+        "session_id": 47,
+        "set_number": 0,
+        "weight": 8.0
+    },
+    {
+        "entry_id": 262,
+        "exercise_id": 1143,
+        "notes": "",
+        "reps": 12,
+        "rpe": 8.0,
+        "session_id": 48,
+        "set_number": 0,
+        "weight": 41.0
+    },
+    {
+        "entry_id": 272,
+        "exercise_id": 284,
+        "notes": "S trhačkami",
+        "reps": 8,
+        "rpe": 9.0,
+        "session_id": 48,
+        "set_number": 0,
+        "weight": 175.0
+    },
+    {
+        "entry_id": 364,
+        "exercise_id": 450,
+        "notes": "",
+        "reps": 12,
+        "rpe": 8.0,
+        "session_id": 56,
+        "set_number": 0,
+        "weight": 12.0
+    },
+    {
+        "entry_id": 444,
+        "exercise_id": 685,
+        "notes": "",
+        "reps": 15,
+        "rpe": 9.0,
+        "session_id": 73,
+        "set_number": 0,
+        "weight": 65.0
+    },
+    {
+        "entry_id": 449,
+        "exercise_id": 269,
+        "notes": "",
+        "reps": 15,
+        "rpe": 8.0,
+        "session_id": 73,
+        "set_number": 0,
+        "weight": 145.0
+    },
+    {
+        "entry_id": 468,
+        "exercise_id": 857,
+        "notes": "",
+        "reps": 12,
+        "rpe": 9.0,
+        "session_id": 75,
+        "set_number": 0,
+        "weight": 12.0
+    },
+    {
+        "entry_id": 476,
+        "exercise_id": 973,
+        "notes": "Na jednu ruku",
+        "reps": 7,
+        "rpe": 8.0,
+        "session_id": 76,
+        "set_number": 0,
+        "weight": 30.0
+    },
+    {
+        "entry_id": 491,
+        "exercise_id": 917,
+        "notes": "",
+        "reps": 8,
+        "rpe": 9.0,
+        "session_id": 78,
+        "set_number": 0,
+        "weight": 45.0
+    },
+    {
+        "entry_id": 505,
+        "exercise_id": 885,
+        "notes": "",
+        "reps": 12,
+        "rpe": 9.0,
+        "session_id": 81,
+        "set_number": 0,
+        "weight": 12.0
+    },
+    {
+        "entry_id": 555,
+        "exercise_id": 1119,
+        "notes": "",
+        "reps": 8,
+        "rpe": 8.0,
+        "session_id": 88,
+        "set_number": 0,
+        "weight": 85.0
+    },
+    {
+        "entry_id": 559,
+        "exercise_id": 974,
+        "notes": "",
+        "reps": 10,
+        "rpe": 9.0,
+        "session_id": 88,
+        "set_number": 0,
+        "weight": 80.0
+    },
+    {
+        "entry_id": 560,
+        "exercise_id": 415,
+        "notes": "",
+        "reps": 14,
+        "rpe": 7.0,
+        "session_id": 88,
+        "set_number": 0,
+        "weight": 90.0
+    }
+]

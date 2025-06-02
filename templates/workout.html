@@ -169,6 +169,9 @@
           </div>
           {% endfor %}
 
+          <form method="POST" action="{{ url_for('workout_plan_page') }}">
+            <button type="submit" name="action" value="export_excel" class="btn btn-success">Export to Excel</button>
+          </form>
           {% endif %}
 
 
