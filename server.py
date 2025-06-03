@@ -1,9 +1,13 @@
 import os
 import inspect # Example: print(f"Exception line {inspect.currentframe().f_lineno}: {e}")
-from datetime import datetime, date, timedelta
 import pandas as pd
 import io
+import matplotlib.dates
+import base64
 
+from matplotlib.figure import Figure
+from io import BytesIO
+from datetime import datetime, date, timedelta
 from flask import (
     Flask,
     flash,
@@ -32,14 +36,12 @@ from sqlalchemy import (
     MetaData,
     String,
     DateTime,
-    Boolean,
     and_,
     func,
     create_engine,
     select,
     desc,
     delete,
-    cast,
     Date
 )
 from sqlalchemy.exc import OperationalError
@@ -1543,47 +1545,155 @@ def load_custom_exercises_for_day():
 
     return result
 # Load data for each user's exercise - first and last entry 
-def exercises_progress():
+def exercises_progress(exercises_data):
+    # Example data set
+    dates = []
+    weights = []
+    reps = []
+
+    # Data for relevant exercise
+    for exe in exercises_data:
+        dates.append(exe[1])
+        weights.append(exe[2])
+        reps.append(exe[3])
+
+
+    # Makeing x axis
+    x = dates
+
+    # Figure ple axis
+    fig = Figure()
+    ax = fig.subplots()
+    # Plot the weights
+    ax.plot(x, weights, marker='o', linestyle='-', color='blue', label='Weight (kg)')
+
+    # Add annotations for reps on each data point
+    for i, txt in enumerate(reps):
+        if i % 2 == 0:
+            ax.annotate(
+                f'{txt}', # The text to display (e.g., "10 reps")
+                (x[i], weights[i]), # The (x, y) coordinates of the point to annotate
+                textcoords="offset points", # How to interpret xytext
+                xytext=(0,10), # Offset text 10 points vertically from the point
+                ha='center', # Horizontal alignment of the text (center it above the point)
+                fontsize=9, # Adjust font size if needed
+                color='darkgreen' # Optional: set a color for the annotation text
+            )
+
+    # Customize the plot appearance
+    ax.set_title(f"{find_exercise_name_db(exe[0])[0]}")
+    ax.set_ylabel("Weight (kg)")
+    ax.grid(True)
+
+    # Format the x-axis to show dates nicely
+    ax.xaxis.set_major_formatter(matplotlib.dates.DateFormatter("%d.%m.%y"))
+    fig.autofmt_xdate() # Automatically format x-axis labels to prevent overlap
+
+    # Add a legend
+    ax.legend()
+
+    # Save the figure to a BytesIO buffer
+    buf = BytesIO()
+    fig.savefig(buf, format="png", bbox_inches='tight') # bbox_inches='tight' prevents labels from being cut off
+    buf.seek(0) # Rewind the buffer to the beginning
+
+    # Encode the image data to base64 for embedding in HTML
+    data = base64.b64encode(buf.read()).decode("ascii")
+
+    return data
+# Filter data for graph to create
+def data_for_graph():
     user = Users.query.filter_by(username=current_user.username).first()
     user_id_db = user.user_id
-    all_sessions = []
-    first_exercise = []
-    last_exercise = []
-    temp = set()
-    temp_last = set()
-    
-    # Select * sessions for current user
-    sessions_query = db.session.query(Sessions).filter(
+    session_for_user = []
+
+    all_sessions_query = db.session.query(Sessions).filter(
         Sessions.user_id == user_id_db
     ).all()
-    
-    for sess in sessions_query:
-        all_sessions.append(sess.session_id)
 
-    # Select all exercises with corresponding sesions
-    first_exercise_query = db.session.query(ExerciseEntries).filter(
-        ExerciseEntries.session_id.in_(all_sessions)
-    ).order_by(ExerciseEntries.entry_id.asc()).all()
+    for session in all_sessions_query:
+        session_for_user.append(session.session_id)
 
-    last_exercise_query = db.session.query(ExerciseEntries).filter(
-        ExerciseEntries.session_id.in_(all_sessions)
-    ).order_by(ExerciseEntries.entry_id.desc()).all()
+    if session_for_user:
+        best_sets_per_session_and_exercise = db.session.query(
+            ExerciseEntries.exercise_id,
+            Sessions.session_date, # <-- ADD THIS LINE
+            func.max(ExerciseEntries.weight).label('max_weight'),
+            func.max(ExerciseEntries.reps).label('max_reps')
+        ).join(
+            Sessions, ExerciseEntries.session_id == Sessions.session_id # <-- ADD THIS LINE
+        ).filter(
+            ExerciseEntries.session_id.in_(session_for_user)
+        ).group_by(
+            ExerciseEntries.exercise_id,
+            Sessions.session_date # <-- ADD THIS LINE to GROUP BY
+        ).all()
 
+        if best_sets_per_session_and_exercise:
+            return best_sets_per_session_and_exercise
+        else:
+            return None
+# Data for specific exercise
+def statistics_for_exercise(chosen_exercise):
+    user_id_db = current_user_id_db()
 
-    # Filter out first time exercises
-    for exercise in first_exercise_query:
-        if exercise.exercise_id not in temp:
-            first_exercise.append(exercise.entry_id)
-            temp.add(exercise.exercise_id)
+    if chosen_exercise and chosen_exercise != "Choose Exercise" and chosen_exercise != "You have no Mesocycle yet":
+        exercise_id_db = find_exercise_id_db(chosen_exercise)[0]
 
-    # Filter out last time exercises
-    for exercise in last_exercise_query:
-        if exercise.exercise_id not in temp_last:
-            last_exercise.append(exercise.entry_id)
-            temp_last.add(exercise.exercise_id)
+        session_for_user = []
 
-    print(f"First exercise : {first_exercise}\nLast exercise : {last_exercise}")
-    return last_exercise
+        all_sessions_query = db.session.query(Sessions).filter(
+            Sessions.user_id == user_id_db
+        ).all()
+
+        for session in all_sessions_query:
+            session_for_user.append(session.session_id)
+
+        if session_for_user:
+            best_sets_per_session_and_exercise = db.session.query(
+                ExerciseEntries.exercise_id,
+                Sessions.session_date, # <-- ADD THIS LINE
+                func.max(ExerciseEntries.weight).label('max_weight'),
+                func.max(ExerciseEntries.reps).label('max_reps')
+            ).join(
+                Sessions, ExerciseEntries.session_id == Sessions.session_id # <-- ADD THIS LINE
+            ).filter(
+                ExerciseEntries.session_id.in_(session_for_user),
+                ExerciseEntries.exercise_id == exercise_id_db
+
+            ).group_by(
+                ExerciseEntries.exercise_id,
+                Sessions.session_date # <-- ADD THIS LINE to GROUP BY
+            ).all()
+
+            if best_sets_per_session_and_exercise:
+                return best_sets_per_session_and_exercise
+            else:
+                return None
+# All exercises with at least one entry
+def all_exercises_list():
+    user_id_db = current_user_id_db()
+    session_for_user = []
+    exercise_data = []
+
+    all_sessions_query = db.session.query(Sessions).filter(
+        Sessions.user_id == user_id_db
+    ).all()
+
+    for session in all_sessions_query:
+        session_for_user.append(session.session_id)
+
+    if session_for_user:
+        all_exercises_query = db.session.query(ExerciseEntries).filter(
+            ExerciseEntries.session_id.in_(session_for_user)
+        ).group_by(ExerciseEntries.exercise_id).all()
+
+        if all_exercises_query:
+            for exe in all_exercises_query:
+                exercise_data.append(find_exercise_name_db(exe.exercise_id)[0])
+            return exercise_data
+    else:
+        return None
 # Load last 3 sets for chosen exercise
 def last_custom_day(exercise):
     user = Users.query.filter_by(username=current_user.username).first()
@@ -1934,6 +2044,11 @@ def table_layout():
 def create_workout():
     weekly, workout_names, workouts_id = find_users_weeks()
 
+    if weekly is None and workout_names is None and workouts_id is None:
+        return redirect("/home")
+
+
+
     # Default order
     order, jinja_exercises = default_order(weekly)
 
@@ -2215,8 +2330,20 @@ def progress():
 @login_required
 @app.route("/statistics", methods=["GET", "POST"])
 def statistics():
-    data = exercises_progress()
-    return render_template("statistics.html")
+    #graph_data = data_for_graph()
+    used_exercises = all_exercises_list()
+    graph = None
+
+    if request.method == "POST":
+        selected_value = request.form.get('chosen_exercise')
+        exercise_data = statistics_for_exercise(selected_value)
+        if exercise_data:
+            graph = exercises_progress(exercise_data)
+
+    return render_template("statistics.html",
+                           graph = graph,
+                           exercises = used_exercises
+                           )
 
 @login_required
 @app.route("/intuitive_training", methods=["GET", "POST"])

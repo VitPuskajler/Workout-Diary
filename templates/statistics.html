@@ -87,15 +87,14 @@
       <div class="row justify-content-center">
         <!-- First Form -->
         <div class="col-md-6 col-sm-5 mb-1 p-1">
-          <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="post">
-            <select class="form-select mb-1 mx-auto text-center" aria-label="Default select example"
-              id="MesocycleSelect" name="mesocycle" onchange="this.form.submit()">
-              <option value="">Choose Mesocycle</option>
-              {% if dropdown %}
-              {% for key, value in dropdown.items() %}
-              {% set mesocycle_name = value.keys()|first %}
-              <option value="{{ mesocycle_name }}" {% if chosen_mesocycle==mesocycle_name %}selected{% endif %}>{{
-                mesocycle_name }}</option>
+          <form class="mb-1 text-center" action="{{ url_for('statistics') }}" method="post">
+            <select class="form-select mb-1 mx-auto text-center" aria-label="Default select example" id="ExerciseSelect"
+              name="chosen_exercise" onchange="this.form.submit()">
+              <option value="">Choose Exercise</option>
+              {% if exercises %}
+              {% for exe in exercises %}
+
+              <option value="{{ exe }}">{{exe}}</option>
               {% endfor %}
               {% else %}
               <option value="">You have no Mesocycle yet</option>
@@ -105,87 +104,24 @@
         </div>
 
 
-        <div class="col-md-7 col-sm-7 mb-5 p-1">
-          {% if workouts_info %}
-          <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="get">
-            <select class="form-select mb-1 mx-auto text-center" aria-label="Default select example"
-              id="WorkoutDaySelect" name="training_day" onchange="this.form.submit()">
-              <option value="">Choose Training Day</option>
-              {% for key, value in workouts_info.items() %}
-              <option value="{{ key }}" {% if key==session.get('chosen_day') %}selected{% endif %}>{{ key }}</option>
-              {% endfor %}
-            </select>
-          </form>
-          {% else %}
-          <!-- Optionally, display a message if no workouts are available -->
-          <p></p>
-          {% endif %}
+
+        {% if graph %}
+        <div class="d-flex justify-content-center">
+          <img src="data:image/png;base64,{{ graph }}" alt="Progress chart" class="img-fluid">
+        </div>
+        {% endif %}
+
+        <div class="p-3">
+          <div class="fixed-bottom text-center py-2">
+            © {{ year }} | Created by Vít Puskajler
+          </div>
         </div>
       </div>
 
-      {% if workouts_info %}
-  {% if progress %}
-    <div class="container mb-5">
-      {% for key, value in progress.items() %}
-        <div class="row mb-4">
-          <div class="col-12">
-            <h5 class="text-center text-success">{{ key }}</h5>
-          </div>
-        </div>
-        <div class="row">
-          <div class="col-12">
-            <table class="table table-striped table-bordered text-center">
-              <thead class="thead-dark">
-                <tr>
-                  <th>Date</th>
-                  <th>Reps</th>
-                  <th>Weight</th>
-                  <th>Notes</th> <!-- Corrected this heading as well to align with data.notes -->
-                </tr>
-              </thead>
-              <tbody>
-                {% if value %}
-                  {% for data in value %}
-                    <tr>
-                      <td class="col-2">{{ data.date }}</td>
-                      <td class="col-2">{{ data.reps }}</td>
-                      <td class="col-2">{{ data.weight }}</td>
-                      <td class="col-4">{{ data.notes }}</td>                  
-                    </tr>
-                  {% endfor %}
-                {% else %}
-                <tr>
-                  <td class="col-2">Never exercised</td>
-                  <td class="col-2">No reps</td>
-                  <td class="col-2">No weight</td>
-                  <td class="col-4">nothing written</td>                  
-                </tr>
-                {% endif %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-  {% endif %}
-{% endif %}
 
-    
-
-
-
-
-      <div class="p-3">
-        <div class="fixed-bottom text-center py-2">
-          © {{ year }} | Created by Vít Puskajler
-        </div>
-      </div>
-    </div>
-
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-      crossorigin="anonymous"></script>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
 
 </body>
 
