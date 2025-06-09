@@ -1557,7 +1557,6 @@ def exercises_progress(exercises_data):
         weights.append(exe[2])
         reps.append(exe[3])
 
-
     # Makeing x axis
     x = dates
 
@@ -1565,7 +1564,7 @@ def exercises_progress(exercises_data):
     fig = Figure()
     ax = fig.subplots()
     # Plot the weights
-    ax.plot(x, weights, marker='o', linestyle='-', color='blue', label='Weight (kg)')
+    ax.plot(x, weights, marker='o', linestyle='-', color='blue', label='Reps')
 
     # Add annotations for reps on each data point
     for i, txt in enumerate(reps):
@@ -1691,6 +1690,7 @@ def all_exercises_list():
         if all_exercises_query:
             for exe in all_exercises_query:
                 exercise_data.append(find_exercise_name_db(exe.exercise_id)[0])
+                exercise_data.sort()
             return exercise_data
     else:
         return None
