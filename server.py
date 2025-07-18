@@ -42,9 +42,7 @@ from sqlalchemy import (
     select,
     desc,
     delete,
-    Date
 )
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.security import check_password_hash, generate_password_hash
 from wtforms import FloatField, IntegerField, PasswordField, StringField, SubmitField
@@ -169,6 +167,7 @@ class Sessions(UserMixin, db.Model):
     workout_id = Column(Integer, db.ForeignKey("workouts.workout_id"))
     session_date = Column(DateTime, default=func.now())
     notes = Column(String(150), unique=False, nullable=True)
+    session_end = Column(DateTime, unique=True, nullable=True)
 
     def __init__(self, user_id, workout_id, notes):
         self.user_id = user_id
@@ -530,8 +529,6 @@ def add_exercise(submitted_data, order, weekly, jinja_exercises, workouts_id):
 
                 rest, sets = user_input_or_defualt()
                 if exercise_count >= 1:
-
-                    print(f"total exercises in this workout: {exercise_count + 1}")
                     # Add new exercise to database
                     new_exercise_order = exercise_count + 1
                     new_exercise_entry = {
@@ -618,8 +615,7 @@ def add_session_to_db(chosen_day_by_user, workouts_id):
 
     # Map the chosen day to the actual workout_id
     workout_id_hopefully = workouts_id[chosen_day_by_user]
-    
-    print(f"day {chosen_day_by_user} and workouts_id {workouts_id}")
+
     today = datetime.combine(date.today(), datetime.min.time())
     tomorrow = today + timedelta(days=1)
 
@@ -1049,7 +1045,7 @@ def current_exercise_info(chosen_exercise, chosen_day):
                     ExerciseEntries.exercise_id == previous_exercise_entry.exercise_id,
                     ExerciseEntries.session_id == previous_exercise_entry.session_id
                 )
-                .order_by(desc(ExerciseEntries.entry_id), desc(ExerciseEntries.weight))
+                .order_by(desc(ExerciseEntries.weight))
                 .first()
             )
         else:
@@ -1226,7 +1222,6 @@ def exercise_progress_data(workout_info, chosen_day, mesocycle_name):
                                 WorkoutExercises.workout_id == workout_id
                             ).all()
                     
-                    print(f"all_sessions : {all_sessions}")
 
                     if exercises_in_workout:
                         for exrs in exercises_in_workout:
@@ -1238,8 +1233,6 @@ def exercise_progress_data(workout_info, chosen_day, mesocycle_name):
                                     ExerciseEntries.session_id == sess.session_id,
                                     ExerciseEntries.exercise_id == exrs.exercise_id
                                 ).all()
-
-                                print(f"exrs.exercise_id : {exrs.exercise_id}")
 
                                 for som in find_exe:
                                     # Create a new small_data_set dictionary for each entry
@@ -1393,7 +1386,6 @@ def add_intuitive_exercise(exercise):
                                                 WorkoutExercises.exercise_id == exercise_in_db.exercise_id)
                                         .first())
                     
-                    print(find_exercise_name_db(added_exercise.exercise_id)[0])
                     return find_exercise_name_db(added_exercise.exercise_id)[0]
                 except Exception as e:
                     db.session.rollback()
@@ -1865,6 +1857,11 @@ def workout_to_excel(data):
     writer.close() # Crucial: Close the Excel writer to finalize the file
     output.seek(0) # Rewind the buffer to the beginning before returning
     return output # Return the BytesIO object containing the Excel file data
+# Function created for progress page -> set default mesocycle for user's last one in db
+def last_mesocycle_by_default() -> str:
+    user_id = current_user_id_db()
+    last_meso_query = db.session.query(Mesocycles).filter(Mesocycles.user_id == user_id).order_by(desc(Mesocycles.mesocycle_id)).first()
+    return last_meso_query.name
 
 # --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
@@ -2228,6 +2225,7 @@ def progress():
     DATE = NOW.strftime("%d%m%Y")
     exercise_progress = session.get("exercise_progress")
     #session.pop("chosen_day", None) 
+    chosen_day = "Choose Training Day"
 
     current_user_id = current_user_id_db()
     # Function to access workout day / data from database
@@ -2240,6 +2238,8 @@ def progress():
 
     # Initialize variables
     chosen_mesocycle = session.get("chosen_mesocycle")
+    if chosen_mesocycle is None:
+        chosen_mesocycle = last_mesocycle_by_default()
     chosen_day = session.get("chosen_day")
     chosen_exercise = session.get("chosen_exercise")
     dropdown_menu_info = {}
@@ -2314,7 +2314,7 @@ def progress():
         
         if workout_day_info:
             exercise_progress = exercise_progress_data(workout_day_info, chosen_day, chosen_mesocycle)
-            print(exercise_progress)
+
     return render_template(
     "progress.html",
     today=DATE,
@@ -2324,7 +2324,7 @@ def progress():
     dropdown=dropdown_menu_info,
     chosen_mesocycle=chosen_mesocycle,
     workouts_info=workout_day_info,
-    progress= exercise_progress,
+    progress=exercise_progress,
 )
 
 @login_required
