@@ -900,75 +900,94 @@ def exercise_preview(workout_id, workout_key, chosen_exercise, chosen_day_by_use
             .filter(WorkoutExercises.workout_id == workout_id[workout_key])
             .all()
         )
+
+        # Find last session ID -> if not, preview will be all none
+        last_session_id = db.session.query(Sessions).filter(Sessions.user_id==user_id_db).order_by(desc(Sessions.session_id)).first()
+        if last_session_id:
+            if select_all_exercises:
+                # Populate dict with exercises
+                for exers in select_all_exercises:
+                    exercise_name = find_exercise_name_db(exers.exercise_id)[0]
         
-        exe_list = []
-        if select_all_exercises:
-            # Populate dict with exercises
-            for exers in select_all_exercises:
-                exercise_name = find_exercise_name_db(exers.exercise_id)[0]
-    
-                # Fetch the latest ExerciseEntries for the current exercise
-                latest_entry = (
-                    db.session.query(ExerciseEntries)
-                    .filter(ExerciseEntries.exercise_id == exers.exercise_id)
-                    .order_by(desc(ExerciseEntries.entry_id))
-                    .first()
-                )
-
-                # Map the chosen day to the actual workout_id
-                workout_id_hopefully = workouts_id[chosen_day_by_user]
-
-                # Check if a session already exists for today
-                try:
-                    today_session = (
-                        db.session.query(Sessions.session_id)
-                        .filter(
-                            and_(
-                                Sessions.workout_id == workout_id_hopefully,
-                                Sessions.user_id == user_id_db,
-                                Sessions.session_date >= today,
-                                Sessions.session_date < tomorrow,
-                            )
-                        )
-                        .first()[0]
+                    # Fetch the latest ExerciseEntries for the current exercise
+                    latest_entry = (
+                        db.session.query(ExerciseEntries)
+                        .filter(ExerciseEntries.exercise_id == exers.exercise_id)
+                        .order_by(desc(ExerciseEntries.entry_id))
+                        .first()
                     )
-                except TypeError as e:
-                    print("You have nothing chosen so far")
-                    db.session.rollback()
-                    today_session = None
 
-                done = None
+                    # Map the chosen day to the actual workout_id
+                    workout_id_hopefully = workouts_id[chosen_day_by_user]
 
-                if latest_entry and today_session:
-                    if latest_entry.session_id != today_session:
-                        """ print(latest_entry.session_id, ' : ', today_session)
-                        print("We are green bro") """
-                        pass
+                    # Check if a session already exists for today
+                    try:
+                        today_session = (
+                            db.session.query(Sessions.session_id)
+                            .filter(
+                                and_(
+                                    Sessions.workout_id == workout_id_hopefully,
+                                    Sessions.user_id == user_id_db,
+                                    Sessions.session_date >= today,
+                                    Sessions.session_date < tomorrow,
+                                )
+                            )
+                            .first()[0]
+                        )
+                    except TypeError as e:
+                        print("You have nothing chosen so far")
+                        db.session.rollback()
+                        today_session = None
+
+                    done = None
+
+                    if latest_entry and today_session:
+                        if latest_entry.session_id != today_session:
+                            """ print(latest_entry.session_id, ' : ', today_session)
+                            print("We are green bro") """
+                            pass
+                        else:
+                            """ print(latest_entry.session_id, ' : ', today_session)
+                            print("We are not green bro") """
+                            done = "yes"
                     else:
-                        """ print(latest_entry.session_id, ' : ', today_session)
-                        print("We are not green bro") """
-                        done = "yes"
-                else:
-                    pass
-                
-                # Populate the preview entry with data from the latest_entry or default values
-                preview_entry = {
-                    "exercise": exercise_name,
-                    "sets": exers.prescribed_sets,
-                    "reps": latest_entry.reps if latest_entry and latest_entry.reps is not None else 0,
-                    "weight": latest_entry.weight if latest_entry and latest_entry.weight is not None else 0,
-                    "rpe": latest_entry.rpe if latest_entry and latest_entry.rpe is not None else 0,
-                    "notes": latest_entry.notes if latest_entry and latest_entry.notes else "",
-                    "done" : done
-                }
-                
-                preview_data.append(preview_entry)
+                        pass
+                    
+                    # Populate the preview entry with data from the latest_entry or default values
+                    preview_entry = {
+                        "exercise": exercise_name,
+                        "sets": exers.prescribed_sets,
+                        "reps": latest_entry.reps if latest_entry and latest_entry.reps is not None else 0,
+                        "weight": latest_entry.weight if latest_entry and latest_entry.weight is not None else 0,
+                        "rpe": latest_entry.rpe if latest_entry and latest_entry.rpe is not None else 0,
+                        "notes": latest_entry.notes if latest_entry and latest_entry.notes else "",
+                        "done" : done
+                    }
+                    
+                    preview_data.append(preview_entry)
 
-            return preview_data
+                return preview_data
 
+            else:
+
+                return {None : None}
         else:
+            for exers in select_all_exercises:
+                    exercise_name = find_exercise_name_db(exers.exercise_id)[0]
 
-            return {None : None}           
+                    if exercise_name and exers.prescribed_sets:
+                        preview_entry = {
+                            "exercise": exercise_name,
+                            "sets": exers.prescribed_sets,
+                            "reps": 0,
+                            "weight": 0,
+                            "rpe": None,
+                            "notes": None,
+                            "done" : None
+                        }
+                        preview_data.append(preview_entry)
+            return preview_data
+       
 # Modify sets which user already saved
 def modify_set(submitted_data):
     for key, value in submitted_data.items():
