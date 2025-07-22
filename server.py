@@ -2387,7 +2387,6 @@ def intuitive_training():
         selected_exercise = chosen_exercise_dropdown_i
 
     # Read data for current exercise 
-    placeholders = None
     today_session = check_c_session() # Return true / false
     session.permanent = True  # Mark session as permanent (uses configured timeout - 24 hours in my case)
     saved_exercises = load_custom_exercises_for_day()
