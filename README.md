@@ -20,5 +20,6 @@ Fork, customize, and use Workout Periodization as your personal training compani
 <div style="display: flex; justify-content: center; align-items">
 <img src="./github_photo/main_page.png" alt="Main page" width="250" height="auto" style="margin-right: 10px;">
 <img src="./github_photo/menu.png" alt="Main page" width="250" height="auto">
+<img src="./github_photo/change_current_mesocycle.png" alt="Main page" width="250" height="auto">
 </div>
 > **Note:** The app is still under development, with new features and improvements on the horizon.
