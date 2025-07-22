@@ -18,15 +18,15 @@ Fork, customize, and use Workout Periodization as your personal training compani
 
 ## Preview
 <div style="display: flex; justify-content: center; align-items">
-<img src="./github_photo/main_page.png" alt="Main page" width="255" height="auto" style="margin-right: 10px;">
-<img src="./github_photo/menu.png" alt="Menu" width="255" height="auto">
-<img src="./github_photo/change_current_mesocycle.png" alt="Change mesocycle data" width="255" height="auto">
+<img src="./github_photo/main_page.png" alt="Main page" width="260" height="auto" style="margin-right: 10px;">
+<img src="./github_photo/menu.png" alt="Menu" width="260" height="auto">
+<img src="./github_photo/change_current_mesocycle.png" alt="Change mesocycle data" width="260" height="auto">
 </div>
 
 <div style="display: flex; justify-content: center; align-items">
-<img src="./github_photo/show_workout.png" alt="Show workout" width="250" height="auto" style="margin-right: 10px;">
-<img src="./github_photo/training_session.png" alt="Training session" width="250" height="auto">
-<img src="./github_photo/statistics.png" alt="Statistics" width="250" height="auto">
+<img src="./github_photo/show_workout.png" alt="Show workout" width="260" height="auto" style="margin-right: 10px;">
+<img src="./github_photo/training_session.png" alt="Training session" width="260" height="auto">
+<img src="./github_photo/statistics.png" alt="Statistics" width="260" height="auto">
 </div>
 
 > **Note:** The app is still under development, with new features and improvements on the horizon.
