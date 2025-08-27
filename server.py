@@ -793,6 +793,9 @@ def repeat_set(chosen_exercise, workout_id, chosen_day):
         last_session, workout_id_current = user_last_session_id(workout_id, chosen_day)
         exercise_id = find_exercise_id_db(chosen_exercise)[0]
 
+        today = datetime.combine(date.today(), datetime.min.time())
+        tomorrow = today + timedelta(days=1)
+
         if last_session:
             for x in last_session:
                 # Find last exercise entry for current user
@@ -835,7 +838,32 @@ def repeat_set(chosen_exercise, workout_id, chosen_day):
         # Add set to database - exercise_entries
         # SELECT session_id FROM Sessions WHERE workout_id = my_workout_id ORDER BY session_id DESC
         if workout_id_from_db is not None:
+            # Check if a session already exists for today
+            does_session_exist = (
+                db.session.query(Sessions.session_id)
+                .filter(
+                    and_(
+                        Sessions.workout_id == workout_id_from_db[0],
+                        Sessions.user_id == user_id,
+                        Sessions.session_date >= today,
+                        Sessions.session_date < tomorrow,
+                    )
+                )
+                .first()
+            )
             
+            if does_session_exist:
+                print("Sorry, there is already a workout session for today")
+            else:
+                try:
+                    # No session exists for today; create a new one
+                    new_session_query = Sessions(
+                        user_id=user_id, workout_id=workout_id_from_db[0], notes="Null",
+                    )
+                    db.session.add(new_session_query)
+                    db.session.commit()  # Commit here to assign session_id
+                except:
+                    db.session.rollback()
             session_id_form_db = (
                 db.session.query(Sessions.session_id)
                 .filter(Sessions.workout_id == workout_id_from_db[0])
