@@ -42,6 +42,7 @@ from sqlalchemy import (
     select,
     desc,
     delete,
+
 )
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -785,7 +786,88 @@ def add_set_to_db(submitted_data, exercise, chosen_day) -> dict:
                 db.session.commit()
             except Exception as e:
                 print(f"Exception line {inspect.currentframe().f_lineno}: {e}")
-                db.session.rollback()
+                db.session.rollback()           
+def repeat_set(chosen_exercise, workout_id, chosen_day):
+    if chosen_exercise:
+        user_id = current_user_id_db()
+        last_session, workout_id_current = user_last_session_id(workout_id, chosen_day)
+        exercise_id = find_exercise_id_db(chosen_exercise)[0]
+
+        if last_session:
+            for x in last_session:
+                # Find last exercise entry for current user
+                last_exercise_query = db.session.query(ExerciseEntries).filter(
+                    ExerciseEntries.session_id == x.session_id,
+                    ExerciseEntries.exercise_id == exercise_id
+                ).order_by(desc(ExerciseEntries.exercise_id)).first()
+                if last_exercise_query:
+                    break
+        else:
+            # If exercise was never done by user, there is nothing to copy
+            return None
+
+        try:
+            sets_yet = (
+                        db.session.query(ExerciseEntries.set_number)
+                        .filter(
+                            ExerciseEntries.session_id == x.session_id,
+                            ExerciseEntries.exercise_id == last_exercise_query.exercise_id,
+                        )
+                        .count()
+                    )
+        except:
+            sets_yet = 0
+
+        if not sets_yet:
+            sets_yet = 0
+
+        # Current session
+        workout_id_from_db = (
+            db.session.query(WorkoutPlan.workout_id)
+            .filter(
+                WorkoutPlan.user_id == user_id,
+                WorkoutPlan.workout_name == chosen_day,
+            )
+            .order_by(desc(WorkoutPlan.created_at))
+            .first()
+        )
+
+        # Add set to database - exercise_entries
+        # SELECT session_id FROM Sessions WHERE workout_id = my_workout_id ORDER BY session_id DESC
+        if workout_id_from_db is not None:
+            
+            session_id_form_db = (
+                db.session.query(Sessions.session_id)
+                .filter(Sessions.workout_id == workout_id_from_db[0])
+                .order_by(desc(Sessions.session_date)).first()
+            )
+
+            if not session_id_form_db:
+                session_id_form_db = (
+                db.session.query(Sessions.session_id)
+                .filter(Sessions.workout_id == chosen_day)
+                .order_by(desc(Sessions.session_date)).first()
+            )
+                
+            if last_exercise_query:
+                try:
+                    add_exercise_entry =  ExerciseEntries(
+                        session_id = session_id_form_db[0],
+                        exercise_id = last_exercise_query.exercise_id,
+                        set_number = sets_yet,
+                        reps = last_exercise_query.reps,
+                        weight= last_exercise_query.weight,
+                        rpe= last_exercise_query.rpe,
+                        notes= ""
+                    )
+
+                    print(f"last_exercise_query.exercise_id: {last_exercise_query.exercise_id}")
+                    db.session.add(add_exercise_entry)
+                    db.session.commit()
+                except Exception as e:
+                    print(f"Error just appeared, I am rolling back: {e}\n erro on line {inspect.currentframe().f_lineno}")
+                    db.session.rollback()
+                    
 # Sets for jinja
 def jinja_sets_function(chosen_day, chosen_exercise):
     user = Users.query.filter_by(username=current_user.username).first()
@@ -1881,7 +1963,23 @@ def last_mesocycle_by_default() -> str:
     user_id = current_user_id_db()
     last_meso_query = db.session.query(Mesocycles).filter(Mesocycles.user_id == user_id).order_by(desc(Mesocycles.mesocycle_id)).first()
     return last_meso_query.name
+def user_last_session_id(workout_id, chosen_day):
+    # I need to include workout id
+    current_workout_query = db.session.query(WorkoutPlan).filter(
+                                                                 WorkoutPlan.workout_name == chosen_day
+                                                                 ).all()
+    
+    workout_id_current = None
+    if current_workout_query:
+        for x in current_workout_query:
+            for y in workout_id:
+                if x.workout_id == y:
+                    workout_id_current = x
+                    break
 
+    user_id = current_user_id_db() 
+
+    return db.session.query(Sessions).filter(Sessions.user_id == user_id, Sessions.workout_id == workout_id_current.workout_id).order_by(desc(Sessions.session_id)).all(), workout_id_current.workout_id
 # --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -2171,16 +2269,17 @@ def training_session():
                 chosen_exercise = load_chosen_exercise
 
     elif request.method == "POST":
-        add_session_to_db(workout_key, workout_id)
+        if 'confirm_button' in request.form:
+            add_session_to_db(workout_key, workout_id)
+            submitted_data = request.form.to_dict()
+            add_set_to_db(submitted_data, chosen_exercise, chosen_day)
+            delete_set(submitted_data)
+            # Get access to sets / exercises user want to change
+            modify_set(submitted_data)
 
-        submitted_data = request.form.to_dict()
-
-        add_set_to_db(submitted_data, chosen_exercise, chosen_day)
-
-        delete_set(submitted_data)
-
-        # Get access to sets / exercises user want to change
-        modify_set(submitted_data)
+        elif 'repeat_button' in request.form:
+            # If repeat button was clicked, last set will me "repeated"
+            repeat_set(chosen_exercise, workout_id, chosen_day)
 
     sets_for_jinja = jinja_sets_function(chosen_day, chosen_exercise)
 

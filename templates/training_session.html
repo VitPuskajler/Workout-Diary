@@ -16,14 +16,6 @@
     integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@3">
   <style>
-    .placeholder-red::placeholder {
-      color: red;
-    }
-
-    .placeholder-blue::placeholder {
-      color: blue;
-    }
-
     th {
       min-width: 75px;
       /* Adjust the width as needed */
@@ -34,28 +26,6 @@
     td {
       vertical-align: middle;
       /* Ensure text is vertically centered */
-    }
-
-    .notes {
-      min-width: 300px;
-    }
-
-    .exercise {
-      min-width: 200px;
-    }
-
-    .sets {
-      min-width: 50px;
-      /* Add 'px' to ensure proper sizing */
-    }
-
-    .pauses {
-      min-width: 50px;
-      /* Add 'px' to ensure proper sizing */
-    }
-
-    .colums-vertical {
-      vertical-align: middle;
     }
 
     /* Additional styles for fixed-bottom container */
@@ -71,26 +41,6 @@
       /* Add padding for spacing */
       z-index: 1030;
       /* Ensure above other fixed elements */
-    }
-
-    .confirm-button {
-      position: fixed;
-      bottom: 50px;
-      right: 20px;
-    }
-
-    @media (max-width: 768px) {
-      .confirm-button {
-        position: static;
-        width: 100%;
-        margin-top: 20px;
-      }
-
-      .container-my {
-        margin-left: auto;
-        margin-right: auto;
-        /* Add padding to ensure the content is not covered */
-      }
     }
 
     /* Centering the container */
@@ -232,11 +182,11 @@
                 {% for set in sets_for_jinja %}
 
                 <tr>
-                  <td><input type="number" step="any" class="form-control text-center" name="update_weight_{{ set.entry_id }}"
-                    placeholder="{{set.weight}}" /></td>
+                  <td><input type="number" step="any" class="form-control text-center"
+                      name="update_weight_{{ set.entry_id }}" placeholder="{{set.weight}}" /></td>
 
                   <td><input type="number" class="form-control text-center" name="update_reps_{{ set.entry_id }}"
-                    placeholder="{{set.reps}}" /></td>
+                      placeholder="{{set.reps}}" /></td>
 
                   <td><input type="number" class="form-control text-center" name="update_rpe_{{ set.entry_id }}"
                       placeholder="{{set.rpe}}" /></td>
@@ -258,8 +208,8 @@
                 <tr class="table-success">
                   <td>
                     <div class="center-container">
-                      <input type="number" min="0" max="501" step="any" name="kg" class="form-control text-center text-warning"
-                        placeholder="{{ placeholders.weight }}" />
+                      <input type="number" min="0" max="501" step="any" name="kg"
+                        class="form-control text-center text-warning" placeholder="{{ placeholders.weight }}" />
                     </div>
                   </td>
                   <td>
@@ -282,7 +232,7 @@
                   </td>
                   <td>.</td>
                 </tr>
-                
+
                 {% else %}
                 <tr>
                   <td>
@@ -298,7 +248,7 @@
                         placeholder="0" />
                     </div>
                   </td>
-                  
+
                   <td>
                     <div class="col-10 center-container">
                       <input type="number" name="rpe" class="form-control text-center bg-success-subtle text-warning"
@@ -318,9 +268,15 @@
                 </tr>
               </tbody>
             </table>
-            <div class="d-flex justify-content-center mb-2">
-              <button type="submit" class="btn btn-success btn-lg col-8 col-lg-4 col-md-6">Confirm</button>
+            <div class="d-flex justify-content-center mb-2 gap-2">
+              <button type="submit" name="confirm_button"
+                class="btn btn-success btn-lg col-6 col-lg-4 col-md-6 col-sm-6">Confirm</button>
+              <button type="submit" name="repeat_button"
+                class="btn btn-primary btn-lg col-3 col-lg-2 col-md-3 col-sm-2">Repeat</button>              
             </div>
+
+
+
           </div>
         </div> <!-- Closing div for col-12 col-md-7 -->
       </div> <!-- Closing div for row justify-content-center -->
@@ -333,7 +289,7 @@
         <div class="col-12 col-md-9 p-4">
 
           {% if preview is not none %}
-          
+
           <table class="table table-striped text-center mb-5">
             <thead class="table-striped ">
               <tr>
@@ -347,7 +303,8 @@
               {% for row in preview %}
               <tr class="{% if row.done is not none %}table-success{% endif %}">
                 <td>
-                  <div class="col-12 center-container {% if row.done is not none %}text-success-emphasis{% endif %}"> {{row.exercise}} </div>
+                  <div class="col-12 center-container {% if row.done is not none %}text-success-emphasis{% endif %}">
+                    {{row.exercise}} </div>
                 </td>
                 <td>
                   <div class="col-10 center-container "> {{row.weight}} </div>
@@ -362,15 +319,15 @@
               {% endfor %}
             </tbody>
           </table>
-          
+
           {% endif %}
-          
+
           <div class="container">
             <div class="d-flex justify-content-center">
               <a href="{{ url_for('intuitive_training') }}" class="btn btn-danger">Intuitive Training</a>
-        </div>
-      </div>
-        
+            </div>
+          </div>
+
         </div>
       </div>
 
