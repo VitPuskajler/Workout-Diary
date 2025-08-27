@@ -2034,15 +2034,18 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         user = Users.query.filter_by(username=form.username.data).first()
-        #print(f"test: {form.password.data}")
         if user and check_password_hash(user.password, form.password.data):
             login_user(user)
-            return redirect(url_for("index_page"))
-        else:
-            flash(
-                "Login unsuccessful. Please check your username and password.", "danger"
-            )
-    return render_template("login.html", form=form)
+            
+            # v GET parametri
+            next_page = request.args.get("next")
+            # alebo v skrytom poli vo formulári
+            if not next_page:
+                next_page = request.form.get("next")
+
+            return redirect(next_page or url_for("home"))
+    return render_template("login.html", form=form, next=request.args.get("next"))
+
 
 @app.route("/logout")
 @login_required

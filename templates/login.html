@@ -31,26 +31,25 @@
         <div class="card my-5">
           <div class="card-body">
             <h2 class="card-title text-center">Please sign in</h5>
-            <form method="POST" action="{{ url_for('login') }}">
-              {{ form.hidden_tag() }}
-              
-              <div class="form-floating mb-3">
-                {{ form.username(class_='form-control', placeholder='Username') }}
-                <label for="floatingInput">Username</label>
-              </div>
-              
-              <div class="form-floating mb-3">
-                {{ form.password(class_='form-control', placeholder='Password') }}
-                <label for="floatingPassword">Password</label>
-              </div>
-              
-              <div class="d-grid">
-                {{ form.submit(class_='btn btn-primary btn-lg') }}
-              </div>
-              <div class="p-3">
-                <h5 class="text-center"><a href="{{ url_for('register')}}" style="text-decoration:none;">Sign Up</a></h5>
-              </div>
-            </form>
+<form method="POST" action="{{ url_for('login', next=request.args.get('next')) }}">
+  {{ form.hidden_tag() }}
+  <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+  
+  <div class="form-floating mb-3">
+    {{ form.username(class_='form-control', placeholder='Username') }}
+    <label for="floatingInput">Username</label>
+  </div>
+
+  <div class="form-floating mb-3">
+    {{ form.password(class_='form-control', placeholder='Password') }}
+    <label for="floatingPassword">Password</label>
+  </div>
+
+  <div class="d-grid">
+    {{ form.submit(class_='btn btn-primary btn-lg') }}
+  </div>
+</form>
+
           </div>
         </div>
       </div>
