@@ -965,7 +965,6 @@ def jinja_sets_function(chosen_day, chosen_exercise):
                 return None
 
         else:
-            print("Desired session not found.")
             return None
     else:
         print("Workout ID not found.")
@@ -1041,7 +1040,6 @@ def exercise_preview(workout_id, workout_key, chosen_exercise, chosen_day_by_use
                             .first()[0]
                         )
                     except TypeError as e:
-                        print("You have nothing chosen so far")
                         db.session.rollback()
                         today_session = None
 
@@ -2008,6 +2006,33 @@ def user_last_session_id(workout_id, chosen_day):
     user_id = current_user_id_db() 
 
     return db.session.query(Sessions).filter(Sessions.user_id == user_id, Sessions.workout_id == workout_id_current.workout_id).order_by(desc(Sessions.session_id)).all(), workout_id_current.workout_id
+# Training session: Button "Preview" -> only current mesocycle :)
+def last_exercise_preview(chosen_exercise, workout_id, chosen_day):
+    user_id = current_user_id_db()
+    if not chosen_exercise:
+        return None
+    
+    exe_id = find_exercise_id_db(chosen_exercise)[0]
+
+    if workout_id and chosen_day:
+        last_session, workout_id_current = user_last_session_id(workout_id, chosen_day)
+
+        if last_session:
+            # Try to find exercise with corresponding session_id
+            try:
+                exercise_query = db.session.query(ExerciseEntries).filter(
+                    ExerciseEntries.exercise_id == exe_id,
+                    ExerciseEntries.session_id == last_session[0].session_id
+                ).order_by(desc(ExerciseEntries.entry_id)).all()
+                if not exercise_query:
+                    return None
+                else:
+                    return exercise_query
+            except:
+                print(f"sorry, no exercise query for you")
+        else:
+            return None
+
 # --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -2036,16 +2061,16 @@ def login():
         user = Users.query.filter_by(username=form.username.data).first()
         if user and check_password_hash(user.password, form.password.data):
             login_user(user)
-            
-            # v GET parametri
-            next_page = request.args.get("next")
-            # alebo v skrytom poli vo formulári
-            if not next_page:
-                next_page = request.form.get("next")
 
-            return redirect(next_page or url_for("home"))
+            next_page = request.args.get("next") or request.form.get("next")
+
+            # Fix: ignore invalid values
+            if next_page and next_page != "None":
+                return redirect(next_page)
+
+            return redirect(url_for("index_page"))
+
     return render_template("login.html", form=form, next=request.args.get("next"))
-
 
 @app.route("/logout")
 @login_required
@@ -2192,8 +2217,6 @@ def create_workout():
     if weekly is None and workout_names is None and workouts_id is None:
         return redirect("/home")
 
-
-
     # Default order
     order, jinja_exercises = default_order(weekly)
 
@@ -2323,6 +2346,10 @@ def training_session():
     preview = exercise_preview(workout_id, workout_key, chosen_exercise, workout_key, workout_id)
     sets_to_do_jinja = sets_to_do(chosen_exercise, chosen_day)
     
+    # Data for preview
+    last_exercise = last_exercise_preview(chosen_exercise, workout_id, chosen_day)
+    print(last_exercise)
+
     return render_template(
         "training_session.html",
         today=DATE,
@@ -2334,7 +2361,8 @@ def training_session():
         chosen_exercise=chosen_exercise,
         sets_for_jinja=sets_for_jinja,
         preview=preview,
-        placeholders= exercise_placeholders
+        placeholders=exercise_placeholders,
+        last_exercise =last_exercise
     )
 
 # --------------------------------------------------------------------------
