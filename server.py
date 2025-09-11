@@ -101,7 +101,6 @@ class Users(UserMixin, db.Model):
         self.age = age
         self.weight = weight
         self.email = email
-
 # 2. Exercises Table
 class Exercise(UserMixin, db.Model):
     __tablename__ = "exercises"
@@ -112,7 +111,6 @@ class Exercise(UserMixin, db.Model):
     def __init__(self, exercise, muscle_group):
         self.exercise_name = exercise
         self.muscle_group = muscle_group
-
 # 3. Workouts Table
 class WorkoutPlan(UserMixin, db.Model):
     __tablename__ = "workouts"
@@ -132,7 +130,6 @@ class WorkoutPlan(UserMixin, db.Model):
         self.workout_name = workout_name
         self.mesocycle_id = mesocycle_id
         # created_at is not here because SQLAlchemy will take care of it
-
 # 4. WorkoutExercises Table
 class WorkoutExercises(UserMixin, db.Model):
     __tablename__ = "workout_exercises"
@@ -158,7 +155,6 @@ class WorkoutExercises(UserMixin, db.Model):
         self.prescribed_sets = prescribed_sets
         self.rest_period = rest_period
         # self.deleted = deleted
-
 # 5. Sessions Table
 # High-level information about each workout session, such as the date, user, and overall notes
 class Sessions(UserMixin, db.Model):
@@ -174,7 +170,6 @@ class Sessions(UserMixin, db.Model):
         self.user_id = user_id
         self.workout_id = workout_id
         self.notes = notes
-
 # 6. ExerciseEntries Table
 class ExerciseEntries(UserMixin, db.Model):
     __tablename__ = "exercise_entries"
@@ -210,7 +205,6 @@ class Mesocycles(UserMixin, db.Model):
         self.name = name
         self.mesocycle_duration_weeks = mesocycle_duration_weeks
         self.workouts_per_week = workouts_per_week
-
 # 8. SessionMesocycles Table
 # Links sessions to mesocycles, allowing tracking of training days within a mesocycle
 class SessionMesocycles(UserMixin, db.Model):
@@ -225,12 +219,10 @@ class SessionMesocycles(UserMixin, db.Model):
         self.session_id = session_id
         self.mesocycle_id = mesocycle_id
         self.training_day_number = training_day_number
-
 @login_manager.user_loader
 def load_user(user_id):
     stmt = select(Users).where(Users.user_id == int(user_id))
     return db.session.execute(stmt).scalar_one_or_none()
-
 class RegistrationForm(FlaskForm):
     username = StringField("Username", validators=[DataRequired()])
     password = PasswordField(
@@ -242,7 +234,6 @@ class RegistrationForm(FlaskForm):
     weight = FloatField("Weight", validators=[DataRequired(), NumberRange(min=0)])
     submit = SubmitField("Sign Up")
     email = StringField("Email", validators=[DataRequired()])
-
 class LoginForm(FlaskForm):
     username = StringField("Username", validators=[DataRequired()])
     password = PasswordField("Password", validators=[DataRequired()])
@@ -894,8 +885,7 @@ def repeat_set(chosen_exercise, workout_id, chosen_day):
                     db.session.commit()
                 except Exception as e:
                     print(f"Error just appeared, I am rolling back: {e}\n erro on line {inspect.currentframe().f_lineno}")
-                    db.session.rollback()
-                    
+                    db.session.rollback()                  
 # Sets for jinja
 def jinja_sets_function(chosen_day, chosen_exercise):
     user = Users.query.filter_by(username=current_user.username).first()
@@ -1090,8 +1080,7 @@ def exercise_preview(workout_id, workout_key, chosen_exercise, chosen_day_by_use
                             "done" : None
                         }
                         preview_data.append(preview_entry)
-            return preview_data
-       
+            return preview_data       
 # Modify sets which user already saved
 def modify_set(submitted_data):
     for key, value in submitted_data.items():
@@ -2003,15 +1992,32 @@ def user_last_session_id(workout_id, chosen_day):
                     workout_id_current = x
                     break
 
-    user_id = current_user_id_db() 
+    user_id = current_user_id_db()
+    if not workout_id_current:
+        return None, None 
 
     return db.session.query(Sessions).filter(Sessions.user_id == user_id, Sessions.workout_id == workout_id_current.workout_id).order_by(desc(Sessions.session_id)).all(), workout_id_current.workout_id
 # Training session: Button "Preview" -> only current mesocycle :)
 def last_exercise_preview(chosen_exercise, workout_id, chosen_day):
     user_id = current_user_id_db()
+    today = datetime.combine(date.today(), datetime.min.time())
+    tomorrow = today + timedelta(days=1)
     if not chosen_exercise:
         return None
     
+    # If today's session -> just written in -> go to previous session
+    day_check = (
+        db.session.query(Sessions.session_id)
+        .filter(
+            and_(
+                Sessions.user_id == user_id,
+                Sessions.session_date >= today,
+                Sessions.session_date < tomorrow,
+            )
+        )
+        .first()
+    )
+
     exe_id = find_exercise_id_db(chosen_exercise)[0]
 
     if workout_id and chosen_day:
@@ -2020,10 +2026,21 @@ def last_exercise_preview(chosen_exercise, workout_id, chosen_day):
         if last_session:
             # Try to find exercise with corresponding session_id
             try:
-                exercise_query = db.session.query(ExerciseEntries).filter(
+                # If there is no session for today
+                if not day_check:
+                    exercise_query = db.session.query(ExerciseEntries).filter(
+                        ExerciseEntries.exercise_id == exe_id,
+                        ExerciseEntries.session_id == last_session[0].session_id
+                        ).all()
+                # If there is session for today
+                else:
+                    # Find previous session
+                    last_session = db.session.query(Sessions).filter(Sessions.user_id == user_id, Sessions.workout_id == workout_id_current).order_by(desc(Sessions.session_id)).all()
+                    exercise_query = db.session.query(ExerciseEntries).filter(
                     ExerciseEntries.exercise_id == exe_id,
-                    ExerciseEntries.session_id == last_session[0].session_id
-                ).order_by(desc(ExerciseEntries.entry_id)).all()
+                    ExerciseEntries.session_id == last_session[1].session_id
+                    ).all()
+
                 if not exercise_query:
                     return None
                 else:
@@ -2348,7 +2365,6 @@ def training_session():
     
     # Data for preview
     last_exercise = last_exercise_preview(chosen_exercise, workout_id, chosen_day)
-    print(last_exercise)
 
     return render_template(
         "training_session.html",
