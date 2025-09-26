@@ -99,7 +99,6 @@ class WorkoutManagement:
             )
             if exercise_details:
                 for exes in exercise_details:
-                    # We are at 1. exercise (360, 2, 120)
                     # Translate exe_id into Exe name
                     specific_exercise_name = (
                         db.session.query(Exercise.exercise_name)
@@ -1772,8 +1771,7 @@ class WorkoutManagement:
             return None, None 
 
         return db.session.query(Sessions).filter(Sessions.user_id == user_id, Sessions.workout_id == workout_id_current.workout_id).order_by(desc(Sessions.session_id)).all(), workout_id_current.workout_id
-    
-    # Training session: Button "Preview" -> only current mesocycle :)
+    # Training session: Button "History" -> only current mesocycle :)
     def last_exercise_preview(self, chosen_exercise, workout_id, chosen_day):
         user_id = self.current_user_id_db()
         today = datetime.combine(date.today(), datetime.min.time())

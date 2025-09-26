@@ -619,15 +619,12 @@ def intuitive_training():
     sets_for_jinja = None
     last_day = None
 
-    # If new exercise, then pop cookie for chosen exe and vice versa 
     new_exercise = session.get("new_exercise", None)
     chosen_exercise_dropdown_i = session.get("chosen_exercise_by_user", None)
 
-    # Provide to jinja as result set to know what is now exercised
-    if new_exercise: 
-        selected_exercise = new_exercise
-    elif chosen_exercise_dropdown_i:
-        selected_exercise = chosen_exercise_dropdown_i
+    # FIX: Consolidate the active exercise name into one variable immediately
+    selected_exercise = new_exercise or chosen_exercise_dropdown_i
+    exercise_name_for_last_sets = selected_exercise
 
     # Read data for current exercise 
     today_session = check_c_session() # Return true / false
@@ -683,12 +680,14 @@ def intuitive_training():
             add_set_to_db(submitted_data, selected_exercise, day_for_function)
             print('reps_to_save are provided correctly')
     
-    # Check for last sets
-    if chosen_exercise_dropdown_i:
-        last_day = last_custom_day(chosen_exercise_dropdown_i)
-        exercise_name_for_last_sets = chosen_exercise_dropdown_i
-    if chosen_exercise_dropdown_i:
-        sets_for_jinja = jinja_sets_function("c", chosen_exercise_dropdown_i)
+    # Check for last sets (FIXED: Use the unified selected_exercise)
+    if selected_exercise:
+        last_day = last_custom_day(selected_exercise)
+        # exercise_name_for_last_sets is already set at the top, but you can set it here too
+        exercise_name_for_last_sets = selected_exercise 
+
+    if selected_exercise:
+        sets_for_jinja = jinja_sets_function("c", selected_exercise)
         
 
     if not sets_for_jinja:
@@ -698,8 +697,7 @@ def intuitive_training():
     if sets_for_jinja:
         exercise_placeholders = {'weight': 0, 'reps': 0, 'rpe': 0, 'notes': '...'}
     else:
-        exercise_placeholders = current_exercise_info(chosen_exercise_dropdown_i, "c")
-
+        exercise_placeholders = current_exercise_info(selected_exercise, "c")
     return render_template(
         "intuitive_training.html",
         today=DATE,
