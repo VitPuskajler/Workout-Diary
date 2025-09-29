@@ -1771,7 +1771,7 @@ class WorkoutManagement:
             return None, None 
 
         return db.session.query(Sessions).filter(Sessions.user_id == user_id, Sessions.workout_id == workout_id_current.workout_id).order_by(desc(Sessions.session_id)).all(), workout_id_current.workout_id
-    # Training session: Button "History" -> only current mesocycle :)
+    # Training session: Button "History" 
     def last_exercise_preview(self, chosen_exercise, workout_id, chosen_day):
         user_id = self.current_user_id_db()
         today = datetime.combine(date.today(), datetime.min.time())
@@ -1794,32 +1794,31 @@ class WorkoutManagement:
 
         exe_id = self.find_exercise_id_db(chosen_exercise)[0]
 
-        if workout_id and chosen_day:
-            last_session, workout_id_current = self.user_last_session_id(workout_id, chosen_day)
-
-            if last_session:
-                # Try to find exercise with corresponding session_id
-                try:
-                    # If there is no session for today
-                    if not day_check:
-                        exercise_query = db.session.query(ExerciseEntries).filter(
-                            ExerciseEntries.exercise_id == exe_id,
-                            ExerciseEntries.session_id == last_session[0].session_id
-                            ).all()
-                    # If there is session for today
-                    else:
-                        # Find previous session
-                        last_session = db.session.query(Sessions).filter(Sessions.user_id == user_id, Sessions.workout_id == workout_id_current).order_by(desc(Sessions.session_id)).all()
-                        exercise_query = db.session.query(ExerciseEntries).filter(
-                        ExerciseEntries.exercise_id == exe_id,
-                        ExerciseEntries.session_id == last_session[1].session_id
-                        ).all()
-
-                    if not exercise_query:
-                        return None
-                    else:
-                        return exercise_query
-                except:
-                    print(f"sorry, no exercise query for you")
+        if workout_id and chosen_day and exe_id:
+            # Simplify -> Find all sessions for current user 
+            # Create list / object of all user sessions
+            user_sessions = db.session.query(Sessions).filter(
+                Sessions.user_id == user_id,
+                Sessions.workout_id != "c"
+            ).order_by(desc(Sessions.session_date)).all()
+            # Give me nested list of exercises
+            if user_sessions:
+                # Logic -> iterate session by session and find the last session where the exercise was done
+                entries_to_display = None
+                for x in user_sessions:
+                    entries_to_display_temp = db.session.query(ExerciseEntries).filter(
+                    ExerciseEntries.exercise_id == exe_id,
+                    ExerciseEntries.session_id == x.session_id
+                    ).all()
+                    if entries_to_display_temp:
+                        entries_to_display = entries_to_display_temp
+                        break
+                
+                if entries_to_display:
+                    return entries_to_display
+                else:
+                    return None
+                    
             else:
+                # No sessions exists for this user
                 return None
