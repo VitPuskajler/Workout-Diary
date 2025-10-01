@@ -1779,7 +1779,7 @@ class WorkoutManagement:
         if not chosen_exercise:
             return None
         
-        # If today's session -> just written in -> go to previous session
+        # Check if today's session -> If yes -> ignore in user_sessions 
         day_check = (
             db.session.query(Sessions.session_id)
             .filter(
@@ -1794,13 +1794,22 @@ class WorkoutManagement:
 
         exe_id = self.find_exercise_id_db(chosen_exercise)[0]
 
+        print(f"day_check[0] : {day_check[0]}")
+
         if workout_id and chosen_day and exe_id:
             # Simplify -> Find all sessions for current user 
             # Create list / object of all user sessions
-            user_sessions = db.session.query(Sessions).filter(
-                Sessions.user_id == user_id,
-                Sessions.workout_id != "c"
-            ).order_by(desc(Sessions.session_date)).all()
+            if day_check:
+                user_sessions = db.session.query(Sessions).filter(
+                    Sessions.user_id == user_id,
+                    Sessions.workout_id != "c",
+                    Sessions.session_id != day_check[0]
+                ).order_by(desc(Sessions.session_date)).all()
+            else:
+                user_sessions = db.session.query(Sessions).filter(
+                    Sessions.user_id == user_id,
+                    Sessions.workout_id != "c"
+                ).order_by(desc(Sessions.session_date)).all()
             # Give me nested list of exercises
             if user_sessions:
                 # Logic -> iterate session by session and find the last session where the exercise was done
