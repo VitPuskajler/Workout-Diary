@@ -1794,7 +1794,6 @@ class WorkoutManagement:
 
         exe_id = self.find_exercise_id_db(chosen_exercise)[0]
 
-        print(f"day_check[0] : {day_check[0]}")
 
         if workout_id and chosen_day and exe_id:
             # Simplify -> Find all sessions for current user 
