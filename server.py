@@ -429,6 +429,7 @@ def training_session():
             next_exercise = arrow_buttons_next_exercise("next_day", chosen_exercise, chosen_day)
             if next_exercise:
                 session["chosen_exercise"] = next_exercise
+                return redirect(url_for("training_session"))
         elif 'repeat_button' in request.form:
             # If repeat button was clicked, last set will me "repeated"
             repeat_set(chosen_exercise, workout_id, chosen_day)
