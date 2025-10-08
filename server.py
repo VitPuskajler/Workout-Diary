@@ -118,6 +118,7 @@ workout_to_excel = db_operations.workout_to_excel
 last_mesocycle_by_default = db_operations.last_mesocycle_by_default
 user_last_session_id = db_operations.user_last_session_id
 last_exercise_preview = db_operations.last_exercise_preview
+arrow_buttons_next_exercise = db_operations.arrow_buttons_next_exercise
 
 # --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
@@ -416,10 +417,22 @@ def training_session():
             delete_set(submitted_data)
             # Get access to sets / exercises user want to change
             modify_set(submitted_data)
-
+        elif 'previous_day' in request.form:
+            # arrow_buttons_next_exercise
+            # Sore exercise in session
+            previous_exercise = arrow_buttons_next_exercise("previous_day", chosen_exercise, chosen_day)
+            if previous_exercise:
+                session["chosen_exercise"] = previous_exercise
+                return redirect(url_for("training_session"))
+        elif 'next_day' in request.form:
+            # arrow_buttons_next_exercise
+            next_exercise = arrow_buttons_next_exercise("next_day", chosen_exercise, chosen_day)
+            if next_exercise:
+                session["chosen_exercise"] = next_exercise
         elif 'repeat_button' in request.form:
             # If repeat button was clicked, last set will me "repeated"
             repeat_set(chosen_exercise, workout_id, chosen_day)
+
 
     sets_for_jinja = jinja_sets_function(chosen_day, chosen_exercise)
 
@@ -644,7 +657,7 @@ def intuitive_training():
         else:
             print('No confirmation yet')
             
-        # Check if there are already some exercies in workout - In case website / webbrowser would crash and we had no POST after openin :)
+        # Check if there are already some exercies in workout - In case website / webbrowser would crash and we had no POST after opening :)
         search_term = request.args.get("query")
         if search_term:
             exercise_names = fetch_exercise_suggestions(search_term)

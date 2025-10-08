@@ -397,6 +397,7 @@
             </div>
           </div>
           <!-- -------------------------------------------------------------------------- -->
+          <!-- Show exercises in DB with suggestion  -->
           <script>
             document.getElementById('new_exercise').addEventListener('input', function () {
               let query = this.value;
@@ -404,6 +405,7 @@
                 let xhr = new XMLHttpRequest();
                 xhr.open("GET", "/intuitive_training?query=" + encodeURIComponent(query), true);
                 xhr.onreadystatechange = function () {
+                  // If operation is complete and state is succecsful -> continue 
                   if (xhr.readyState == 4 && xhr.status == 200) {
                     let response = JSON.parse(xhr.responseText);
                     let suggestions = document.getElementById('exercise_suggestions');
