@@ -322,12 +322,17 @@ class WorkoutManagement:
                 else:
                     print("This exercise is not in db yet. I am saving it now.")
 
+                    # exercise_count = (
+                    #     db.session.query(WorkoutExercises)
+                    #     .filter_by(workout_id=workouts_id[day])
+                    #     .count()
+                    # )
                     exercise_count = (
-                        db.session.query(WorkoutExercises)
+                        db.session.query(func.max(WorkoutExercises.order_in_workout))
                         .filter_by(workout_id=workouts_id[day])
-                        .count()
+                        .scalar() or 0 # .scalar() gets the single value; 'or 0' handles empty workouts
                     )
-
+                    
                     rest, sets = user_input_or_defualt()
                     if exercise_count >= 1:
                         # Add new exercise to database
@@ -2265,6 +2270,7 @@ class WorkoutManagement:
                                             WorkoutExercises.workout_id == workout_exercise_id_query.workout_id,
                                             WorkoutExercises.order_in_workout == workout_exercise_id_query.order_in_workout - 1,
                                         )
+                                        .order_by(WorkoutExercises.workout_exercise_id.desc())
                                         .first()
                                     )
 
@@ -2273,16 +2279,14 @@ class WorkoutManagement:
                                     previous_exercise = previous_exercise[0] if previous_exercise else None
                                     return previous_exercise
                             elif move == "next_day":
-                                # Find last exercise -> highesr order_in_workout -> relevant for SUM
+                                # Find last exercise -> highest order_in_workout -> relevant for SUM
                                 if workout_exercise_id_query:
                                     last_exercise = (
                                         db.session.query(WorkoutExercises)
                                         .filter(
                                             WorkoutExercises.workout_id == chosed_day_id
                                         )
-                                        .order_by(
-                                            desc(WorkoutExercises.order_in_workout)
-                                        )
+                                        .order_by(WorkoutExercises.workout_exercise_id.desc())
                                         .first()
                                     )
                                     if workout_exercise_id_query.order_in_workout > 0 and workout_exercise_id_query.order_in_workout < last_exercise.order_in_workout:
@@ -2295,7 +2299,9 @@ class WorkoutManagement:
                                         .first()
                                     )
                                         next_exercise = self.find_exercise_name_db(next_workout_exercise_id_query.exercise_id)
+                                        
                                         next_exercise = next_exercise[0] if next_exercise else None
+                                        
                                         return next_exercise
                                     
                                     else:
