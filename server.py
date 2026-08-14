@@ -118,6 +118,7 @@ last_custom_day = db_operations.last_custom_day
 workout_to_excel = db_operations.workout_to_excel
 last_mesocycle_by_default = db_operations.last_mesocycle_by_default
 user_last_session_id = db_operations.user_last_session_id
+suggest_training_focus = db_operations.suggest_training_focus
 last_exercise_preview = db_operations.last_exercise_preview
 arrow_buttons_next_exercise = db_operations.arrow_buttons_next_exercise
 
@@ -377,13 +378,29 @@ def training_session():
     chosen_day = session.get("chosen_day")
     chosen_exercise = session.get("chosen_exercise")
 
+    load_workout_day = request.args.get("training_day")
+
+    # The browser session dies fairly often on a phone. When it does, re-pick
+    # the day and exercise from the database rather than showing empty
+    # dropdowns: today's workout if one is already in progress, otherwise the
+    # next day in the rotation. Skipped when the user is actively changing the
+    # dropdown this request, so an explicit blank choice is not fought.
+    if not chosen_day and load_workout_day is None:
+        suggested_day, suggested_exercise = suggest_training_focus()
+
+        if suggested_day:
+            chosen_day = suggested_day
+            session["chosen_day"] = suggested_day
+
+            if suggested_exercise and not chosen_exercise:
+                chosen_exercise = suggested_exercise
+                session["chosen_exercise"] = suggested_exercise
+
     # Create list of exercises -> for jinja purposes
     workout_key = next((k for k, v in workouts_id_name.items() if v == chosen_day), 0)
 
     exercises_from_user: dict = jinja_exercises[workout_key]
     exercises_in_workout: list = [x["exercise"][0] for x in exercises_from_user]
-
-    load_workout_day = request.args.get("training_day")
 
     if request.method == "GET":
 

@@ -530,12 +530,25 @@ class WorkoutManagement:
         today = datetime.combine(date.today(), datetime.min.time())
         return today, today + timedelta(days=1)
 
-    def _user_workout_ids(self, user_id, chosen_day):
-        """All workout_ids this user has under the given workout name.
+    def _last_mesocycle_id(self, user_id):
+        """The user's most recent mesocycle, which is the only one you train in."""
+        row = (
+            db.session.query(Mesocycles.mesocycle_id)
+            .filter(Mesocycles.user_id == user_id)
+            .order_by(desc(Mesocycles.mesocycle_id))
+            .first()
+        )
+        return row[0] if row else None
 
-        A workout name is re-created for every mesocycle, so the same name maps
-        to several workout_ids over time. Index 0 is the newest (the one we log
-        into today); the rest are history we may read from.
+    def _user_workout_ids(self, user_id, chosen_day):
+        """All workout_ids this user has under the given name, across ALL mesocycles.
+
+        READ ONLY - this is the history lane. A workout name is re-created for
+        every mesocycle, so the same name maps to several workout_ids over time
+        and older ones still hold the numbers progressive overload builds on.
+
+        Never write through this. Use _current_workout_id for that, otherwise a
+        set can land in last mesocycle's plan.
         """
         rows = (
             db.session.query(WorkoutPlan.workout_id)
@@ -547,6 +560,31 @@ class WorkoutManagement:
             .all()
         )
         return [row[0] for row in rows]
+
+    def _current_workout_id(self, user_id, chosen_day):
+        """The workout_id to WRITE to for this day name, or None.
+
+        Restricted to the user's latest mesocycle, because that is the only one
+        the training session is allowed to touch. Within that mesocycle the
+        newest plan wins - which is also what makes custom "c" days work, since
+        those create a fresh plan every day.
+        """
+        query = db.session.query(WorkoutPlan.workout_id).filter(
+            WorkoutPlan.user_id == user_id,
+            WorkoutPlan.workout_name == chosen_day,
+        )
+
+        mesocycle_id = self._last_mesocycle_id(user_id)
+        if mesocycle_id is not None:
+            query = query.filter(WorkoutPlan.mesocycle_id == mesocycle_id)
+        # A user with no mesocycle at all has no "current" one to be confined
+        # to, so fall back to their newest plan of that name rather than
+        # returning nothing and dead-ending the page.
+
+        row = query.order_by(
+            desc(WorkoutPlan.created_at), desc(WorkoutPlan.workout_id)
+        ).first()
+        return row[0] if row else None
 
     def _todays_session_id(self, user_id, workout_id, create=False):
         """session_id of this user's session for today, optionally creating it."""
@@ -650,6 +688,158 @@ class WorkoutManagement:
                 return False
         return changed
 
+    # ------------------------------------------------------------------
+    # Picking up where you left off
+    #
+    # The browser session can vanish mid-workout (phone browser evicting it,
+    # or just logging out). These let the page re-choose a sensible day and
+    # exercise from the database instead of showing an empty dropdown.
+    # ------------------------------------------------------------------
+
+    def _rotation_days(self, user_id):
+        """Current mesocycle's workout days as [(workout_id, name)], creation order.
+
+        find_users_weeks (and therefore the dropdown) takes the newest N days
+        by created_at DESC. We take the same N, then flip them so index 0 is
+        the day you built first - that is the order you actually rotate in.
+        Custom ("c") and intuitive days are not part of the rotation.
+        """
+        last_meso = (
+            db.session.query(Mesocycles.mesocycle_id, Mesocycles.workouts_per_week)
+            .filter(Mesocycles.user_id == user_id)
+            .order_by(desc(Mesocycles.mesocycle_id))
+            .first()
+        )
+        if not last_meso or not last_meso[1]:
+            return []
+
+        mesocycle_id, per_week = last_meso[0], last_meso[1]
+
+        newest_first = (
+            db.session.query(WorkoutPlan)
+            .filter(
+                WorkoutPlan.user_id == user_id,
+                WorkoutPlan.mesocycle_id == mesocycle_id,
+                WorkoutPlan.workout_name.isnot(None),
+                WorkoutPlan.workout_name != "c",
+                ~WorkoutPlan.workout_name.like("%_intuitive"),
+            )
+            .order_by(desc(WorkoutPlan.created_at), desc(WorkoutPlan.workout_id))
+            .limit(per_week)
+            .all()
+        )
+
+        return [(w.workout_id, w.workout_name) for w in reversed(newest_first)]
+
+    def _last_session_with_sets(self, user_id, workout_ids, on_date=None):
+        """Most recent session that has at least one set logged.
+
+        The join is what enforces "at least one set": add_session_to_db creates
+        an empty Sessions row the moment you tap confirm, and an empty row must
+        not count as a workout.
+        """
+        if not workout_ids:
+            return None
+
+        query = (
+            db.session.query(Sessions)
+            .join(ExerciseEntries, ExerciseEntries.session_id == Sessions.session_id)
+            .filter(
+                Sessions.user_id == user_id,
+                Sessions.workout_id.in_(workout_ids),
+            )
+        )
+
+        if on_date is not None:
+            start = datetime.combine(on_date, datetime.min.time())
+            query = query.filter(
+                Sessions.session_date >= start,
+                Sessions.session_date < start + timedelta(days=1),
+            )
+
+        return (
+            query.order_by(desc(Sessions.session_date), desc(Sessions.session_id))
+            .first()
+        )
+
+    def _first_exercise_name(self, workout_id):
+        """Name of the first exercise in a workout, or None if it has none."""
+        ordered = self._workout_exercises_ordered(workout_id)
+        if not ordered:
+            return None
+        row = self.find_exercise_name_db(ordered[0].exercise_id)
+        return row[0] if row else None
+
+    def suggest_training_focus(self):
+        """(day_name, exercise_name) to preselect when the browser session is empty.
+
+        a) Already logged sets today -> that day, and the exercise you logged
+           last, so a mid-workout re-login drops you back where you were.
+        b) Nothing logged today -> the day after your last real session in the
+           rotation, wrapping a -> b -> c -> a, starting at its first exercise.
+
+        Returns (None, None) when there is nothing sensible to suggest.
+        """
+        user_id = self.current_user_id_db()
+
+        rotation = self._rotation_days(user_id)
+        if not rotation:
+            return None, None
+
+        workout_ids = [workout_id for workout_id, _ in rotation]
+        names_by_id = {workout_id: name for workout_id, name in rotation}
+
+        # a) Mid-workout: resume today's day and the last exercise touched.
+        today_session = self._last_session_with_sets(
+            user_id, workout_ids, on_date=date.today()
+        )
+        if today_session:
+            day_name = names_by_id.get(today_session.workout_id)
+
+            last_entry = (
+                db.session.query(ExerciseEntries)
+                .filter(ExerciseEntries.session_id == today_session.session_id)
+                .order_by(desc(ExerciseEntries.entry_id))
+                .first()
+            )
+
+            exercise_name = None
+            if last_entry:
+                still_in_workout = {
+                    row.exercise_id
+                    for row in self._workout_exercises_ordered(today_session.workout_id)
+                }
+                # An exercise removed from the plan mid-mesocycle would not be
+                # selectable in the dropdown, so do not offer it.
+                if last_entry.exercise_id in still_in_workout:
+                    row = self.find_exercise_name_db(last_entry.exercise_id)
+                    exercise_name = row[0] if row else None
+
+            if exercise_name is None:
+                exercise_name = self._first_exercise_name(today_session.workout_id)
+
+            return day_name, exercise_name
+
+        # b) New day: step to the next day in the rotation.
+        last_session = self._last_session_with_sets(user_id, workout_ids)
+
+        if last_session:
+            current_index = next(
+                (
+                    i
+                    for i, (workout_id, _) in enumerate(rotation)
+                    if workout_id == last_session.workout_id
+                ),
+                None,
+            )
+            next_index = 0 if current_index is None else (current_index + 1) % len(rotation)
+        else:
+            # Never trained in this mesocycle - start at the beginning.
+            next_index = 0
+
+        next_workout_id, next_day_name = rotation[next_index]
+        return next_day_name, self._first_exercise_name(next_workout_id)
+
     def _last_entry(self, session_id, exercise_id):
         """Most recently logged set of one exercise inside one session.
 
@@ -707,15 +897,19 @@ class WorkoutManagement:
             print(f"add_set_to_db: unknown exercise '{exercise}'")
             return None
 
-        user_workout_ids = self._user_workout_ids(user_id_db, chosen_day)
-        if not user_workout_ids:
-            print(f"add_set_to_db: no workout named '{chosen_day}' for this user")
+        # Latest mesocycle only - a set must never land in an old plan.
+        current_workout_id = self._current_workout_id(user_id_db, chosen_day)
+        if current_workout_id is None:
+            print(
+                f"add_set_to_db: no workout named '{chosen_day}' in this user's "
+                f"current mesocycle"
+            )
             return None
 
         # Sets are only ever written into TODAY's session, which is also the
         # only session the training page renders. Same rule as repeat_set.
         session_id = self._todays_session_id(
-            user_id_db, user_workout_ids[0], create=True
+            user_id_db, current_workout_id, create=True
         )
         if session_id is None:
             return None
@@ -762,12 +956,18 @@ class WorkoutManagement:
             return None
         exercise_id = exercise_row[0]
 
-        # Every workout_id this user has under this name; [0] is the current one.
-        user_workout_ids = self._user_workout_ids(user_id, chosen_day)
-        if not user_workout_ids:
-            print(f"repeat_set: no workout named '{chosen_day}' for this user")
+        # WRITE target: latest mesocycle only.
+        current_workout_id = self._current_workout_id(user_id, chosen_day)
+        if current_workout_id is None:
+            print(
+                f"repeat_set: no workout named '{chosen_day}' in this user's "
+                f"current mesocycle"
+            )
             return None
-        current_workout_id = user_workout_ids[0]
+
+        # READ history: deliberately spans older mesocycles, so the first
+        # session of a new mesocycle still has numbers to build on.
+        history_workout_ids = self._user_workout_ids(user_id, chosen_day)
 
         # 1. Resolve the TARGET session first - today's, created if missing.
         target_session_id = self._todays_session_id(
@@ -782,7 +982,7 @@ class WorkoutManagement:
         # 3. Fallback: heaviest set from the most recent earlier session.
         if source_entry is None:
             for previous_session_id in self._previous_session_ids(
-                user_id, user_workout_ids, exclude_session_id=target_session_id
+                user_id, history_workout_ids, exclude_session_id=target_session_id
             ):
                 source_entry = self._heaviest_entry(previous_session_id, exercise_id)
                 if source_entry is not None:
@@ -2261,34 +2461,28 @@ class WorkoutManagement:
         return last_meso_query.name
 
     def user_last_session_id(self, workout_id, chosen_day):
-        # I need to include workout id
-        current_workout_query = (
-            db.session.query(WorkoutPlan)
-            .filter(WorkoutPlan.workout_name == chosen_day)
-            .all()
-        )
-
-        workout_id_current = None
-        if current_workout_query:
-            for x in current_workout_query:
-                for y in workout_id:
-                    if x.workout_id == y:
-                        workout_id_current = x
-                        break
-
+        """(sessions newest-first, workout_id) for this user's current `chosen_day`."""
         user_id = self.current_user_id_db()
-        if not workout_id_current:
+
+        # Was matching workout_name with no user_id filter at all, so another
+        # user's plan could satisfy the lookup.
+        workout_id_current = self._current_workout_id(user_id, chosen_day)
+        if workout_id_current is None:
+            return None, None
+
+        # Honour the caller's candidate list when it gives one.
+        if workout_id and workout_id_current not in workout_id:
             return None, None
 
         return (
             db.session.query(Sessions)
             .filter(
                 Sessions.user_id == user_id,
-                Sessions.workout_id == workout_id_current.workout_id,
+                Sessions.workout_id == workout_id_current,
             )
             .order_by(desc(Sessions.session_id))
             .all(),
-            workout_id_current.workout_id,
+            workout_id_current,
         )
 
     # Training session: Button "History"
@@ -2379,11 +2573,13 @@ class WorkoutManagement:
 
         user_id = self.current_user_id_db()
 
-        workout_ids = self._user_workout_ids(user_id, chosen_day)
-        if not workout_ids:
+        # Latest mesocycle only - the arrows must walk the plan you are
+        # actually training, not a same-named day from an older mesocycle.
+        current_workout_id = self._current_workout_id(user_id, chosen_day)
+        if current_workout_id is None:
             return None
 
-        ordered = self._workout_exercises_ordered(workout_ids[0])
+        ordered = self._workout_exercises_ordered(current_workout_id)
         if not ordered:
             return None
 
