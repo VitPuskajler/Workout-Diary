@@ -101,6 +101,7 @@ show_tables_to_user = db_operations.show_tables_to_user
 tables_informations = db_operations.tables_informations
 workout_day_information = db_operations.workout_day_information
 exercise_progress_data = db_operations.exercise_progress_data
+progress_as_markdown = db_operations.progress_as_markdown
 fetch_exercise_suggestions = db_operations.fetch_exercise_suggestions
 get_today_intuitive_traing = db_operations.get_today_intuitive_traing
 create_custom_workout_exercise = db_operations.create_custom_workout_exercise
@@ -591,6 +592,9 @@ def progress():
         if workout_day_info:
             exercise_progress = exercise_progress_data(workout_day_info, chosen_day, chosen_mesocycle)
 
+    # Plain-text version of the tables below, for the one-tap copy button.
+    copy_text = progress_as_markdown(exercise_progress, chosen_day, chosen_mesocycle)
+
     return render_template(
     "progress.html",
     today=DATE,
@@ -601,6 +605,7 @@ def progress():
     chosen_mesocycle=chosen_mesocycle,
     workouts_info=workout_day_info,
     progress=exercise_progress,
+    copy_text=copy_text,
 )
 
 @login_required

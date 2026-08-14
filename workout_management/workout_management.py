@@ -23,6 +23,7 @@ from sqlalchemy import (
     desc,
     delete,
 )
+from sqlalchemy.exc import SQLAlchemyError
 from flask import request
 from datetime import datetime, date, timedelta
 from matplotlib.figure import Figure
@@ -322,48 +323,22 @@ class WorkoutManagement:
                 else:
                     print("This exercise is not in db yet. I am saving it now.")
 
-                    # exercise_count = (
-                    #     db.session.query(WorkoutExercises)
-                    #     .filter_by(workout_id=workouts_id[day])
-                    #     .count()
-                    # )
-                    exercise_count = (
-                        db.session.query(func.max(WorkoutExercises.order_in_workout))
-                        .filter_by(workout_id=workouts_id[day])
-                        .scalar() or 0 # .scalar() gets the single value; 'or 0' handles empty workouts
-                    )
-                    
                     rest, sets = user_input_or_defualt()
-                    if exercise_count >= 1:
-                        # Add new exercise to database
-                        new_exercise_order = exercise_count + 1
-                        new_exercise_entry = {
-                            "order_in_workout": new_exercise_order,  # Match with the unique input name
-                            "exercise_id": exe_id.exercise_id,  # Match with the unique input name
-                            "prescribed_sets": sets,
-                            "rest_period": rest,
-                            "workout_id": workouts_id[day],
-                        }
+                    new_exercise_order = self._next_order_in_workout(workouts_id[day])
 
-                        new_exercise = WorkoutExercises(**new_exercise_entry)
+                    try:
+                        new_exercise = WorkoutExercises(
+                            order_in_workout=new_exercise_order,
+                            exercise_id=exe_id.exercise_id,
+                            prescribed_sets=int(sets),
+                            rest_period=int(rest),
+                            workout_id=workouts_id[day],
+                        )
                         db.session.add(new_exercise)
                         db.session.commit()
-
-                    elif exercise_count == 0:
-                        new_exercise_order = exercise_count + 1
-                        new_exercise_entry = {
-                            "order_in_workout": new_exercise_order,  # Match with the unique input name
-                            "exercise_id": exe_id.exercise_id,  # Match with the unique input name
-                            "prescribed_sets": int(sets),
-                            "rest_period": int(rest),
-                            "workout_id": workouts_id[day],
-                        }
-
-                        new_exercise = WorkoutExercises(**new_exercise_entry)
-                        db.session.add(new_exercise)
-                        db.session.commit()
-
-                        print("No exercise")
+                    except (SQLAlchemyError, ValueError, TypeError) as e:
+                        db.session.rollback()
+                        print(f"add_exercise: rolling back, {e}")
 
         return order
 
@@ -398,19 +373,33 @@ class WorkoutManagement:
                             )
                             .first()
                         )
+
+                        # Already gone (double submit, stale form) - nothing to do.
+                        if not workout_id_found:
+                            continue
+
                         # Remove the exercise
                         # DELTE FROM WorkoutExercises
                         # WHERE workout_exercise_id = workout_id_found.workout_exercise_id
-
-                        remove_exe_from_db = (
-                            db.session.query(WorkoutExercises)
-                            .filter(
-                                WorkoutExercises.workout_exercise_id
-                                == workout_id_found.workout_exercise_id
+                        try:
+                            (
+                                db.session.query(WorkoutExercises)
+                                .filter(
+                                    WorkoutExercises.workout_exercise_id
+                                    == workout_id_found.workout_exercise_id
+                                )
+                                .delete(synchronize_session=False)
                             )
-                            .delete(synchronize_session=False)
-                        )
-                        db.session.commit()
+                            db.session.commit()
+                        except SQLAlchemyError as e:
+                            db.session.rollback()
+                            print(f"delete_exercise: rolling back, {e}")
+                            continue
+
+                        # Close the hole the delete just opened, otherwise
+                        # order_in_workout becomes 1, 3, 4 and anything that
+                        # walks the sequence breaks.
+                        self._compact_workout_order(workouts_id[day])
 
                 else:
                     print(f"Unexpected key format: {key}")
@@ -528,201 +517,302 @@ class WorkoutManagement:
         else:
             return None
 
-    def add_set_to_db(self, submitted_data, exercise, chosen_day) -> dict:
-        user = Users.query.filter_by(username=current_user.username).first()
-        user_id_db = user.user_id
+    # ------------------------------------------------------------------
+    # Shared query helpers
+    #
+    # Every helper below is scoped by user_id (directly, or indirectly via a
+    # workout_id that was itself resolved from user_id). Nothing here may
+    # return another user's rows.
+    # ------------------------------------------------------------------
 
-        if exercise is not None:
-            workout_id_from_db = (
-                db.session.query(WorkoutPlan.workout_id)
-                .filter(
-                    WorkoutPlan.user_id == user_id_db,
-                    WorkoutPlan.workout_name == chosen_day,
-                )
-                .order_by(desc(WorkoutPlan.created_at))
-                .first()
+    def _today_bounds(self):
+        """Return (start_of_today, start_of_tomorrow) as datetimes."""
+        today = datetime.combine(date.today(), datetime.min.time())
+        return today, today + timedelta(days=1)
+
+    def _user_workout_ids(self, user_id, chosen_day):
+        """All workout_ids this user has under the given workout name.
+
+        A workout name is re-created for every mesocycle, so the same name maps
+        to several workout_ids over time. Index 0 is the newest (the one we log
+        into today); the rest are history we may read from.
+        """
+        rows = (
+            db.session.query(WorkoutPlan.workout_id)
+            .filter(
+                WorkoutPlan.user_id == user_id,
+                WorkoutPlan.workout_name == chosen_day,
             )
+            .order_by(desc(WorkoutPlan.created_at), desc(WorkoutPlan.workout_id))
+            .all()
+        )
+        return [row[0] for row in rows]
 
-            # Add set to database - exercise_entries
-            # SELECT session_id FROM Sessions WHERE workout_id = my_workout_id ORDER BY session_id DESC
-            if workout_id_from_db is not None:
+    def _todays_session_id(self, user_id, workout_id, create=False):
+        """session_id of this user's session for today, optionally creating it."""
+        today, tomorrow = self._today_bounds()
 
-                session_id_form_db = (
-                    db.session.query(Sessions.session_id)
-                    .filter(Sessions.workout_id == workout_id_from_db[0])
-                    .order_by(desc(Sessions.session_date))
-                    .first()
-                )
+        existing = (
+            db.session.query(Sessions.session_id)
+            .filter(
+                Sessions.user_id == user_id,
+                Sessions.workout_id == workout_id,
+                Sessions.session_date >= today,
+                Sessions.session_date < tomorrow,
+            )
+            .order_by(desc(Sessions.session_id))
+            .first()
+        )
+        if existing:
+            return existing[0]
 
-                if not session_id_form_db:
-                    session_id_form_db = (
-                        db.session.query(Sessions.session_id)
-                        .filter(Sessions.workout_id == chosen_day)
-                        .order_by(desc(Sessions.session_date))
-                        .first()
-                    )
+        if not create:
+            return None
 
-                exe_id = self.find_exercise_id_db(exercise)
+        try:
+            new_session = Sessions(
+                user_id=user_id, workout_id=workout_id, notes="Null"
+            )
+            db.session.add(new_session)
+            db.session.commit()
+            return new_session.session_id
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f"_todays_session_id: could not create session: {e}")
+            return None
 
-                try:
-                    # Find total sets in ExerciseEntries
-                    sets_yet = (
-                        db.session.query(ExerciseEntries.set_number)
-                        .filter(
-                            ExerciseEntries.session_id == session_id_form_db[0],
-                            ExerciseEntries.exercise_id == exe_id[0],
-                        )
-                        .count()
-                    )
-                except TypeError:
-                    db.session.rollback()
-                    print("Bro, there is no session yet, but I will set 0 for you")
-                    sets_yet = 0
-                    sets_yet += 1
+    def _previous_session_ids(self, user_id, workout_ids, exclude_session_id=None):
+        """This user's sessions for the given workouts, newest first."""
+        if not workout_ids:
+            return []
 
-                # Check if user didn't refresh website / if so it would add another set
-                # So check if there is not the
+        query = db.session.query(Sessions.session_id).filter(
+            Sessions.user_id == user_id,
+            Sessions.workout_id.in_(workout_ids),
+        )
+        if exclude_session_id is not None:
+            query = query.filter(Sessions.session_id != exclude_session_id)
 
-                # Save exdrcise entry into database
-                try:
-                    exercise_entry_add = ExerciseEntries(
-                        session_id=session_id_form_db[0],
-                        exercise_id=exe_id[0],
-                        set_number=sets_yet,
-                        reps=int(submitted_data.get("reps", 0)),
-                        weight=float(submitted_data.get("kg", 0.0)),
-                        rpe=int(submitted_data.get("rpe", 0)),
-                        notes=submitted_data.get("notes", ""),
-                    )
-                    db.session.add(exercise_entry_add)
-                    db.session.commit()
-                except Exception as e:
-                    print(f"Exception line {inspect.currentframe().f_lineno}: {e}")
-                    db.session.rollback()
+        rows = query.order_by(
+            desc(Sessions.session_date), desc(Sessions.session_id)
+        ).all()
+        return [row[0] for row in rows]
+
+    def _workout_exercises_ordered(self, workout_id):
+        """This workout's exercises lined up in display order.
+
+        workout_exercise_id is the tie-break, so even if two rows share an
+        order_in_workout the ordering is still total and stable.
+        """
+        return (
+            db.session.query(WorkoutExercises)
+            .filter(WorkoutExercises.workout_id == workout_id)
+            .order_by(
+                WorkoutExercises.order_in_workout.asc(),
+                WorkoutExercises.workout_exercise_id.asc(),
+            )
+            .all()
+        )
+
+    def _next_order_in_workout(self, workout_id):
+        """1-based order_in_workout for an exercise appended to this workout.
+
+        Uses MAX, not COUNT: after a deletion COUNT is lower than the highest
+        order in use, which hands the new row a number that already exists.
+        """
+        highest = (
+            db.session.query(func.max(WorkoutExercises.order_in_workout))
+            .filter(WorkoutExercises.workout_id == workout_id)
+            .scalar()
+        )
+        return (highest or 0) + 1
+
+    def _compact_workout_order(self, workout_id):
+        """Renumber a workout's exercises to a gapless 1..N, keeping their order.
+
+        Deleting a row leaves a hole (1, 3, 4). Nothing reads order_in_workout
+        expecting holes, so close them as soon as they appear.
+        """
+        ordered = self._workout_exercises_ordered(workout_id)
+
+        changed = False
+        for position, row in enumerate(ordered, start=1):
+            if row.order_in_workout != position:
+                row.order_in_workout = position
+                changed = True
+
+        if changed:
+            try:
+                db.session.commit()
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                print(f"_compact_workout_order: rolling back, {e}")
+                return False
+        return changed
+
+    def _last_entry(self, session_id, exercise_id):
+        """Most recently logged set of one exercise inside one session.
+
+        Ordered by set_number then entry_id so it survives equal/missing set
+        numbers. Ordering by exercise_id here would be meaningless - it is
+        already pinned by the filter.
+        """
+        return (
+            db.session.query(ExerciseEntries)
+            .filter(
+                ExerciseEntries.session_id == session_id,
+                ExerciseEntries.exercise_id == exercise_id,
+            )
+            .order_by(desc(ExerciseEntries.set_number), desc(ExerciseEntries.entry_id))
+            .first()
+        )
+
+    def _heaviest_entry(self, session_id, exercise_id):
+        """Top set of one exercise inside one session (weight, then reps)."""
+        return (
+            db.session.query(ExerciseEntries)
+            .filter(
+                ExerciseEntries.session_id == session_id,
+                ExerciseEntries.exercise_id == exercise_id,
+            )
+            .order_by(
+                desc(ExerciseEntries.weight),
+                desc(ExerciseEntries.reps),
+                desc(ExerciseEntries.entry_id),
+            )
+            .first()
+        )
+
+    def _next_set_number(self, session_id, exercise_id):
+        """1-based set number for the next set of this exercise in this session."""
+        done = (
+            db.session.query(func.count(ExerciseEntries.entry_id))
+            .filter(
+                ExerciseEntries.session_id == session_id,
+                ExerciseEntries.exercise_id == exercise_id,
+            )
+            .scalar()
+        )
+        return (done or 0) + 1
+
+    def add_set_to_db(self, submitted_data, exercise, chosen_day) -> dict:
+        """Append a manually entered set to today's session for `chosen_day`."""
+        if exercise is None:
+            return None
+
+        user_id_db = self.current_user_id_db()
+
+        exe_id = self.find_exercise_id_db(exercise)
+        if not exe_id:
+            print(f"add_set_to_db: unknown exercise '{exercise}'")
+            return None
+
+        user_workout_ids = self._user_workout_ids(user_id_db, chosen_day)
+        if not user_workout_ids:
+            print(f"add_set_to_db: no workout named '{chosen_day}' for this user")
+            return None
+
+        # Sets are only ever written into TODAY's session, which is also the
+        # only session the training page renders. Same rule as repeat_set.
+        session_id = self._todays_session_id(
+            user_id_db, user_workout_ids[0], create=True
+        )
+        if session_id is None:
+            return None
+
+        try:
+            exercise_entry_add = ExerciseEntries(
+                session_id=session_id,
+                exercise_id=exe_id[0],
+                set_number=self._next_set_number(session_id, exe_id[0]),
+                reps=int(submitted_data.get("reps", 0)),
+                weight=float(submitted_data.get("kg", 0.0)),
+                rpe=int(submitted_data.get("rpe", 0)),
+                notes=submitted_data.get("notes", ""),
+            )
+            db.session.add(exercise_entry_add)
+            db.session.commit()
+            return exercise_entry_add
+        except (SQLAlchemyError, ValueError, TypeError) as e:
+            db.session.rollback()
+            print(f"add_set_to_db: rolling back, {e} (line {inspect.currentframe().f_lineno})")
+            return None
 
     def repeat_set(self, chosen_exercise, workout_id, chosen_day):
-        if chosen_exercise:
-            user_id = self.current_user_id_db()
-            last_session, workout_id_current = self.user_last_session_id(
-                workout_id, chosen_day
+        """Append a copy of a previous set for `chosen_exercise` to today's session.
+
+        Precedence:
+          1. If this exercise already has sets in TODAY's session, copy the
+             last one (highest set_number). This is the normal in-workout case.
+          2. Otherwise fall back to the HEAVIEST set of the most recent earlier
+             session that contains this exercise - the right anchor to start
+             from for progressive overload.
+
+        Everything is scoped to the logged-in user: workout_ids are resolved
+        from user_id, and every session query filters on user_id as well.
+        """
+        if not chosen_exercise:
+            return None
+
+        user_id = self.current_user_id_db()
+
+        exercise_row = self.find_exercise_id_db(chosen_exercise)
+        if not exercise_row:
+            print(f"repeat_set: unknown exercise '{chosen_exercise}'")
+            return None
+        exercise_id = exercise_row[0]
+
+        # Every workout_id this user has under this name; [0] is the current one.
+        user_workout_ids = self._user_workout_ids(user_id, chosen_day)
+        if not user_workout_ids:
+            print(f"repeat_set: no workout named '{chosen_day}' for this user")
+            return None
+        current_workout_id = user_workout_ids[0]
+
+        # 1. Resolve the TARGET session first - today's, created if missing.
+        target_session_id = self._todays_session_id(
+            user_id, current_workout_id, create=True
+        )
+        if target_session_id is None:
+            return None
+
+        # 2. Prefer the last set already logged today for this exercise.
+        source_entry = self._last_entry(target_session_id, exercise_id)
+
+        # 3. Fallback: heaviest set from the most recent earlier session.
+        if source_entry is None:
+            for previous_session_id in self._previous_session_ids(
+                user_id, user_workout_ids, exclude_session_id=target_session_id
+            ):
+                source_entry = self._heaviest_entry(previous_session_id, exercise_id)
+                if source_entry is not None:
+                    break
+
+        if source_entry is None:
+            # Exercise never logged by this user - nothing to copy.
+            return None
+
+        # set_number is counted on the TARGET session, not the source one.
+        try:
+            new_entry = ExerciseEntries(
+                session_id=target_session_id,
+                exercise_id=exercise_id,
+                set_number=self._next_set_number(target_session_id, exercise_id),
+                reps=source_entry.reps,
+                weight=source_entry.weight,
+                rpe=source_entry.rpe,
+                notes="",
             )
-            exercise_id = self.find_exercise_id_db(chosen_exercise)[0]
-
-            today = datetime.combine(date.today(), datetime.min.time())
-            tomorrow = today + timedelta(days=1)
-
-            if last_session:
-                for x in last_session:
-                    # Find last exercise entry for current user
-                    last_exercise_query = (
-                        db.session.query(ExerciseEntries)
-                        .filter(
-                            ExerciseEntries.session_id == x.session_id,
-                            ExerciseEntries.exercise_id == exercise_id,
-                        )
-                        .order_by(desc(ExerciseEntries.exercise_id))
-                        .first()
-                    )
-                    if last_exercise_query:
-                        break
-            else:
-                # If exercise was never done by user, there is nothing to copy
-                return None
-
-            try:
-                sets_yet = (
-                    db.session.query(ExerciseEntries.set_number)
-                    .filter(
-                        ExerciseEntries.session_id == x.session_id,
-                        ExerciseEntries.exercise_id == last_exercise_query.exercise_id,
-                    )
-                    .count()
-                )
-            except:
-                sets_yet = 0
-
-            if not sets_yet:
-                sets_yet = 0
-
-            # Current session
-            workout_id_from_db = (
-                db.session.query(WorkoutPlan.workout_id)
-                .filter(
-                    WorkoutPlan.user_id == user_id,
-                    WorkoutPlan.workout_name == chosen_day,
-                )
-                .order_by(desc(WorkoutPlan.created_at))
-                .first()
+            db.session.add(new_entry)
+            db.session.commit()
+            return new_entry
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(
+                f"repeat_set: rolling back, {e} "
+                f"(line {inspect.currentframe().f_lineno})"
             )
-
-            # Add set to database - exercise_entries
-            # SELECT session_id FROM Sessions WHERE workout_id = my_workout_id ORDER BY session_id DESC
-            if workout_id_from_db is not None:
-                # Check if a session already exists for today
-                does_session_exist = (
-                    db.session.query(Sessions.session_id)
-                    .filter(
-                        and_(
-                            Sessions.workout_id == workout_id_from_db[0],
-                            Sessions.user_id == user_id,
-                            Sessions.session_date >= today,
-                            Sessions.session_date < tomorrow,
-                        )
-                    )
-                    .first()
-                )
-
-                if does_session_exist:
-                    print("Sorry, there is already a workout session for today")
-                else:
-                    try:
-                        # No session exists for today; create a new one
-                        new_session_query = Sessions(
-                            user_id=user_id,
-                            workout_id=workout_id_from_db[0],
-                            notes="Null",
-                        )
-                        db.session.add(new_session_query)
-                        db.session.commit()  # Commit here to assign session_id
-                    except:
-                        db.session.rollback()
-                session_id_form_db = (
-                    db.session.query(Sessions.session_id)
-                    .filter(Sessions.workout_id == workout_id_from_db[0])
-                    .order_by(desc(Sessions.session_date))
-                    .first()
-                )
-
-                if not session_id_form_db:
-                    session_id_form_db = (
-                        db.session.query(Sessions.session_id)
-                        .filter(Sessions.workout_id == chosen_day)
-                        .order_by(desc(Sessions.session_date))
-                        .first()
-                    )
-
-                if last_exercise_query:
-                    try:
-                        add_exercise_entry = ExerciseEntries(
-                            session_id=session_id_form_db[0],
-                            exercise_id=last_exercise_query.exercise_id,
-                            set_number=sets_yet,
-                            reps=last_exercise_query.reps,
-                            weight=last_exercise_query.weight,
-                            rpe=last_exercise_query.rpe,
-                            notes="",
-                        )
-
-                        print(
-                            f"last_exercise_query.exercise_id: {last_exercise_query.exercise_id}"
-                        )
-                        db.session.add(add_exercise_entry)
-                        db.session.commit()
-                    except Exception as e:
-                        print(
-                            f"Error just appeared, I am rolling back: {e}\n erro on line {inspect.currentframe().f_lineno}"
-                        )
-                        db.session.rollback()
+            return None
 
     def jinja_sets_function(self, chosen_day, chosen_exercise):
         user = Users.query.filter_by(username=current_user.username).first()
@@ -1322,6 +1412,72 @@ class WorkoutManagement:
         else:
             return {None: None}
 
+    @staticmethod
+    def _md_cell(value):
+        """Make a value safe to sit inside a markdown table cell."""
+        if value is None:
+            return ""
+        text = str(value).strip()
+        # A literal pipe would split the cell and break the table.
+        text = text.replace("|", "\\|")
+        # Newlines in a note would break the row apart.
+        text = " ".join(text.split())
+        return text
+
+    def progress_as_markdown(self, progress, chosen_day, chosen_mesocycle):
+        """Render the progress page's tables as markdown, ready to paste anywhere.
+
+        Pure formatter: it takes the exact dict that `exercise_progress_data`
+        already handed to the template, so what you copy always matches what
+        you see. Returns "" when there is nothing to copy, which the template
+        uses to hide the button.
+        """
+        if not progress:
+            return ""
+
+        # exercise_progress_data returns {None: None} when nothing is selected.
+        real_exercises = {
+            name: rows for name, rows in progress.items() if name is not None
+        }
+        if not real_exercises:
+            return ""
+
+        title_bits = [b for b in (chosen_mesocycle, chosen_day) if b]
+        lines = []
+        if title_bits:
+            lines.append(f"# {' - '.join(str(b) for b in title_bits)}")
+            lines.append("")
+
+        # Same columns as the table on screen.
+        header = "| Date | Reps | Weight | RPE | Notes |"
+        divider = "|---|---|---|---|---|"
+
+        for exercise_name, rows in real_exercises.items():
+            lines.append(f"## {self._md_cell(exercise_name)}")
+            lines.append("")
+
+            if not rows:
+                lines.append("_No sets logged yet._")
+                lines.append("")
+                continue
+
+            lines.append(header)
+            lines.append(divider)
+
+            for row in rows:
+                lines.append(
+                    "| {date} | {reps} | {weight} | {rpe} | {notes} |".format(
+                        date=self._md_cell(row.get("date", "")),
+                        reps=self._md_cell(row.get("reps", "")),
+                        weight=self._md_cell(row.get("weight", "")),
+                        rpe=self._md_cell(row.get("rpe", "")),
+                        notes=self._md_cell(row.get("notes", "")),
+                    )
+                )
+            lines.append("")
+
+        return "\n".join(lines).strip()
+
     # AJAX for exercises preview when creating workout
     def fetch_exercise_suggestions(self, search_term):
         exercises = Exercise.query.filter(
@@ -1389,13 +1545,7 @@ class WorkoutManagement:
                 .first()
             )
             if exercise_already_in_table is None:
-                order = (
-                    db.session.query(WorkoutExercises)
-                    .filter(WorkoutExercises.workout_id == workout_id_query.workout_id)
-                    .count()
-                )
-                if order == 0:
-                    order = 1
+                order = self._next_order_in_workout(workout_id_query.workout_id)
 
                 new_workout_exercise = WorkoutExercises(
                     workout_id=workout_id_query.workout_id,
@@ -1464,15 +1614,7 @@ class WorkoutManagement:
                 )
 
                 if exercise_already_in_table is None:
-                    order = (
-                        db.session.query(WorkoutExercises)
-                        .filter(
-                            WorkoutExercises.workout_id == workout_id_query.workout_id
-                        )
-                        .count()
-                    )
-                    if order == 0:
-                        order = 1
+                    order = self._next_order_in_workout(workout_id_query.workout_id)
 
                     new_workout_exercise = WorkoutExercises(
                         workout_id=workout_id_query.workout_id,
@@ -2222,87 +2364,49 @@ class WorkoutManagement:
                 return None
 
     def arrow_buttons_next_exercise(self, move: str, chosen_exercise, chosen_day):
+        """Name of the exercise one step before/after the current one, or None at the ends.
+
+        Navigates by POSITION in the workout's ordered list, not by arithmetic
+        on order_in_workout. A hole left by a deletion (1, 3, 4) or a duplicate
+        number (1, 1, 2) therefore cannot break it - "the 2nd item of a 3 item
+        list" always exists, whereas "the row numbered 2" may not.
+        """
+        if not (move and chosen_exercise and chosen_day):
+            return None
+
+        if move not in ("previous_day", "next_day"):
+            return None
+
         user_id = self.current_user_id_db()
-        if move and chosen_exercise and chosen_day:
-            # Find id for chosen day
-            if chosen_day:
-                chosed_day_id = (
-                    db.session.query(WorkoutPlan.workout_id)
-                    .filter(
-                        WorkoutPlan.workout_name == chosen_day,
-                        WorkoutPlan.user_id == user_id,
-                    )
-                    .order_by(desc(WorkoutPlan.workout_id))
-                    .first()
-                )
 
-                # Find all exercises relevant for current session
-                if chosen_day:
-                    chosed_day_id = chosed_day_id[0]
-                    session_exercises = (
-                        db.session.query(WorkoutExercises)
-                        .filter(WorkoutExercises.workout_id == chosed_day_id)
-                        .all()
-                    )
+        workout_ids = self._user_workout_ids(user_id, chosen_day)
+        if not workout_ids:
+            return None
 
-                    if session_exercises:
-                        # Translate chosen/current exercise name to ID
-                        exercise_id = self.find_exercise_id_db(chosen_exercise)
-                        if exercise_id:
-                            exercise_id = exercise_id[0]
-                            # workout_exercise_id
-                            workout_exercise_id_query = (
-                                db.session.query(WorkoutExercises)
-                                .filter(
-                                    WorkoutExercises.workout_id == chosed_day_id,
-                                    WorkoutExercises.exercise_id == exercise_id,
-                                )
-                                .first()
-                            )
+        ordered = self._workout_exercises_ordered(workout_ids[0])
+        if not ordered:
+            return None
 
-                            # If order in workout > 1 you can substract from it
-                            if move == "previous_day":
-                                if workout_exercise_id_query.order_in_workout > 1:
-                                    # Switch to "previous" exercise
-                                    previous_workout_exercise_id_query = (
-                                        db.session.query(WorkoutExercises)
-                                        .filter(
-                                            WorkoutExercises.workout_id == workout_exercise_id_query.workout_id,
-                                            WorkoutExercises.order_in_workout == workout_exercise_id_query.order_in_workout - 1,
-                                        )
-                                        .order_by(WorkoutExercises.workout_exercise_id.desc())
-                                        .first()
-                                    )
+        exercise_row = self.find_exercise_id_db(chosen_exercise)
+        if not exercise_row:
+            return None
+        exercise_id = exercise_row[0]
 
-                                    # Return name of the previous exercise as string
-                                    previous_exercise = self.find_exercise_name_db(previous_workout_exercise_id_query.exercise_id)
-                                    previous_exercise = previous_exercise[0] if previous_exercise else None
-                                    return previous_exercise
-                            elif move == "next_day":
-                                # Find last exercise -> highest order_in_workout -> relevant for SUM
-                                if workout_exercise_id_query:
-                                    last_exercise = (
-                                        db.session.query(WorkoutExercises)
-                                        .filter(
-                                            WorkoutExercises.workout_id == chosed_day_id
-                                        )
-                                        .order_by(WorkoutExercises.workout_exercise_id.desc())
-                                        .first()
-                                    )
-                                    if workout_exercise_id_query.order_in_workout > 0 and workout_exercise_id_query.order_in_workout < last_exercise.order_in_workout:
-                                        next_workout_exercise_id_query = (
-                                        db.session.query(WorkoutExercises)
-                                        .filter(
-                                            WorkoutExercises.workout_id == workout_exercise_id_query.workout_id,
-                                            WorkoutExercises.order_in_workout == workout_exercise_id_query.order_in_workout + 1,
-                                        )
-                                        .first()
-                                    )
-                                        next_exercise = self.find_exercise_name_db(next_workout_exercise_id_query.exercise_id)
-                                        
-                                        next_exercise = next_exercise[0] if next_exercise else None
-                                        
-                                        return next_exercise
-                                    
-                                    else:
-                                        return None
+        current_index = next(
+            (i for i, row in enumerate(ordered) if row.exercise_id == exercise_id),
+            None,
+        )
+        if current_index is None:
+            # Current exercise is not in this workout any more (just deleted,
+            # or the day was switched underneath us).
+            return None
+
+        step = -1 if move == "previous_day" else 1
+        target_index = current_index + step
+
+        if target_index < 0 or target_index >= len(ordered):
+            # Already at the first / last exercise.
+            return None
+
+        name = self.find_exercise_name_db(ordered[target_index].exercise_id)
+        return name[0] if name else None

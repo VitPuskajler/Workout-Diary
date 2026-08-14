@@ -126,6 +126,29 @@
       {% if workouts_info %}
   {% if progress %}
     <div class="container mb-5">
+
+      {% if copy_text %}
+      <!-- One-tap copy of every table below, as markdown, for pasting into an AI chat. -->
+      <div class="row">
+        <div class="col-12 d-flex justify-content-end sticky-top py-2" style="top: 60px; z-index: 5;">
+          <button type="button" id="copyProgressBtn" class="btn btn-success btn-sm shadow"
+            style="min-height: 44px; min-width: 130px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+              viewBox="0 0 16 16" class="me-1" aria-hidden="true">
+              <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+              <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+            </svg>
+            <span id="copyProgressLabel">Copy all</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Source of truth for the clipboard. Kept out of view but still in the DOM
+           so the execCommand fallback has a real element to select. -->
+      <textarea id="progressCopySource" readonly aria-hidden="true" tabindex="-1"
+        style="position:absolute; left:-9999px; top:0; opacity:0;">{{ copy_text }}</textarea>
+      {% endif %}
+
       {% for key, value in progress.items() %}
         <div class="row mb-4">
           <div class="col-12">
@@ -188,6 +211,68 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
       integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
       crossorigin="anonymous"></script>
+
+    <script>
+      (function () {
+        var btn = document.getElementById("copyProgressBtn");
+        var source = document.getElementById("progressCopySource");
+        if (!btn || !source) return;
+
+        var label = document.getElementById("copyProgressLabel");
+        var resetTimer = null;
+
+        function flash(text, cssClass) {
+          label.textContent = text;
+          btn.classList.remove("btn-success", "btn-danger", "btn-secondary");
+          btn.classList.add(cssClass);
+          clearTimeout(resetTimer);
+          resetTimer = setTimeout(function () {
+            label.textContent = "Copy all";
+            btn.classList.remove("btn-danger", "btn-secondary");
+            btn.classList.add("btn-success");
+          }, 1800);
+        }
+
+        // Older mobile browsers, and any non-HTTPS origin, have no
+        // navigator.clipboard - fall back to select + execCommand there.
+        function legacyCopy() {
+          source.style.left = "0";
+          source.style.opacity = "0";
+          source.focus();
+          source.select();
+          source.setSelectionRange(0, source.value.length);
+          var ok = false;
+          try {
+            ok = document.execCommand("copy");
+          } catch (e) {
+            ok = false;
+          }
+          source.blur();
+          source.style.left = "-9999px";
+          return ok;
+        }
+
+        function runFallback() {
+          // Call once - execCommand has a side effect, so it must not be
+          // evaluated twice inside a ternary.
+          var ok = legacyCopy();
+          flash(ok ? "Copied!" : "Copy failed", ok ? "btn-secondary" : "btn-danger");
+        }
+
+        btn.addEventListener("click", function () {
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(source.value).then(
+              function () {
+                flash("Copied!", "btn-secondary");
+              },
+              runFallback
+            );
+          } else {
+            runFallback();
+          }
+        });
+      })();
+    </script>
 
 </body>
 
