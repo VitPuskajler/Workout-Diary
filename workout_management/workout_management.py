@@ -2011,7 +2011,7 @@ class WorkoutManagement:
         return result
 
     # Load data for each user's exercise - first and last entry
-    def exercises_progress(self, exercises_data):
+    def exercises_progress(self, exercises_data, period_label=None):
         # Example data set
         dates = []
         weights = []
@@ -2049,7 +2049,11 @@ class WorkoutManagement:
                 )
 
         # Customize the plot appearance
-        ax.set_title(f"{self.find_exercise_name_db(exe[0])[0]}")
+        # Read the id off the data, not off the leaked loop variable.
+        exercise_name = self.find_exercise_name_db(exercises_data[0][0])[0]
+        ax.set_title(
+            f"{exercise_name} - {period_label}" if period_label else f"{exercise_name}"
+        )
         ax.set_ylabel("Weight (kg)")
         ax.grid(True)
 
@@ -2112,55 +2116,119 @@ class WorkoutManagement:
                 return None
 
     # Data for specific exercise
-    def statistics_for_exercise(self, chosen_exercise):
+    # (value, label, days back). None days = no lower bound.
+    STATISTICS_RANGES = (
+        ("month", "Last month", 30),
+        ("3months", "Last 3 months", 91),
+        ("halfyear", "Last 1/2 year", 183),
+        ("year", "Last year", 365),
+        ("all", "All time", None),
+    )
+    DEFAULT_STATISTICS_RANGE = "all"
+
+    def statistics_range_options(self):
+        """[{value, label}] for the range dropdown, in display order."""
+        return [{"value": value, "label": label}
+                for value, label, _ in self.STATISTICS_RANGES]
+
+    def statistics_range_start(self, period):
+        """Earliest session_date to include, or None for no lower bound.
+
+        An unknown or missing period falls back to all time rather than
+        silently showing an empty graph.
+        """
+        days_by_value = {value: days for value, _, days in self.STATISTICS_RANGES}
+        days = days_by_value.get(period)
+        if days is None:
+            return None
+        return datetime.combine(date.today(), datetime.min.time()) - timedelta(days=days)
+
+    def statistics_range_label(self, period):
+        for value, label, _ in self.STATISTICS_RANGES:
+            if value == period:
+                return label
+        return "All time"
+
+    def statistics_for_exercise(self, chosen_exercise, period=None):
+        """Best set per session for one exercise, oldest first.
+
+        `period` is one of STATISTICS_RANGES; anything unrecognised means all time.
+        """
+        if (
+            not chosen_exercise
+            or chosen_exercise == "Choose Exercise"
+            or chosen_exercise == "You have no Mesocycle yet"
+        ):
+            return None
+
         user_id_db = self.current_user_id_db()
 
-        if (
-            chosen_exercise
-            and chosen_exercise != "Choose Exercise"
-            and chosen_exercise != "You have no Mesocycle yet"
-        ):
-            exercise_id_db = self.find_exercise_id_db(chosen_exercise)[0]
+        exercise_row = self.find_exercise_id_db(chosen_exercise)
+        if not exercise_row:
+            return None
+        exercise_id_db = exercise_row[0]
 
-            session_for_user = []
-
-            all_sessions_query = (
-                db.session.query(Sessions).filter(Sessions.user_id == user_id_db).all()
+        # Scoping by joining Sessions on user_id, rather than pre-loading every
+        # session id this user has ever had into an IN (...) list.
+        query = (
+            db.session.query(
+                ExerciseEntries.exercise_id,
+                Sessions.session_date,
+                func.max(ExerciseEntries.weight).label("max_weight"),
+                func.max(ExerciseEntries.reps).label("max_reps"),
             )
+            .join(Sessions, ExerciseEntries.session_id == Sessions.session_id)
+            .filter(
+                Sessions.user_id == user_id_db,
+                ExerciseEntries.exercise_id == exercise_id_db,
+            )
+        )
 
-            for session in all_sessions_query:
-                session_for_user.append(session.session_id)
+        range_start = self.statistics_range_start(period)
+        if range_start is not None:
+            query = query.filter(Sessions.session_date >= range_start)
 
-            if session_for_user:
-                best_sets_per_session_and_exercise = (
-                    db.session.query(
-                        ExerciseEntries.exercise_id,
-                        Sessions.session_date,  # <-- ADD THIS LINE
-                        func.max(ExerciseEntries.weight).label("max_weight"),
-                        func.max(ExerciseEntries.reps).label("max_reps"),
-                    )
-                    .join(
-                        Sessions,
-                        ExerciseEntries.session_id
-                        == Sessions.session_id,  # <-- ADD THIS LINE
-                    )
-                    .filter(
-                        ExerciseEntries.session_id.in_(session_for_user),
-                        ExerciseEntries.exercise_id == exercise_id_db,
-                    )
-                    .group_by(
-                        ExerciseEntries.exercise_id,
-                        Sessions.session_date,  # <-- ADD THIS LINE to GROUP BY
-                    )
-                    .all()
-                )
+        best_sets_per_session_and_exercise = (
+            query.group_by(ExerciseEntries.exercise_id, Sessions.session_date)
+            # Without this the rows come back in whatever order the DB likes,
+            # which draws the line graph zig-zagging back and forth in time.
+            .order_by(Sessions.session_date.asc())
+            .all()
+        )
 
-                if best_sets_per_session_and_exercise:
-                    return best_sets_per_session_and_exercise
-                else:
-                    return None
+        return best_sets_per_session_and_exercise or None
 
     # All exercises with at least one entry
+    def exercises_ranked_by_use(self):
+        """This user's logged exercises, most-used first.
+
+        Ranked by number of sets logged, ties broken alphabetically. Only
+        exercises with real ExerciseEntries appear, so every entry in the list
+        has an actual graph behind it.
+
+        One grouped query rather than a name lookup per exercise, because this
+        runs on every statistics page load.
+        """
+        user_id = self.current_user_id_db()
+
+        rows = (
+            db.session.query(
+                Exercise.exercise_name,
+                func.count(ExerciseEntries.entry_id).label("sets_logged"),
+            )
+            .join(
+                ExerciseEntries,
+                ExerciseEntries.exercise_id == Exercise.exercise_id,
+            )
+            .join(Sessions, Sessions.session_id == ExerciseEntries.session_id)
+            .filter(Sessions.user_id == user_id)
+            .group_by(Exercise.exercise_id, Exercise.exercise_name)
+            .order_by(desc("sets_logged"), Exercise.exercise_name.asc())
+            .all()
+        )
+
+        return [{"name": name, "sets": sets_logged} for name, sets_logged in rows]
+
     def all_exercises_list(self):
         user_id_db = self.current_user_id_db()
         session_for_user = []

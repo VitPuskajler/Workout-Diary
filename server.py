@@ -114,6 +114,9 @@ exercises_progress = db_operations.exercises_progress
 data_for_graph= db_operations.data_for_graph
 statistics_for_exercise = db_operations.statistics_for_exercise
 all_exercises_list = db_operations.all_exercises_list
+exercises_ranked_by_use = db_operations.exercises_ranked_by_use
+statistics_range_options = db_operations.statistics_range_options
+statistics_range_label = db_operations.statistics_range_label
 last_custom_day = db_operations.last_custom_day
 workout_to_excel = db_operations.workout_to_excel
 last_mesocycle_by_default = db_operations.last_mesocycle_by_default
@@ -629,18 +632,34 @@ def progress():
 @app.route("/statistics", methods=["GET", "POST"])
 def statistics():
     #graph_data = data_for_graph()
-    used_exercises = all_exercises_list()
+    # Most-used first; the picker shows the top 10 and hides the rest behind
+    # "show more", but searches the whole list as soon as you type.
+    used_exercises = exercises_ranked_by_use()
     graph = None
+    selected_value = None
+    chosen_period = db_operations.DEFAULT_STATISTICS_RANGE
+    no_data_in_period = False
 
     if request.method == "POST":
         selected_value = request.form.get('chosen_exercise')
-        exercise_data = statistics_for_exercise(selected_value)
+        chosen_period = request.form.get('period') or db_operations.DEFAULT_STATISTICS_RANGE
+        exercise_data = statistics_for_exercise(selected_value, chosen_period)
         if exercise_data:
-            graph = exercises_progress(exercise_data)
+            graph = exercises_progress(
+                exercise_data, statistics_range_label(chosen_period)
+            )
+        elif selected_value:
+            # Exercise is valid but has nothing inside the chosen window - say
+            # so, rather than rendering a blank space.
+            no_data_in_period = True
 
     return render_template("statistics.html",
                            graph = graph,
-                           exercises = used_exercises
+                           exercises = used_exercises,
+                           chosen_exercise = selected_value,
+                           periods = statistics_range_options(),
+                           chosen_period = chosen_period,
+                           no_data_in_period = no_data_in_period
                            )
 
 @login_required
