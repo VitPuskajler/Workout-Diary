@@ -390,7 +390,7 @@
 
           {% if preview is not none %}
 
-          <table class="table table-striped text-center mb-5">
+          <table class="table table-striped text-center mb-5" id="exercisePreview">
             <thead class="table-striped ">
               <tr>
                 <th class="col-2">Exercise</th>
@@ -403,8 +403,10 @@
               {% for row in preview %}
               <tr class="{% if row.done is not none %}table-success{% endif %}">
                 <td>
-                  <div class="col-12 center-container {% if row.done is not none %}text-success-emphasis{% endif %}">
-                    {{row.exercise}} </div>
+                  <button type="submit" name="chosen_exercise" value="{{row.exercise}}"
+                    class="btn p-0 border-0 shadow-none w-100 {% if row.done is not none %}text-success-emphasis{% endif %}">
+                    {{row.exercise}}
+                  </button>
                 </td>
                 <td>
                   <div class="col-10 center-container "> {{row.weight}} </div>
@@ -420,6 +422,22 @@
             </tbody>
           </table>
 
+          <style>
+            /* the whole row is a target for switching exercise, not just the name */
+            #exercisePreview tbody tr { cursor: pointer; }
+          </style>
+          <script>
+            // Tap anywhere in a preview row to switch to that exercise. The name cell
+            // is already a real submit button, so this only forwards taps that land on
+            // the other cells - and the page still works without it.
+            document.addEventListener("click", function (e) {
+              if (e.target.closest("button, a, input, select, textarea, label")) { return; }
+              var row = e.target.closest("#exercisePreview tbody tr");
+              if (!row) { return; }
+              var btn = row.querySelector("button[name='chosen_exercise']");
+              if (btn) { btn.click(); }
+            });
+          </script>
           {% endif %}
 
           <div class="container">
