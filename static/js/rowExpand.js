@@ -37,6 +37,7 @@
   var TABLE = "table.wd-rows";
   var ROW = TABLE + " > tbody > tr";
   var PLACEHOLDERS = ["", "-", "--", "–", "—", "None"];
+  var EDGE = "2px solid rgba(13,110,253,.55)";   // the highlight around an open note
 
   function injectCss() {
     var css = document.createElement("style");
@@ -58,8 +59,7 @@
       // --- wide mode: the cell stays clamped (so the table keeps its shape) and
       //     the note opens into a full width row underneath, set for reading:
       //     left aligned, roomy line-height, capped line length.
-      TABLE + " > tbody > tr.wd-note-row > td{text-align:left;padding:.6rem .85rem;" +
-        "box-shadow:inset 3px 0 0 rgba(13,110,253,.55)}" +
+      TABLE + " > tbody > tr.wd-note-row > td{text-align:left;padding:.6rem .85rem}" +
       TABLE + " .wd-note-text{line-height:1.6;max-width:70ch;white-space:pre-line;" +
         "word-break:break-word;cursor:text}" +
 
@@ -67,8 +67,19 @@
       TABLE + " > tbody > tr.wd-can-open{cursor:pointer}" +
       "@media (hover:hover){" + TABLE + " > tbody > tr.wd-can-open:not(.wd-open):hover{" +
         "outline:1px solid rgba(13,110,253,.3);outline-offset:-1px}}" +
-      TABLE + " > tbody > tr.wd-open{outline:2px solid rgba(13,110,253,.55);" +
-        "outline-offset:-2px}";
+
+      // The highlight is drawn as cell borders rather than an outline on the row,
+      // so that in wide mode the open row and the note underneath it close into a
+      // single box - top and sides on the row, sides and bottom on the note, and
+      // no line between them. An outline per row would draw that dividing line.
+      // In-place mode has no second row, so the row closes the box itself.
+      TABLE + ":not(.wd-wide-note) > tbody > tr.wd-open > td{border-top:" + EDGE +
+        ";border-bottom:" + EDGE + "}" +
+      TABLE + ".wd-wide-note > tbody > tr.wd-open > td{border-top:" + EDGE +
+        ";border-bottom:0}" +
+      TABLE + " > tbody > tr.wd-open > td:first-child{border-left:" + EDGE + "}" +
+      TABLE + " > tbody > tr.wd-open > td:last-child{border-right:" + EDGE + "}" +
+      TABLE + " > tbody > tr.wd-note-row > td{border:" + EDGE + ";border-top:0}";
     document.head.appendChild(css);
   }
 
@@ -108,7 +119,14 @@
     tr.className = "wd-note-row";
 
     var td = document.createElement("td");
-    td.colSpan = row.cells.length;
+    // Count visible cells, not all cells: a column hidden by a media query is
+    // still in row.cells, and a colSpan wider than the table is asking for
+    // trouble.
+    var span = 0;
+    for (var i = 0; i < row.cells.length; i++) {
+      if (row.cells[i].getClientRects().length) { span++; }
+    }
+    td.colSpan = span || row.cells.length;
 
     var text = document.createElement("div");
     text.className = "wd-note-text";

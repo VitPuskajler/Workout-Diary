@@ -148,6 +148,48 @@
         style="position:absolute; left:-9999px; top:0; opacity:0;">{{ copy_text }}</textarea>
       {% endif %}
 
+      <style>
+        /* On a phone the Notes column is only a teaser - tapping the row opens the
+           note in full underneath anyway, so the column is just stealing width from
+           Date / Reps / Weight / RPE. Hide it below Bootstrap's md breakpoint and
+           let the other four breathe. Unchanged on tablets and desktop. */
+        @media (max-width: 767.98px) {
+          /* nth-child(5) rather than .wd-notes so the "Never exercised" empty
+             state row, whose last cell carries no class, loses its fifth cell
+             too and stays aligned with the rest. */
+          .wd-wide-note > thead > tr > th:nth-child(5),
+          .wd-wide-note > tbody > tr > td:nth-child(5) {
+            display: none;
+          }
+
+          /* With the Notes column gone there is nothing to say which rows have
+             one. A chevron on the last visible cell marks them, and flips when
+             the note is open - so it answers "can I open this?" and "is this
+             the open one?" with the same mark. Drawn from two borders rather
+             than a text glyph so it stays sharp and does not depend on a font. */
+          .wd-wide-note > tbody > tr.wd-can-open > td:nth-child(4) {
+            position: relative;
+          }
+          .wd-wide-note > tbody > tr.wd-can-open > td:nth-child(4)::after {
+            content: "";
+            position: absolute;
+            right: .3rem;
+            top: 50%;
+            width: .4rem;
+            height: .4rem;
+            border-right: 2px solid currentColor;
+            border-bottom: 2px solid currentColor;
+            transform: translateY(-75%) rotate(45deg);
+            opacity: .4;
+            transition: transform .15s ease, opacity .15s ease;
+          }
+          .wd-wide-note > tbody > tr.wd-open > td:nth-child(4)::after {
+            transform: translateY(-25%) rotate(-135deg);
+            opacity: .75;
+          }
+        }
+      </style>
+
       {% for key, value in progress.items() %}
         <div class="row mb-4">
           <div class="col-12">

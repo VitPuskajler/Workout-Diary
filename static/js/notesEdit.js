@@ -24,6 +24,7 @@
 
   var SEL = "[data-note]";
   var MAX_HEIGHT = 200;          // px, then the textarea scrolls instead of growing
+  var EDGE = "2px solid rgba(13,110,253,.6)";   // the highlight around the editor
   var field = null;              // the small input currently being edited
   var editor = null;             // the <tr> holding the textarea
 
@@ -39,9 +40,13 @@
       SEL + "{cursor:pointer;resize:none;overflow:hidden;white-space:nowrap;" +
         "height:calc(1.5em + .75rem + 2px);min-height:0;" +
         "padding-top:0;padding-bottom:0;line-height:calc(1.5em + .75rem)}" +
-      // the editor row
-      "tr.wd-note-editor > td{padding:.4rem .5rem;" +
-        "box-shadow:inset 3px 0 0 rgba(13,110,253,.6)}" +
+      // The row being edited and the editor underneath it close into a single
+      // box: top and sides on the row, sides and bottom on the editor, nothing
+      // between them. A bar down one side only looked unfinished.
+      "tr.wd-note-editing > td{border-top:" + EDGE + ";border-bottom:0}" +
+      "tr.wd-note-editing > td:first-child{border-left:" + EDGE + "}" +
+      "tr.wd-note-editing > td:last-child{border-right:" + EDGE + "}" +
+      "tr.wd-note-editor > td{padding:.4rem .5rem;border:" + EDGE + ";border-top:0}" +
       "tr.wd-note-editor textarea{width:100%;text-align:left;resize:none;" +
         "overflow-y:auto;line-height:1.35}";
     document.head.appendChild(css);
@@ -53,7 +58,11 @@
   }
 
   function close() {
-    if (editor && editor.parentNode) { editor.parentNode.removeChild(editor); }
+    if (editor) {
+      var row = editor.previousElementSibling;
+      if (row) { row.classList.remove("wd-note-editing"); }
+      if (editor.parentNode) { editor.parentNode.removeChild(editor); }
+    }
     editor = null;
     field = null;
   }
@@ -97,6 +106,7 @@
     tr.appendChild(td);
     row.parentNode.insertBefore(tr, row.nextSibling);
 
+    row.classList.add("wd-note-editing");
     field = input;
     editor = tr;
 

@@ -431,7 +431,10 @@
                striping and the green "done" rows with an inset box-shadow that would
                cover a plain background. This is how .table-active does it. */
             #exercisePreview tbody tr.wd-picked > * {
+              /* 5.3 final reads --bs-table-bg-state; the 5.3.0-alpha2 stylesheet
+                 this page loads reads --bs-table-accent-bg. Set both. */
               --bs-table-bg-state: #cfe2ff;
+              --bs-table-accent-bg: #cfe2ff;
             }
           </style>
           <script>
