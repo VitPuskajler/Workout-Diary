@@ -16,6 +16,14 @@
    and make sure the note text sits in a div so it can be clamped:
      <td class="wd-notes"><div>{{ data.notes }}</div></td>
 
+   Two ways to open, chosen per table:
+     wd-rows                 the notes cell itself unclamps in place. Fine when
+                             the column is wide enough to read in.
+     wd-rows wd-wide-note    the note opens into its own full-width row below,
+                             left aligned with reading line-height. On a 390px
+                             phone that is ~44 characters per line instead of
+                             ~12, and 4 lines instead of 12.
+
    Then one line before </body>:
      <script src="{{ url_for('static', filename='js/rowExpand.js') }}"></script>
 
@@ -40,15 +48,22 @@
       // --- the note itself: one line, ellipsis, no effect on column width
       TABLE + " .wd-notes > div{display:-webkit-box;-webkit-box-orient:vertical;" +
         "-webkit-line-clamp:1;line-clamp:1;overflow:hidden;word-break:break-word;" +
-        // notes can now contain real newlines - honour them when opened
+        // notes can contain real newlines - honour them when opened
         "white-space:pre-line}" +
-      TABLE + " > tbody > tr.wd-open .wd-notes > div{-webkit-line-clamp:unset;" +
-        "line-clamp:unset;overflow:visible}" +
 
-      // --- only rows that actually hold a hidden note look and behave tappable.
-      //     outline rather than background-color, so it stays visible on top of
-      //     Bootstrap's striping and its table-info / table-success tints, which
-      //     paint themselves with an inset box-shadow over the background.
+      // --- in-place mode: the cell unclamps where it sits
+      TABLE + ":not(.wd-wide-note) > tbody > tr.wd-open .wd-notes > div{" +
+        "-webkit-line-clamp:unset;line-clamp:unset;overflow:visible}" +
+
+      // --- wide mode: the cell stays clamped (so the table keeps its shape) and
+      //     the note opens into a full width row underneath, set for reading:
+      //     left aligned, roomy line-height, capped line length.
+      TABLE + " > tbody > tr.wd-note-row > td{text-align:left;padding:.6rem .85rem;" +
+        "box-shadow:inset 3px 0 0 rgba(13,110,253,.55)}" +
+      TABLE + " .wd-note-text{line-height:1.6;max-width:70ch;white-space:pre-line;" +
+        "word-break:break-word;cursor:text}" +
+
+      // --- only rows that actually hold a hidden note look and behave tappable
       TABLE + " > tbody > tr.wd-can-open{cursor:pointer}" +
       "@media (hover:hover){" + TABLE + " > tbody > tr.wd-can-open:not(.wd-open):hover{" +
         "outline:1px solid rgba(13,110,253,.3);outline-offset:-1px}}" +
@@ -63,7 +78,7 @@
     for (var i = 0; i < PLACEHOLDERS.length; i++) {
       if (text === PLACEHOLDERS[i]) { return false; }
     }
-    // An open row measures as "fits" by definition - leave it alone.
+    // An open row in in-place mode measures as "fits" by definition.
     if (row.classList.contains("wd-open")) { return true; }
     // offsetParent is null inside a closed Bootstrap collapse, where nothing can
     // be measured. Assume expandable there and re-check once it is shown.
@@ -74,25 +89,64 @@
   function markRows() {
     var rows = document.querySelectorAll(ROW);
     for (var i = 0; i < rows.length; i++) {
+      if (rows[i].classList.contains("wd-note-row")) { continue; }
       var note = rows[i].querySelector(".wd-notes > div");
       rows[i].classList.toggle("wd-can-open", !!note && isExpandable(note, rows[i]));
+    }
+  }
+
+  function openRow(row) {
+    row.classList.add("wd-open");
+
+    var table = row.closest("table");
+    if (!table || !table.classList.contains("wd-wide-note")) { return; }
+
+    var note = row.querySelector(".wd-notes > div");
+    if (!note) { return; }
+
+    var tr = document.createElement("tr");
+    tr.className = "wd-note-row";
+
+    var td = document.createElement("td");
+    td.colSpan = row.cells.length;
+
+    var text = document.createElement("div");
+    text.className = "wd-note-text";
+    text.textContent = note.textContent.trim();
+
+    td.appendChild(text);
+    tr.appendChild(td);
+    row.parentNode.insertBefore(tr, row.nextSibling);
+  }
+
+  function closeRow(row) {
+    row.classList.remove("wd-open");
+    var next = row.nextElementSibling;
+    if (next && next.classList.contains("wd-note-row")) {
+      next.parentNode.removeChild(next);
     }
   }
 
   function closeOpen(except) {
     var open = document.querySelectorAll(ROW + ".wd-open");
     for (var i = 0; i < open.length; i++) {
-      if (open[i] !== except) { open[i].classList.remove("wd-open"); }
+      if (open[i] !== except) { closeRow(open[i]); }
     }
   }
 
   function onClick(e) {
     // Never swallow a real control that happens to sit inside a row.
     if (e.target.closest("a,button,input,select,textarea,label")) { return; }
+    // Touching the opened note must not close it - you may be reading or
+    // selecting text in there.
+    if (e.target.closest("tr.wd-note-row")) { return; }
 
     var row = e.target.closest(ROW + ".wd-can-open");
+    var wasOpen = row && row.classList.contains("wd-open");
+
     closeOpen(row);                       // other row, or empty page -> collapse
-    if (row) { row.classList.toggle("wd-open"); }
+    if (!row) { return; }
+    if (wasOpen) { closeRow(row); } else { openRow(row); }
   }
 
   function start() {
