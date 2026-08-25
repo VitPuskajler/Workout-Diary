@@ -425,15 +425,26 @@
           <style>
             /* the whole row is a target for switching exercise, not just the name */
             #exercisePreview tbody tr { cursor: pointer; }
+
+            /* Tapped row goes Bootstrap light blue while the page is on its way back.
+               Set --bs-table-bg-state rather than background-color: Bootstrap paints
+               striping and the green "done" rows with an inset box-shadow that would
+               cover a plain background. This is how .table-active does it. */
+            #exercisePreview tbody tr.wd-picked > * {
+              --bs-table-bg-state: #cfe2ff;
+            }
           </style>
           <script>
             // Tap anywhere in a preview row to switch to that exercise. The name cell
             // is already a real submit button, so this only forwards taps that land on
             // the other cells - and the page still works without it.
             document.addEventListener("click", function (e) {
-              if (e.target.closest("button, a, input, select, textarea, label")) { return; }
               var row = e.target.closest("#exercisePreview tbody tr");
               if (!row) { return; }
+
+              row.classList.add("wd-picked");   // paint the tap before we navigate
+
+              if (e.target.closest("button, a, input, select, textarea, label")) { return; }
               var btn = row.querySelector("button[name='chosen_exercise']");
               if (btn) { btn.click(); }
             });
