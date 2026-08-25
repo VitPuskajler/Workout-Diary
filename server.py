@@ -622,6 +622,56 @@ def stop_impersonating():
     return redirect(url_for("profile"))
 
 
+MIN_PASSWORD_LENGTH = 8
+
+
+@app.route("/profile/change-password", methods=["POST"])
+@login_required
+def change_password():
+    """Change the password of whoever is currently signed in.
+
+    While impersonating, that is the friend whose account you are in - so this
+    doubles as the admin reset tool. In that case the password you must type to
+    prove yourself is YOUR OWN admin password, because you do not know theirs.
+    """
+    current = request.form.get("current_password", "")
+    new = request.form.get("new_password", "")
+    repeat = request.form.get("repeat_password", "")
+
+    impersonator_id = session.get(IMPERSONATOR_KEY)
+    if impersonator_id:
+        verifier = db.session.get(Users, impersonator_id)
+        # Same re-check as the return route: trust the database, not the cookie.
+        if verifier is None or not verifier.is_admin:
+            logout_user()
+            session.clear()
+            abort(403)
+    else:
+        verifier = current_user
+
+    if not check_password_hash(verifier.password, current):
+        flash("That password is not right, nothing was changed.", "error")
+        return redirect(url_for("profile"))
+
+    if len(new) < MIN_PASSWORD_LENGTH:
+        flash(f"The new password needs at least {MIN_PASSWORD_LENGTH} characters.", "error")
+        return redirect(url_for("profile"))
+
+    if new != repeat:
+        flash("The two new passwords do not match.", "error")
+        return redirect(url_for("profile"))
+
+    target = db.session.get(Users, current_user.user_id)
+    target.password = generate_password_hash(new, method="pbkdf2:sha256")
+    db.session.commit()
+
+    if impersonator_id:
+        flash(f"Password changed for {target.username}. Tell them what it is.", "success")
+    else:
+        flash("Your password has been changed.", "success")
+    return redirect(url_for("profile"))
+
+
 @app.route("/profile", methods=["GET", "POST"])
 @login_required
 def profile():
@@ -636,9 +686,6 @@ def profile():
     elif action == 'statistics':
         # Handle statistics
         return redirect(url_for("statistics"))
-    elif action == 'change_password':
-        # Handle changing password
-        return "For now you need to contact admit to change your password. <br>This function will be added in the future.</br>" 
 
     users_to_impersonate = []
     if current_user.is_admin and not session.get(IMPERSONATOR_KEY):

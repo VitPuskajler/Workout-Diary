@@ -140,6 +140,7 @@
     <form method="post" action="{{ url_for('profile')}}">
         <div class="position-absolute top-50 start-50 translate-middle">
             <div class="border rounded p-4" style="width: 300px;"> <!-- Added border and width -->
+                {% include "partials/_flashes.html" %}
                 {% if impersonator %}
                 <div class="alert alert-warning py-2 px-2 mb-3 text-center small">
                     Signed in as <strong>{{ current_user.username }}</strong><br>
@@ -157,8 +158,8 @@
                     <button type="submit" class="btn btn-primary btn-block" name="action"
                         value="statistics">Statistics</button>
 
-                    <button type="submit" class="btn btn-primary btn-block" name="action" value="change_password">Change
-                        Password</button>
+                    <button type="button" class="btn btn-primary btn-block" data-bs-toggle="modal"
+                        data-bs-target="#changePasswordModal">Change Password</button>
 
                     {% if current_user.is_admin and not impersonator %}
                     <!-- admins only: the route behind this modal 404s for everyone else -->
@@ -177,6 +178,88 @@
             </div>
         </div>
     </form>
+
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="changePasswordLabel">Change password</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <form method="post" action="{{ url_for('change_password') }}" id="changePasswordForm">
+                    <div class="modal-body">
+
+                        {% if impersonator %}
+                        <div class="alert alert-warning py-2 small">
+                            This changes the password for <strong>{{ current_user.username }}</strong>.
+                            Confirm with your own admin password.
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="currentPassword" class="form-label">
+                                {% if impersonator %}Your admin password ({{ impersonator.username }})
+                                {% else %}Current password{% endif %}
+                            </label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="currentPassword"
+                                    name="current_password" required autocomplete="current-password">
+                                <button class="btn btn-outline-secondary js-toggle-password" type="button"
+                                    data-target="currentPassword" aria-label="Show password">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                                        viewBox="0 0 16 16" aria-hidden="true">
+                                        <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                                        <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="newPassword" class="form-label">New password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="newPassword" name="new_password"
+                                    required minlength="8" autocomplete="new-password">
+                                <button class="btn btn-outline-secondary js-toggle-password" type="button"
+                                    data-target="newPassword" aria-label="Show password">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                                        viewBox="0 0 16 16" aria-hidden="true">
+                                        <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                                        <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="form-text">At least 8 characters.</div>
+                        </div>
+
+                        <div class="mb-1">
+                            <label for="repeatPassword" class="form-label">Repeat new password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="repeatPassword"
+                                    name="repeat_password" required minlength="8" autocomplete="new-password">
+                                <button class="btn btn-outline-secondary js-toggle-password" type="button"
+                                    data-target="repeatPassword" aria-label="Show password">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                                        viewBox="0 0 16 16" aria-hidden="true">
+                                        <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                                        <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="invalid-feedback d-block small text-danger" id="repeatMismatch"></div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Confirm</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     {% if current_user.is_admin and not impersonator %}
     <div class="modal fade" id="impersonateModal" tabindex="-1" aria-labelledby="impersonateModalLabel"
@@ -218,6 +301,49 @@
     </div>
     <!-- -------------------------------------------------------------------------- -->
     <script>
+        // Eye buttons: flip a password field between hidden and visible.
+        document.querySelectorAll(".js-toggle-password").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var field = document.getElementById(btn.dataset.target);
+                if (!field) { return; }
+                var showing = field.type === "text";
+                field.type = showing ? "password" : "text";
+                btn.classList.toggle("active", !showing);
+                btn.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+                field.focus();
+            });
+        });
+
+        // Tell the user the two new passwords differ before the round trip.
+        // The server checks this again - this is only to save you a page load.
+        (function () {
+            var form = document.getElementById("changePasswordForm");
+            if (!form) { return; }
+            var pw = document.getElementById("newPassword");
+            var repeat = document.getElementById("repeatPassword");
+            var note = document.getElementById("repeatMismatch");
+
+            function validate() {
+                var mismatch = repeat.value !== "" && pw.value !== repeat.value;
+                repeat.setCustomValidity(mismatch ? "Passwords do not match" : "");
+                note.textContent = mismatch ? "The two passwords do not match." : "";
+            }
+
+            pw.addEventListener("input", validate);
+            repeat.addEventListener("input", validate);
+
+            // Never leave a typed password sitting in the box after dismissing.
+            var modal = document.getElementById("changePasswordModal");
+            modal.addEventListener("hidden.bs.modal", function () {
+                form.reset();
+                note.textContent = "";
+                repeat.setCustomValidity("");
+                form.querySelectorAll("input[type=text]").forEach(function (f) {
+                    f.type = "password";
+                });
+            });
+        })();
+
         // Additional script to reset the color on focus if needed
         document.querySelectorAll('input').forEach(input => {
             input.addEventListener('focus', function () {

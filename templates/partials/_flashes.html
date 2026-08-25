@@ -1,0 +1,13 @@
+{# Renders anything passed to flash(). Nothing in this project rendered them
+   before, so messages were queued in the session and silently thrown away. #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="alert alert-{{ 'danger' if category == 'error' else category or 'info' }}
+            alert-dismissible fade show mb-3 py-2" role="alert">
+  {{ message }}
+  <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
