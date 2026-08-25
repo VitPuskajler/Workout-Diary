@@ -170,7 +170,7 @@
   <div class="d-flex justify-content-center">
     <div class="collapse" id="collapseExample">
       <div class="card card-body">
-        <table class="table table-info table-striped text-center mb-1">
+        <table class="table table-info table-striped text-center mb-1 wd-rows">
 
 
           <thead>
@@ -184,20 +184,20 @@
             {% for exercise in last_exercise %}
             <tr>
               <td>
-                <div class="col-8 center-container "> {{exercise.weight}} </div>
+                <div> {{exercise.weight}} </div>
               </td>
               <td>
-                <div class="col-5 center-container "> {{exercise.reps}} </div>
+                <div> {{exercise.reps}} </div>
               </td>
               <td>
-                <div class="col-6 center-container "> {{exercise.rpe}} </div>
+                <div> {{exercise.rpe}} </div>
               </td>
-              <td>
-                <div class="col-12 center-container "> {{exercise.notes if exercise.notes else "-" }} </div>
+              <td class="wd-notes">
+                <div> {{exercise.notes if exercise.notes else "-" }} </div>
               </td>
             </tr>
+            {% endfor %}
           </tbody>
-          {% endfor %}
 
         </table>
       </div>
@@ -236,8 +236,8 @@
                   <td><input type="number" class="form-control text-center" name="update_rpe_{{ set.entry_id }}"
                       placeholder="{{set.rpe}}" /></td>
 
-                  <td><input type="text" class="form-control text-center" name="update_notes_{{ set.entry_id }}"
-                      placeholder="{{set.notes}}" /></td>
+                  <td><textarea rows="1" class="form-control text-center" data-note
+                      name="update_notes_{{ set.entry_id }}" placeholder="{{set.notes}}"></textarea></td>
 
                   <td class="w-auto">
                     <input class="form-check-input" type="checkbox" name="delete" value="{{ set.entry_id }}" />
@@ -271,8 +271,8 @@
                   </td>
                   <td>
                     <div class="center-container">
-                      <input type="text" name="notes" class="form-control text-center text-warning"
-                        placeholder="{{ placeholders.notes }}" />
+                      <textarea rows="1" name="notes" data-note class="form-control text-center text-warning"
+                        placeholder="{{ placeholders.notes }}"></textarea>
                     </div>
                   </td>
                   <td>.</td>
@@ -302,8 +302,8 @@
                   </td>
                   <td>
                     <div class="col-12 center-container">
-                      <input type="text" name="notes" class="form-control text-center bg-success-subtle text-warning"
-                        placeholder="..." />
+                      <textarea rows="1" name="notes" data-note class="form-control text-center bg-success-subtle text-warning"
+                        placeholder="..."></textarea>
                     </div>
                   </td>
                   <td>.</td>
@@ -442,6 +442,8 @@
 
 
 
+  <script src="{{ url_for('static', filename='js/rowExpand.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/notesEdit.js') }}"></script>
   <!-- waiting overlay -->
   <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>

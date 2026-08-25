@@ -10,7 +10,6 @@
     integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@3">
 
-  <meta name="viewport" content="width=device-width, initial-scale=.7" />
 
 </head>
 
@@ -157,7 +156,7 @@
         </div>
         <div class="row">
           <div class="col-12">
-            <table class="table table-striped table-bordered text-center">
+            <table class="table table-striped text-center wd-rows">
               <thead class="thead-dark">
                 <tr>
                   <th>Date</th>
@@ -175,7 +174,7 @@
                       <td class="col-2">{{ data.reps }}</td>
                       <td class="col-2">{{ data.weight }}</td>
                       <td class="col-2">{{ data.rpe }}</td>
-                      <td class="col-4">{{ data.notes }}</td>                  
+                      <td class="col-4 wd-notes"><div>{{ data.notes if data.notes else "" }}</div></td>                  
                     </tr>
                   {% endfor %}
                 {% else %}
@@ -183,6 +182,7 @@
                   <td class="col-2">Never exercised</td>
                   <td class="col-2">No reps</td>
                   <td class="col-2">No weight</td>
+                  <td class="col-2">No RPE</td>
                   <td class="col-4">nothing written</td>                  
                 </tr>
                 {% endif %}
@@ -274,6 +274,9 @@
       })();
     </script>
 
+  <script src="{{ url_for('static', filename='js/rowExpand.js') }}"></script>
+  <!-- waiting overlay -->
+  <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
 </body>
 
 </html>
