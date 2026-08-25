@@ -210,15 +210,42 @@
     <div class="container">
       <div class="row justify-content-center">
         <div class="col-12 col-md-9">
+          <!-- Without table-layout:fixed this table sizes itself from the intrinsic
+               width of the inputs (~75px per column = 375px), which is wider than the
+               366px a 390px phone gives it - so it hung off the screen edge. Fixed
+               layout makes it obey the container, and makes the col-* widths on the
+               headers below actually count. -->
+          <style>
+            /* Fixed layout, so the columns obey these widths instead of the inputs'
+               intrinsic size - that intrinsic size is what used to push the table
+               9px off the edge of a 390px phone.
+
+               Five equal columns, which is exactly the proportion the table had
+               before: it was five 75px columns adding up to 375px in a 366px space.
+               20% each lands them at 73px, so nothing looks different - it just
+               fits now. */
+            .table-responsive > .table {
+              table-layout: fixed;
+              width: 100%;
+            }
+
+            .table-responsive th { width: 20%; }
+
+            /* the default .form-control side padding eats 24px of a 58px cell */
+            .table-responsive .form-control {
+              padding-left: .25rem;
+              padding-right: .25rem;
+            }
+          </style>
           <div class="table-responsive">
             <table class="table table-striped text-center mb-5">
               <thead>
                 <tr>
-                  <th class="col-2">Kg</th>
-                  <th class="col-1">Reps</th>
-                  <th class="col-1">RPE</th>
-                  <th class="col-3">Notes</th>
-                  <th class="col-1">Del</th>
+                  <th>Kg</th>
+                  <th>Reps</th>
+                  <th>RPE</th>
+                  <th>Notes</th>
+                  <th>Del</th>
                 </tr>
               </thead>
               <tbody>

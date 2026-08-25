@@ -43,9 +43,7 @@
       "tr.wd-note-editor > td{padding:.4rem .5rem;" +
         "box-shadow:inset 3px 0 0 rgba(13,110,253,.6)}" +
       "tr.wd-note-editor textarea{width:100%;text-align:left;resize:none;" +
-        "overflow-y:auto;line-height:1.35}" +
-      "tr.wd-note-editor .wd-note-hint{font-size:.75rem;opacity:.6;text-align:left;" +
-        "margin-top:.15rem}";
+        "overflow-y:auto;line-height:1.35}";
     document.head.appendChild(css);
   }
 
@@ -60,8 +58,11 @@
     field = null;
   }
 
+  function toggle(input) {
+    if (field === input) { close(); } else { open(input); }
+  }
+
   function open(input) {
-    if (field === input) { return; }
     close();
 
     var row = input.closest("tr");
@@ -92,12 +93,7 @@
       autoGrow(ta);
     });
 
-    var hint = document.createElement("div");
-    hint.className = "wd-note-hint";
-    hint.textContent = "Tap anywhere outside to close";
-
     td.appendChild(ta);
-    td.appendChild(hint);
     tr.appendChild(td);
     row.parentNode.insertBefore(tr, row.nextSibling);
 
@@ -121,13 +117,26 @@
     var inputs = document.querySelectorAll(SEL);
     for (var i = 0; i < inputs.length; i++) { inputs[i].readOnly = true; }
 
-    document.addEventListener("focusin", function (e) {
-      if (e.target.matches && e.target.matches(SEL)) { open(e.target); }
+    // Opening is driven by click, not focus, so that tapping the cell a second
+    // time closes the editor again. focusin only ever closes.
+    document.addEventListener("click", function (e) {
+      if (e.target.matches && e.target.matches(SEL)) { toggle(e.target); }
       else if (isOutside(e.target)) { close(); }
     });
 
-    document.addEventListener("click", function (e) {
+    document.addEventListener("focusin", function (e) {
+      if (e.target.matches && e.target.matches(SEL)) { return; }
       if (isOutside(e.target)) { close(); }
+    });
+
+    // Keyboard equivalent - Enter or Space on a focused Notes cell.
+    document.addEventListener("keydown", function (e) {
+      if (!e.target.matches || !e.target.matches(SEL)) { return; }
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();          // must not reach the Confirm binding
+        toggle(e.target);
+      }
     });
   }
 
