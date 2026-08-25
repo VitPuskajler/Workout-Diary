@@ -1,0 +1,54 @@
+{# Shown on every page (except profile, which puts the message inside its own
+   panel) while an admin is signed in as somebody else. `impersonator` comes
+   from the inject_impersonation context processor in server.py. #}
+{% if impersonator %}
+<div id="wd-impersonation-banner"
+     class="alert alert-warning border-0 rounded-0 mb-3 py-2 px-3 d-flex flex-wrap
+            align-items-center justify-content-center gap-2 text-center">
+  <span class="small">
+    Signed in as <strong>{{ current_user.username }}</strong> &mdash;
+    you are really {{ impersonator.username }}
+  </span>
+  <form method="post" action="{{ url_for('stop_impersonating') }}" class="m-0">
+    <button type="submit" class="btn btn-sm btn-dark">Back to my account</button>
+  </form>
+</div>
+<script>
+  // The navbar is position:fixed, so it takes no space, and each page clears it
+  // with a wrapper of its own (p-3 mb-3 here, p-4 mb-5 there). That leftover
+  // shows up as a gap - or an overlap - between the header and this banner.
+  // Rather than guess a pixel offset, measure the real distance and cancel it.
+  (function () {
+    var banner = document.getElementById("wd-impersonation-banner");
+    var nav = document.querySelector("nav.navbar.fixed-top");
+    if (!banner || !nav) { return; }          // pages without a fixed navbar are fine as-is
+
+    var basePad = null;
+
+    function align() {
+      banner.style.marginTop = "";            // measure it unshifted first
+      if (basePad === null) {
+        basePad = parseFloat(getComputedStyle(banner).paddingTop) || 0;
+      }
+      banner.style.paddingTop = basePad + "px";
+
+      var gap = banner.getBoundingClientRect().top - nav.getBoundingClientRect().bottom;
+
+      if (gap > 0) {
+        // Too low. A negative margin pulls it up - negative margins are not
+        // swallowed by margin collapsing, so this always takes effect.
+        banner.style.marginTop = (-gap) + "px";
+      } else if (gap < 0) {
+        // Tucked behind the navbar. A positive margin here would just collapse
+        // with the spacer above and do nothing, so grow the padding instead:
+        // the hidden strip gets taller and the visible edge lands flush.
+        banner.style.paddingTop = (basePad - gap) + "px";
+      }
+    }
+
+    align();
+    window.addEventListener("load", align);   // again once fonts have settled
+    window.addEventListener("resize", align);
+  })();
+</script>
+{% endif %}

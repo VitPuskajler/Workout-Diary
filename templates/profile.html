@@ -140,6 +140,12 @@
     <form method="post" action="{{ url_for('profile')}}">
         <div class="position-absolute top-50 start-50 translate-middle">
             <div class="border rounded p-4" style="width: 300px;"> <!-- Added border and width -->
+                {% if impersonator %}
+                <div class="alert alert-warning py-2 px-2 mb-3 text-center small">
+                    Signed in as <strong>{{ current_user.username }}</strong><br>
+                    you are really {{ impersonator.username }}
+                </div>
+                {% endif %}
                 <!-- Modify Current Mesocycle Button -->
                 <div class="d-grid gap-2 mb-3">
                     <button type="submit" class="btn btn-primary btn-block" name="action"
@@ -153,10 +159,56 @@
 
                     <button type="submit" class="btn btn-primary btn-block" name="action" value="change_password">Change
                         Password</button>
+
+                    {% if current_user.is_admin and not impersonator %}
+                    <!-- admins only: the route behind this modal 404s for everyone else -->
+                    <button type="button" class="btn btn-warning btn-block" data-bs-toggle="modal"
+                        data-bs-target="#impersonateModal">Sign in as user</button>
+                    {% endif %}
+
+                    {% if impersonator %}
+                    <!-- formaction sends this one button to a different route, so the
+                         return path needs no second form nested inside this one -->
+                    <button type="submit" class="btn btn-dark btn-block"
+                        formaction="{{ url_for('stop_impersonating') }}" formmethod="post">
+                        Back to my account ({{ impersonator.username }})</button>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </form>
+
+    {% if current_user.is_admin and not impersonator %}
+    <div class="modal fade" id="impersonateModal" tabindex="-1" aria-labelledby="impersonateModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="impersonateModalLabel">Sign in as user</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="post" action="{{ url_for('impersonate') }}">
+                    <div class="modal-body">
+                        {% if users_to_impersonate %}
+                        <div class="d-grid gap-2">
+                            {% for candidate in users_to_impersonate %}
+                            <button type="submit" name="user_id" value="{{ candidate.user_id }}"
+                                class="btn btn-outline-primary">{{ candidate.username }}</button>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="mb-0 text-body-secondary">No other users to sign in as.</p>
+                        {% endif %}
+                    </div>
+                </form>
+                <div class="modal-footer">
+                    <small class="text-body-secondary">You will stay signed in as them until you come back
+                        from the banner or this page.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- -------------------------------------------------------------------------- -->
     <div clas="p-3">

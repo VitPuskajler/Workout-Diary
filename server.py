@@ -1,7 +1,10 @@
 import os
+import secrets
 from datetime import datetime, timedelta
+from functools import wraps
 from flask import (
     Flask,
+    abort,
     flash,
     jsonify,
     redirect,
@@ -34,7 +37,41 @@ from models.models import Users, WorkoutPlan, Mesocycles, load_user
 from workout_management.workout_management import  WorkoutManagement
 
 app = Flask(__name__, instance_relative_config=True)
-app.secret_key = "thiskeyshouldntbeherebutfornowitisok.1084"
+
+
+def load_secret_key():
+    """The session cookie is SIGNED with this key, so anyone who knows it can
+    forge a cookie for any account - it must never sit in the repository.
+
+    Order: an environment variable if one is set, otherwise a key file kept in
+    instance/, which .gitignore already excludes. The file is generated on first
+    run, so a fresh checkout or a fresh PythonAnywhere deploy just works and each
+    environment ends up with its own key.
+    """
+    from_env = os.environ.get("WORKOUT_SECRET_KEY")
+    if from_env:
+        return from_env
+
+    key_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "instance", "secret_key")
+    if os.path.exists(key_path):
+        with open(key_path, "r", encoding="utf-8") as handle:
+            key = handle.read().strip()
+            if key:
+                return key
+
+    key = secrets.token_urlsafe(48)
+    os.makedirs(os.path.dirname(key_path), exist_ok=True)
+    with open(key_path, "w", encoding="utf-8") as handle:
+        handle.write(key)
+    try:
+        os.chmod(key_path, 0o600)          # no-op on Windows, matters on the server
+    except OSError:
+        pass
+    return key
+
+
+app.secret_key = load_secret_key()
 
 # Login manager setup
 login_manager = LoginManager()
@@ -486,11 +523,105 @@ def training_session():
     )
 
 # --------------------------------------------------------------------------
-@login_required
 @app.route("/execute_workout_plan_exercises")
+@login_required
 def execute_workout_plan_exercises():
     return render_template("<h1>Just test if process will pass<h1>")
 # --------------------------------------------------------------------------
+# --------------------------------------------------------------------------
+#  Admin: signing in as another user
+#
+#  The whole feature rests on two rules:
+#    1. Whether you are an admin is read from the DATABASE on every request,
+#       never from anything the browser sent.
+#    2. Who you really are while impersonating lives in session["impersonator_id"],
+#       inside the signed session cookie - which is why the signing key must
+#       stay out of the repository (see load_secret_key above).
+# --------------------------------------------------------------------------
+
+IMPERSONATOR_KEY = "impersonator_id"
+
+
+def admin_required(view):
+    """404 rather than 403 for non-admins - no reason to advertise the route."""
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin:
+            abort(404)
+        return view(*args, **kwargs)
+
+    return wrapper
+
+
+@app.context_processor
+def inject_impersonation():
+    """Every template can ask whether this session is impersonating, and who
+    the real admin is, so the banner can render on any page."""
+    impersonator = None
+    impersonator_id = session.get(IMPERSONATOR_KEY)
+    if impersonator_id:
+        impersonator = db.session.get(Users, impersonator_id)
+    return {"impersonator": impersonator}
+
+
+@app.route("/admin/impersonate", methods=["POST"])
+@login_required
+@admin_required
+def impersonate():
+    if session.get(IMPERSONATOR_KEY):
+        abort(400)                                  # already impersonating, no nesting
+
+    try:
+        target_id = int(request.form.get("user_id", ""))
+    except (TypeError, ValueError):
+        abort(400)
+
+    target = db.session.get(Users, target_id)
+    if target is None:
+        abort(404)
+    if target.user_id == current_user.user_id:
+        abort(400)
+    if target.is_admin:
+        abort(403)                                  # admins are never a target
+
+    admin_id = current_user.user_id
+
+    # The session carries chosen_day / chosen_exercise / chosen_mesocycle, and
+    # those decide where a confirmed set gets written. Carrying them into
+    # someone else's account would log sets into the wrong diary, so the whole
+    # session goes. Clear first, log in second, stamp the key last.
+    logout_user()
+    session.clear()
+    login_user(target)
+    session[IMPERSONATOR_KEY] = admin_id
+
+    flash(f"You are now signed in as {target.username}.", "info")
+    return redirect(url_for("profile"))
+
+
+@app.route("/admin/stop-impersonating", methods=["POST"])
+@login_required
+def stop_impersonating():
+    admin_id = session.get(IMPERSONATOR_KEY)
+    if not admin_id:
+        abort(404)
+
+    admin = db.session.get(Users, admin_id)
+    # Re-check the role against the database. Even if this key were somehow
+    # planted, it would have to name a real admin to get anywhere.
+    if admin is None or not admin.is_admin:
+        logout_user()
+        session.clear()
+        abort(403)
+
+    logout_user()
+    session.clear()
+    login_user(admin)
+
+    flash("Back on your own account.", "success")
+    return redirect(url_for("profile"))
+
+
 @app.route("/profile", methods=["GET", "POST"])
 @login_required
 def profile():
@@ -509,13 +640,25 @@ def profile():
         # Handle changing password
         return "For now you need to contact admit to change your password. <br>This function will be added in the future.</br>" 
 
+    users_to_impersonate = []
+    if current_user.is_admin and not session.get(IMPERSONATOR_KEY):
+        # Never offer yourself, and never offer another admin.
+        users_to_impersonate = (
+            db.session.query(Users)
+            .filter(Users.user_id != current_user.user_id)
+            .filter(Users.role != "admin")
+            .order_by(Users.username)
+            .all()
+        )
+
     return render_template(
         "profile.html",
+        users_to_impersonate=users_to_impersonate,
     )
 
 # --------------------------------------------------------------------------
-@login_required
 @app.route("/progress", methods=["GET", "POST"])
+@login_required
 def progress():
     NOW = datetime.now()
     YEAR = NOW.strftime("%Y")
@@ -628,8 +771,8 @@ def progress():
     copy_text=copy_text,
 )
 
-@login_required
 @app.route("/statistics", methods=["GET", "POST"])
+@login_required
 def statistics():
     #graph_data = data_for_graph()
     # Most-used first; the picker shows the top 10 and hides the rest behind
@@ -662,8 +805,8 @@ def statistics():
                            no_data_in_period = no_data_in_period
                            )
 
-@login_required
 @app.route("/intuitive_training", methods=["GET", "POST"])
+@login_required
 def intuitive_training():
     NOW = datetime.now()
     YEAR = NOW.strftime("%Y")

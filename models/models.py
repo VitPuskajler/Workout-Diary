@@ -20,9 +20,16 @@ class Users(UserMixin, db.Model):
     weight = Column(Float, unique=False, nullable=False)
     mesocycles = Column(Integer, unique=False, nullable=True)
     email = Column(String(100), unique=True, nullable=False)
+    # "user" or "admin". server_default matters: the column was added to a table
+    # that already had rows, so existing users need a value at the SQL level.
+    role = Column(String(20), nullable=False, default="user", server_default="user")
 
     def __repr__(self):
         return f"<User {self.username}>"
+
+    @property
+    def is_admin(self):
+        return self.role == "admin"
 
     def get_id(self):
         return str(self.user_id)
