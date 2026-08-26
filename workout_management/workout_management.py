@@ -2988,10 +2988,16 @@ class WorkoutManagement:
                 ("Sets logged", int(len(frame))),
                 ("Total volume (kg)", round(float(frame["Volume (kg)"].sum()), 1)),
                 ("Units", "kilograms"),
+                # Plain language first, for whoever opens the file; the exact
+                # formula underneath, for whatever is asked to analyse it.
+                (
+                    "Est. 1RM",
+                    "Epley formula, adjusted for how many reps you had left "
+                    "(RPE). Blank when RPE was not recorded.",
+                ),
                 (
                     "Est. 1RM formula",
-                    "Epley on reps + RIR: weight x (1 + (reps + RIR) / 30), "
-                    "RIR = 10 - RPE capped at 5. Blank without a usable RPE.",
+                    "weight x (1 + (reps + RIR) / 30), RIR = 10 - RPE, capped at 5",
                 ),
             ]
             for r, (label, value) in enumerate(summary):
