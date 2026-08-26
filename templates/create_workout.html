@@ -21,6 +21,46 @@
       text-overflow: ellipsis;
     }
 
+    /* Drag handle for reordering exercises */
+    .wd-drag-cell {
+      width: 44px;
+      padding-left: 0.25rem;
+      padding-right: 0.25rem;
+    }
+
+    .wd-drag-handle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      color: var(--bs-secondary-color, #6c757d);
+      cursor: grab;
+      /* Keeps the phone from scrolling the page mid-drag. Only the handle
+         opts out, so a swipe anywhere else on the row still scrolls. */
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .wd-drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .wd-drag-ghost > td {
+      opacity: 0.35;
+    }
+
+    /* Bootstrap paints striping over a plain background-color, so tint the
+       moving row through the same variable .table-active uses. The name
+       changed between releases: this app pins 5.3.0-alpha2, which calls it
+       --bs-table-accent-bg; 5.3 stable renamed it to --bs-table-bg-state.
+       Setting both keeps the highlight working either way. */
+    .wd-drag-chosen > td {
+      --bs-table-accent-bg: var(--bs-warning-bg-subtle);
+      --bs-table-bg-state: var(--bs-warning-bg-subtle);
+    }
+
     #exercise_suggestions {
       max-height: 250px;
       /* Adjust this value to control how many items are visible */
@@ -38,6 +78,20 @@
         max-width: calc(100% - 100px);
         /* Adjust based on the other two columns */
       }
+
+      /* The handle column costs the exercise name width on a phone, where it
+         is already tight. Narrow the cell but keep the tap target full height
+         so it is still easy to catch with a thumb. */
+      .wd-drag-cell {
+        width: 32px;
+        padding-left: 0;
+        padding-right: 0;
+      }
+
+      .wd-drag-handle {
+        width: 32px;
+        height: 44px;
+      }
     }
   </style>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -45,6 +99,11 @@
 
 <body>
   <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
+    <symbol id="grip-lines" viewBox="0 0 16 16">
+      <rect x="2" y="3.4" width="12" height="1.7" rx=".85"></rect>
+      <rect x="2" y="7.15" width="12" height="1.7" rx=".85"></rect>
+      <rect x="2" y="10.9" width="12" height="1.7" rx=".85"></rect>
+    </symbol>
     <symbol id="check2" viewBox="0 0 16 16">
       <path
         d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z">
@@ -158,9 +217,11 @@
 
           {% endif %}
 
-          <table class="table table-striped text-center mb-5">
+          <div class="mb-5">
+          <table class="table table-striped text-center mb-2">
             <thead>
               <tr>
+                <th class="wd-drag-cell"><span class="visually-hidden">Reorder</span></th>
                 <th class="exercise text-center">
                   Exercises for day {{ x + 1 }}
                 </th>
@@ -169,7 +230,7 @@
                 <th>Del</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody data-day="{{ x }}">
               <!-- After user add exercise, it will show above in order-->
               {# Every field is named after the row's workout_exercise_id, never
                  after its position in this loop. That is what lets the server
@@ -177,6 +238,14 @@
                  it is the prerequisite for reordering these rows by hand. #}
               {% for exe in user_exe[x] %}
               <tr data-we-id="{{ exe['id'] }}">
+                <td class="wd-drag-cell align-middle">
+                  <span class="wd-drag-handle" role="button" tabindex="-1"
+                    aria-label="Drag to reorder" title="Drag to reorder">
+                    <svg width="22" height="22" fill="currentColor" aria-hidden="true">
+                      <use href="#grip-lines"></use>
+                    </svg>
+                  </span>
+                </td>
                 <td>
                   <input type="text" id="exercise_{{ exe['id'] }}" name="exercise_{{ exe['id'] }}"
                     class="form-control text-center" value="{{ exe['exercise'] }}" autocomplete="off" />
@@ -203,6 +272,7 @@
               {% endfor %}
               
               <tr>
+                <td class="wd-drag-cell"></td>
                 <td>
                   <input type="text" id="exercise_new_{{ x }}" name="new_exercise_{{ x }}"
                     class="form-control text-center bg-info-subtle" placeholder="Select Exercise" autocomplete="off" />
@@ -230,6 +300,22 @@
               </tr>
             </tbody>
           </table>
+
+          {# The order the rows are in right now, as workout_exercise_ids.
+             Sortable rewrites this on drop; the server reads it in
+             reorder_exercises(). Rendered value doubles as the "unchanged"
+             baseline, so dragging a row back hides the notice again. #}
+          <input type="hidden" name="order_{{ x }}" id="order_{{ x }}"
+            value="{% for exe in user_exe[x] %}{{ exe['id'] }}{% if not loop.last %},{% endif %}{% endfor %}" />
+
+          <div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 d-none"
+            id="order_changed_{{ x }}" role="status">
+            <span>Order changed for day {{ x + 1 }} &mdash; not saved yet.</span>
+            <button type="submit" name="submit" value="save" class="btn btn-warning btn-sm">
+              Save order
+            </button>
+          </div>
+          </div>
           {% endfor %}
           
         </form>
@@ -330,6 +416,49 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
     crossorigin="anonymous"></script>
+  <!-- Drag to reorder exercises. Served locally rather than from a CDN so it
+       still works if jsdelivr is blocked, and so there is no hash to keep in
+       sync. -->
+  <script src="{{ url_for('static', filename='js/sortable.min.js') }}"></script>
+  <script>
+    // One Sortable per day. Rows carry their own workout_exercise_id, so the
+    // new order is simply the sequence of those ids - nothing here needs to
+    // work out what moved where. The "add an exercise" row has no data-we-id,
+    // so it is not draggable and stays pinned to the bottom.
+    if (typeof Sortable !== "undefined") {
+      document.querySelectorAll("tbody[data-day]").forEach(function (tbody) {
+        const day = tbody.dataset.day;
+        const orderField = document.getElementById(`order_${day}`);
+        const notice = document.getElementById(`order_changed_${day}`);
+        if (!orderField || !notice) return;
+
+        // The order the page was rendered with, kept so the notice can go away
+        // when a row is dragged back where it started. It has to live in a
+        // variable: for type="hidden" the value IDL attribute reflects the
+        // content attribute, so assigning .value also moves .defaultValue and
+        // comparing against that would always say "unchanged".
+        const renderedOrder = orderField.value;
+
+        Sortable.create(tbody, {
+          handle: ".wd-drag-handle",
+          draggable: "tr[data-we-id]",
+          animation: 150,
+          ghostClass: "wd-drag-ghost",
+          chosenClass: "wd-drag-chosen",
+          onEnd: function () {
+            orderField.value = Array.from(
+              tbody.querySelectorAll("tr[data-we-id]")
+            )
+              .map((tr) => tr.dataset.weId)
+              .join(",");
+
+            notice.classList.toggle("d-none", orderField.value === renderedOrder);
+          },
+        });
+      });
+    }
+  </script>
+
   <!-- waiting overlay -->
   <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
 </body>

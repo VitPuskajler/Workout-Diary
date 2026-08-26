@@ -398,6 +398,80 @@ class WorkoutManagement:
         for workout_id in touched_workouts:
             self._compact_workout_order(workout_id)
 
+    def reorder_exercises(self, submitted_data, weekly, workouts_id):
+        """Apply the order the user dragged the exercise rows into.
+
+        The page submits order_<day> as a comma separated list of
+        workout_exercise_id in the order the rows now appear on screen. That is
+        the whole protocol - because every row already carries its own primary
+        key, the new order is just the sequence of those keys, and nothing here
+        has to reason about what moved where.
+
+        Positions are rewritten to a dense 1..N, the same shape
+        _compact_workout_order() maintains after a delete. It is a handful of
+        UPDATEs against one workout, which is why this needs no schema change
+        and no gapped or fractional ranking scheme.
+
+        The ids come from the browser, so a row is only touched if it really
+        belongs to the day it was submitted under. Anything else in the list -
+        someone else's id, a row deleted in another tab, a repeat, junk - is
+        dropped rather than trusted. Rows the list does not mention (added
+        since the page was rendered) keep their relative order and go last.
+
+        Run this BEFORE overwrite_exercise() so the rest of the save sees the
+        final positions.
+        """
+        for day in range(weekly):
+            if day >= len(workouts_id):
+                continue
+            workout_id = workouts_id[day]
+            if workout_id is None:
+                continue
+
+            raw = submitted_data.get(f"order_{day}")
+            if not raw:
+                continue
+
+            wanted = []
+            for chunk in raw.split(","):
+                chunk = chunk.strip()
+                if chunk.isdigit():
+                    value = int(chunk)
+                    if value not in wanted:
+                        wanted.append(value)
+            if not wanted:
+                continue
+
+            # Keyed by primary key, but built from the ordered query so the
+            # leftovers below keep a sensible relative order.
+            rows = {
+                row.workout_exercise_id: row
+                for row in self._workout_exercises_ordered(workout_id)
+            }
+
+            ordered = [rows[we_id] for we_id in wanted if we_id in rows]
+            mentioned = {row.workout_exercise_id for row in ordered}
+            ordered += [
+                row
+                for row in rows.values()
+                if row.workout_exercise_id not in mentioned
+            ]
+
+            changed = False
+            for position, row in enumerate(ordered, start=1):
+                if row.order_in_workout != position:
+                    row.order_in_workout = position
+                    changed = True
+
+            if not changed:
+                continue
+
+            try:
+                db.session.commit()
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                print(f"reorder_exercises: rolling back, {e}")
+
     # For tryining sessions mainly ---------------------------------------
     def add_session_to_db(self, chosen_day_by_user, workouts_id):
         user = Users.query.filter_by(username=current_user.username).first()

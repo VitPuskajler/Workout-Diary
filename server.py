@@ -123,6 +123,7 @@ overwrite_exercise = db_operations.overwrite_exercise
 find_workout_name_from_user = db_operations.find_workout_name_from_user
 add_exercise = db_operations.add_exercise
 delete_exercise = db_operations.delete_exercise
+reorder_exercises = db_operations.reorder_exercises
 add_session_to_db = db_operations.add_session_to_db
 find_exercise_id_db = db_operations.find_exercise_id_db
 find_exercise_name_db = db_operations.find_exercise_name_db
@@ -371,6 +372,10 @@ def create_workout():
 
         # Call function to delete exercise from workout
         delete_exercise(submitted_data, workouts_id)
+
+        # Apply the order the user dragged the rows into. Before
+        # overwrite_exercise so the rest of the save sees final positions.
+        reorder_exercises(submitted_data, weekly, workouts_id)
 
         # Call function to overwrite exercise
         overwrite_exercise(submitted_data, workouts_id)
