@@ -1432,10 +1432,23 @@ class WorkoutManagement:
         )
 
         for i, x in enumerate(user_mesocycles):
-            # Find workout_id and add it to dict
+            # Find workout_id and add it to dict.
+            #
+            # workout_name == "c" is an intuitive-training day, created on the
+            # fly by create_custom_workout_plan() and hung off whatever
+            # mesocycle happened to be newest at the time. Those are one-off
+            # sessions, not part of a plan, so they must not show up as workout
+            # days on /workout_plan_page or /progress. find_users_weeks()
+            # already excludes them the same way for /create_workout.
+            # The sessions and sets recorded against them are untouched - only
+            # these plan listings stop showing them.
             workout_id = (
                 db.session.query(WorkoutPlan.workout_id)
-                .filter(WorkoutPlan.mesocycle_id == x.mesocycle_id)
+                .filter(
+                    WorkoutPlan.mesocycle_id == x.mesocycle_id,
+                    WorkoutPlan.workout_name.isnot(None),
+                    WorkoutPlan.workout_name != "c",
+                )
                 .all()
             )
 
