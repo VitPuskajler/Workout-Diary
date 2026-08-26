@@ -370,10 +370,10 @@ def create_workout():
         exercises_dict = add_exercise(submitted_data, order, weekly, jinja_exercises, workouts_id)
 
         # Call function to delete exercise from workout
-        delete_exercise(submitted_data, weekly, workouts_id)
+        delete_exercise(submitted_data, workouts_id)
 
         # Call function to overwrite exercise
-        overwrite_exercise(submitted_data, weekly, workouts_id, jinja_exercises)
+        overwrite_exercise(submitted_data, workouts_id)
 
         # Use the PRG pattern: Redirect to prevent resubmission
         return redirect(url_for("create_workout"))
@@ -440,7 +440,7 @@ def training_session():
     workout_key = next((k for k, v in workouts_id_name.items() if v == chosen_day), 0)
 
     exercises_from_user: dict = jinja_exercises[workout_key]
-    exercises_in_workout: list = [x["exercise"][0] for x in exercises_from_user]
+    exercises_in_workout: list = [x["exercise"] for x in exercises_from_user]
 
     if request.method == "GET":
 
@@ -773,7 +773,7 @@ def progress():
     # Create list of exercises -> for Jinja purposes
     workout_key = next((k for k, v in workouts_id_name.items() if v == chosen_day), 0)
     exercises_from_user = jinja_exercises.get(workout_key, [])
-    exercises_in_workout = [x["exercise"][0] for x in exercises_from_user]
+    exercises_in_workout = [x["exercise"] for x in exercises_from_user]
 
     # Handle GET parameters
     if request.method == "GET":

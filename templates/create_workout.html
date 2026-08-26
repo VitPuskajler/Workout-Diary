@@ -171,39 +171,45 @@
             </thead>
             <tbody>
               <!-- After user add exercise, it will show above in order-->
+              {# Every field is named after the row's workout_exercise_id, never
+                 after its position in this loop. That is what lets the server
+                 identify the row it is asked to rename, retime or delete, and
+                 it is the prerequisite for reordering these rows by hand. #}
               {% for exe in user_exe[x] %}
-              <tr>
+              <tr data-we-id="{{ exe['id'] }}">
                 <td>
-                  <input type="text" id="exercise_{{ x }}_{{ loop.index0 }}" name="exercise_{{ x }}_{{ loop.index0 }}"
-                    class="form-control text-center" value="{{ exe['exercise'][0] }}" autocomplete="off" />
+                  <input type="text" id="exercise_{{ exe['id'] }}" name="exercise_{{ exe['id'] }}"
+                    class="form-control text-center" value="{{ exe['exercise'] }}" autocomplete="off" />
                   <!-- Suggestions dropdown -->
                   <div class="dropdown">
-                    <ul id="exercise_suggestions_{{ x }}_{{ loop.index0 }}" class="dropdown-menu show"
+                    <ul id="exercise_suggestions_{{ exe['id'] }}" class="dropdown-menu show"
                       style="width: 100%; display: none">
                     </ul>
                   </div>
+                </td>
                 <td>
-                  <input type="number" name="sets_{{ x }}_{{ loop.index0 }}" class="form-control text-center"
+                  <input type="number" name="sets_{{ exe['id'] }}" class="form-control text-center"
                     value="{{ exe['sets'] }}" />
                 </td>
                 <td>
-                  <input type="number" name="pauses_{{ x }}_{{ loop.index0 }}" class="form-control text-center"
+                  <input type="number" name="pauses_{{ exe['id'] }}" class="form-control text-center"
                     value="{{ exe['pauses'] }}" />
                 </td>
                 <td>
                   <!-- "Remove" checkbox -->
-                  <input class="form-check-input" type="checkbox" name="remove_{{ x }}_{{ loop.index0 }}" value="yes" />
+                  <input class="form-check-input" type="checkbox" name="remove_{{ exe['id'] }}" value="yes" />
                 </td>
               </tr>
               {% endfor %}
               
               <tr>
                 <td>
-                  <input type="text" id="new_exercise_{{ x }}" name="new_exercise_{{ x }}"
+                  <input type="text" id="exercise_new_{{ x }}" name="new_exercise_{{ x }}"
                     class="form-control text-center bg-info-subtle" placeholder="Select Exercise" autocomplete="off" />
                   <!-- Suggestions dropdown -->
                   <div class="dropdown">
-                    <ul id="exercise_suggestions_{{ x }}" class="dropdown-menu show" style="width: 100%; display: none">
+                    <ul id="exercise_suggestions_new_{{ x }}" class="dropdown-menu show"
+                      style="width: 100%; display: none">
                     </ul>
                   </div>
                 </td>
@@ -232,91 +238,64 @@
   </div>
 
   <script>
-    let exercisesCounts = [];
-    {% for x in range(week) %}
-      exercisesCounts[{{ x }}] = {{ user_exe[x]|length }};
-    {% endfor %}
+    // The suffix of every exercise input on the page. Existing rows are
+    // identified by workout_exercise_id, the empty row at the bottom of each
+    // day by "new_<day>". Neither depends on where a row sits in the table,
+    // so this list stays correct if the rows are reordered.
+    const EXERCISE_FIELD_IDS = [
+      {%- for x in range(week) %}
+      "new_{{ x }}",
+      {%- for exe in user_exe[x] %}
+      "{{ exe['id'] }}",
+      {%- endfor %}
+      {%- endfor %}
+    ];
   </script>
-  
 
   <script>
-   let test = {{ week }};  // Number of days/weeks
+    // Wire one exercise text input to its own suggestions dropdown.
+    function wireExerciseAutocomplete(suffix) {
+      const input = document.getElementById(`exercise_${suffix}`);
+      const suggestions = document.getElementById(`exercise_suggestions_${suffix}`);
+      if (!input || !suggestions) return;
 
-// Loop through each day/week
-for (let i = 0; i < test; i++) {
-  // Event listener for 'new_exercise_{i}' input fields (existing code)
-  document.getElementById(`new_exercise_${i}`).addEventListener("input", function () {
-    let query = this.value;
-    if (query.length > 0) {
-      let xhr = new XMLHttpRequest();
-      xhr.open("GET", "/create_workout?query=" + encodeURIComponent(query), true);
-      xhr.onreadystatechange = function () {
-        if (xhr.readyState == 4 && xhr.status == 200) {
-          let response = JSON.parse(xhr.responseText);
-          let suggestions = document.getElementById(`exercise_suggestions_${i}`);
-          suggestions.innerHTML = "";  // Clear previous suggestions
-          if (response.length > 0) {
-            suggestions.style.display = "block";  // Show the suggestion list
-            response.forEach(function (exercise) {
-              let li = document.createElement("li");
-              li.classList.add("dropdown-item");  // Add Bootstrap hover effect
-              li.textContent = exercise;
-              li.onclick = function () {
-                document.getElementById(`new_exercise_${i}`).value = exercise;
-                suggestions.style.display = "none";  // Hide the suggestion list
-              };
-              suggestions.appendChild(li);
-            });
-          } else {
-            suggestions.style.display = "none";  // Hide if no matches
-          }
+      input.addEventListener("input", function () {
+        const query = this.value;
+        if (query.length === 0) {
+          suggestions.style.display = "none";
+          return;
         }
-      };
-      xhr.send();
-    } else {
-      document.getElementById(`exercise_suggestions_${i}`).style.display = "none";  // Hide suggestions if input is empty
-    }
-  });
 
-  // Event listeners for existing exercises
-  let numExercises = exercisesCounts[i];
-  for (let j = 0; j < numExercises; j++) {
-    let inputField = document.getElementById(`exercise_${i}_${j}`);
-    inputField.addEventListener("input", function () {
-      let query = this.value;
-      if (query.length > 0) {
-        let xhr = new XMLHttpRequest();
+        const xhr = new XMLHttpRequest();
         xhr.open("GET", "/create_workout?query=" + encodeURIComponent(query), true);
         xhr.onreadystatechange = function () {
-          if (xhr.readyState == 4 && xhr.status == 200) {
-            let response = JSON.parse(xhr.responseText);
-            let suggestions = document.getElementById(`exercise_suggestions_${i}_${j}`);
-            suggestions.innerHTML = "";  // Clear previous suggestions
-            if (response.length > 0) {
-              suggestions.style.display = "block";  // Show the suggestion list
-              response.forEach(function (exercise) {
-                let li = document.createElement("li");
-                li.classList.add("dropdown-item");  // Add Bootstrap hover effect
-                li.textContent = exercise;
-                li.onclick = function () {
-                  document.getElementById(`exercise_${i}_${j}`).value = exercise;
-                  suggestions.style.display = "none";  // Hide the suggestion list
-                };
-                suggestions.appendChild(li);
-              });
-            } else {
-              suggestions.style.display = "none";  // Hide if no matches
-            }
+          if (xhr.readyState !== 4 || xhr.status !== 200) return;
+
+          const response = JSON.parse(xhr.responseText);
+          suggestions.innerHTML = "";
+
+          if (response.length === 0) {
+            suggestions.style.display = "none";
+            return;
           }
+
+          suggestions.style.display = "block";
+          response.forEach(function (exercise) {
+            const li = document.createElement("li");
+            li.classList.add("dropdown-item");
+            li.textContent = exercise;
+            li.onclick = function () {
+              input.value = exercise;
+              suggestions.style.display = "none";
+            };
+            suggestions.appendChild(li);
+          });
         };
         xhr.send();
-      } else {
-        document.getElementById(`exercise_suggestions_${i}_${j}`).style.display = "none";  // Hide suggestions if input is empty
-      }
-    });
-  }
-}
+      });
+    }
 
+    EXERCISE_FIELD_IDS.forEach(wireExerciseAutocomplete);
   </script>
 
   <script>

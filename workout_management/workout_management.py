@@ -104,33 +104,49 @@ class WorkoutManagement:
         return None, None, None
 
     def exercises_for_jinja(self, jinja_exercises, weekly, workouts_id):
-        appendable_dict = {"exercise": None, "sets": None, "pauses": None}
+        """Fill jinja_exercises[day] with that day's exercises, in display order.
+
+        The ORDER BY is the point. This used to be a bare filter_by, so
+        /create_workout rendered whatever order the database happened to hand
+        back (insertion order in practice) while training_session sorted by
+        order_in_workout via _workout_exercises_ordered(). The two agreed by
+        luck. As soon as rows can be reordered they stop agreeing, so both
+        paths now read the same sort. workout_exercise_id is the tie-break,
+        which keeps the ordering total even if two rows share a number.
+
+        Each row carries its own workout_exercise_id as "id". The template
+        names its form fields after it, so a save identifies a row by primary
+        key instead of by its position on the page - see overwrite_exercise().
+
+        The exercise name is joined in rather than looked up row by row: that
+        cost one extra SELECT per exercise per page load.
+        """
         for x in range(weekly):
-            # Access exercises for specific exercises
-            exercise_details = (
+            rows = (
                 db.session.query(
-                    WorkoutExercises.exercise_id,
+                    WorkoutExercises.workout_exercise_id,
+                    Exercise.exercise_name,
                     WorkoutExercises.prescribed_sets,
                     WorkoutExercises.rest_period,
                 )
-                .filter_by(workout_id=workouts_id[x])
+                .join(Exercise, Exercise.exercise_id == WorkoutExercises.exercise_id)
+                .filter(WorkoutExercises.workout_id == workouts_id[x])
+                .order_by(
+                    WorkoutExercises.order_in_workout.asc(),
+                    WorkoutExercises.workout_exercise_id.asc(),
+                )
                 .all()
             )
-            if exercise_details:
-                for exes in exercise_details:
-                    # Translate exe_id into Exe name
-                    specific_exercise_name = (
-                        db.session.query(Exercise.exercise_name)
-                        .filter_by(exercise_id=exes[0])
-                        .first()
-                    )
-                    appendable_dict = {
-                        "exercise": specific_exercise_name,
-                        "sets": exes[1],
-                        "pauses": exes[2],
+
+            for workout_exercise_id, exercise_name, sets, pauses in rows:
+                jinja_exercises[x].append(
+                    {
+                        "id": workout_exercise_id,
+                        "exercise": exercise_name,
+                        "sets": sets,
+                        "pauses": pauses,
                     }
-                    # Append this to jinja_exercises
-                    jinja_exercises[x].append(appendable_dict)
+                )
 
     # Default order in list
     # Default dict for exercises: jinja_exercises
@@ -145,112 +161,95 @@ class WorkoutManagement:
         return default_order, jinja_exercises
 
     # Overwrite exercises, sets or rest period
-    def overwrite_exercise(self, submitted_data, weekly, workouts_id, jinja_exercises):
-        for day in range(weekly):
-            # Reset counters for each day
-            count, count_sets, count_pauses = -1, -1, -1
+    def overwrite_exercise(self, submitted_data, workouts_id):
+        """Apply the edits made to rows that already exist in the plan.
 
-            # Filter keys for the current day
-            day_exercise_keys = sorted(
-                [k for k in submitted_data if k.startswith(f"exercise_{day}")]
-            )
-            day_sets_keys = sorted(
-                [k for k in submitted_data if k.startswith(f"sets_{day}")]
-            )
-            day_pauses_keys = sorted(
-                [k for k in submitted_data if k.startswith(f"pauses_{day}")]
-            )
+        Fields are named after the row's primary key - exercise_<id>,
+        sets_<id>, pauses_<id> - so a row is found by that key and never by
+        where it sits on the page. The positional scheme this replaces had two
+        problems: it sorted the form keys with sorted(), which is
+        lexicographic (exercise_0_10 landed before exercise_0_2, wrong from ten
+        exercises up, and it renamed the wrong rows), and it resolved rows by
+        exercise NAME, so filter_by(workout_id, exercise_id).update() hit every
+        copy of a duplicated exercise. Neither could survive rows moving.
 
-            # Process exercises for the current day
-            for key in day_exercise_keys:
-                count += 1
-                exe_name = submitted_data[key]
+        The ids arrive from the browser, so every one of them is checked
+        against this user's own workouts before anything is written.
+        """
+        allowed_workout_ids = {wid for wid in workouts_id if wid is not None}
+        if not allowed_workout_ids:
+            return
 
-                # Get the new exercise ID
-                exercise_id_query = (
+        # {workout_exercise_id: {"exercise": name, "sets": n, "pauses": n}}
+        edits = {}
+        for key, value in submitted_data.items():
+            for prefix, field in (
+                ("exercise_", "exercise"),
+                ("sets_", "sets"),
+                ("pauses_", "pauses"),
+            ):
+                if not key.startswith(prefix):
+                    continue
+                raw_id = key[len(prefix):]
+                # new_exercise_<day> and new_sets_<day> do not match these
+                # prefixes at all; isdigit() catches anything else malformed.
+                if raw_id.isdigit():
+                    edits.setdefault(int(raw_id), {})[field] = value
+                break
+
+        if not edits:
+            return
+
+        rows = (
+            db.session.query(WorkoutExercises)
+            .filter(
+                WorkoutExercises.workout_exercise_id.in_(edits.keys()),
+                WorkoutExercises.workout_id.in_(allowed_workout_ids),
+            )
+            .all()
+        )
+
+        changed = False
+        for row in rows:
+            edit = edits[row.workout_exercise_id]
+
+            new_name = (edit.get("exercise") or "").strip()
+            if new_name:
+                exercise_row = (
                     db.session.query(Exercise.exercise_id)
-                    .filter_by(exercise_name=exe_name)
+                    .filter_by(exercise_name=new_name)
                     .first()
                 )
+                # An unknown name means a typo in the autocomplete box. Leave
+                # the row alone rather than blanking a real exercise.
+                if exercise_row and exercise_row[0] != row.exercise_id:
+                    row.exercise_id = exercise_row[0]
+                    changed = True
 
-                if exercise_id_query:
-                    current_exercise_id = exercise_id_query[0]
-
-                    # Get the previous exercise ID from jinja_exercises
-                    try:
-                        previous_exercise = jinja_exercises[day][count]["exercise"][0]
-                        previous_exercise_id_query = (
-                            db.session.query(Exercise.exercise_id)
-                            .filter_by(exercise_name=previous_exercise)
-                            .first()
-                        )
-
-                        if previous_exercise_id_query:
-                            # Update the exercise ID in WorkoutExercises
-                            db.session.query(WorkoutExercises).filter_by(
-                                workout_id=workouts_id[day],
-                                exercise_id=previous_exercise_id_query[0],
-                            ).update({"exercise_id": current_exercise_id})
-                    except IndexError as ie:
-                        print(f"You are out of range {ie}")
-
-            # Process sets for the current day
-            count_sets = -1
-            for key in day_sets_keys:
-                count_sets += 1
-                exe_sets = submitted_data[key]
-
-                # Get the current exercise ID from jinja_exercises
+            for field, column in (
+                ("sets", "prescribed_sets"),
+                ("pauses", "rest_period"),
+            ):
+                raw = edit.get(field)
+                if raw is None or str(raw).strip() == "":
+                    continue
                 try:
-                    current_exercise_name = jinja_exercises[day][count_sets][
-                        "exercise"
-                    ][0]
-                    current_exercise_id_query = (
-                        db.session.query(Exercise.exercise_id)
-                        .filter_by(exercise_name=current_exercise_name)
-                        .first()
-                    )
+                    number = int(raw)
+                except (TypeError, ValueError):
+                    continue
+                # Both columns are NOT NULL and a zero of either is nonsense.
+                if number > 0 and getattr(row, column) != number:
+                    setattr(row, column, number)
+                    changed = True
 
-                    if current_exercise_id_query:
-                        current_exercise_id = current_exercise_id_query[0]
+        if not changed:
+            return
 
-                        # Update the prescribed sets in WorkoutExercises
-                        db.session.query(WorkoutExercises).filter_by(
-                            workout_id=workouts_id[day],
-                            exercise_id=current_exercise_id,
-                        ).update({"prescribed_sets": exe_sets})
-                except IndexError as ie:
-                    print(f"You are out of range for sets {ie}")
-
-            # Process pauses for the current day
-            count_pauses = -1
-            for key in day_pauses_keys:
-                count_pauses += 1
-                exe_pauses = submitted_data[key]
-
-                # Get the current exercise ID from jinja_exercises
-                try:
-                    current_exercise_name = jinja_exercises[day][count_pauses][
-                        "exercise"
-                    ][0]
-                    current_exercise_id_query = (
-                        db.session.query(Exercise.exercise_id)
-                        .filter_by(exercise_name=current_exercise_name)
-                        .first()
-                    )
-
-                    if current_exercise_id_query:
-                        current_exercise_id = current_exercise_id_query[0]
-
-                        # Update the rest period in WorkoutExercises
-                        db.session.query(WorkoutExercises).filter_by(
-                            workout_id=workouts_id[day],
-                            exercise_id=current_exercise_id,
-                        ).update({"rest_period": exe_pauses})
-                except IndexError as ie:
-                    print(f"You are out of range for pauses {ie}")
-            # Commit changes after processing each day
+        try:
             db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f"overwrite_exercise: rolling back, {e}")
 
     def find_workout_name_from_user(
         self, submitted_data, weekly, workout_names
@@ -342,67 +341,62 @@ class WorkoutManagement:
 
         return order
 
-    def delete_exercise(self, submitted_data, weekly, workouts_id):
-        for day in range(weekly):
-            delete_keys = [
-                key for key in submitted_data.keys() if key.startswith(f"remove_{day}_")
-            ]
+    def delete_exercise(self, submitted_data, workouts_id):
+        """Remove the rows whose "Del" checkbox was ticked.
 
-            for key in delete_keys:
-                parts = key.split("_")
+        Fields are remove_<workout_exercise_id>, so the row goes by primary
+        key. The old version read the exercise NAME out of the neighbouring
+        field and deleted the first row matching it, which picked the wrong
+        one whenever a day held the same exercise twice.
 
-                if len(parts) == 3:
-                    _, day_str, idx_str = parts
-                    idx = int(idx_str)
-                    delete_value = submitted_data.get(key)
+        Ownership is checked before the DELETE - the id comes from the browser.
+        Order is compacted once per affected workout at the end rather than
+        once per deleted row.
+        """
+        allowed_workout_ids = {wid for wid in workouts_id if wid is not None}
+        if not allowed_workout_ids:
+            return
 
-                    exercise = submitted_data.get(f"exercise_{day}_{idx}")
+        wanted = set()
+        for key, value in submitted_data.items():
+            if not key.startswith("remove_"):
+                continue
+            raw_id = key[len("remove_"):]
+            # An unticked checkbox is not submitted at all, so presence is
+            # most of the test; the truthiness check is belt and braces.
+            if raw_id.isdigit() and value:
+                wanted.add(int(raw_id))
 
-                    specific_exercise_id = (
-                        db.session.query(Exercise.exercise_id)
-                        .filter_by(exercise_name=exercise)
-                        .first()
-                    )
+        if not wanted:
+            return
 
-                    if specific_exercise_id:
-                        workout_id_found = (
-                            db.session.query(WorkoutExercises.workout_exercise_id)
-                            .filter_by(
-                                workout_id=workouts_id[day],
-                                exercise_id=specific_exercise_id[0],
-                            )
-                            .first()
-                        )
+        rows = (
+            db.session.query(WorkoutExercises)
+            .filter(
+                WorkoutExercises.workout_exercise_id.in_(wanted),
+                WorkoutExercises.workout_id.in_(allowed_workout_ids),
+            )
+            .all()
+        )
+        # Already gone (double submit, stale form) - nothing to do.
+        if not rows:
+            return
 
-                        # Already gone (double submit, stale form) - nothing to do.
-                        if not workout_id_found:
-                            continue
+        touched_workouts = {row.workout_id for row in rows}
 
-                        # Remove the exercise
-                        # DELTE FROM WorkoutExercises
-                        # WHERE workout_exercise_id = workout_id_found.workout_exercise_id
-                        try:
-                            (
-                                db.session.query(WorkoutExercises)
-                                .filter(
-                                    WorkoutExercises.workout_exercise_id
-                                    == workout_id_found.workout_exercise_id
-                                )
-                                .delete(synchronize_session=False)
-                            )
-                            db.session.commit()
-                        except SQLAlchemyError as e:
-                            db.session.rollback()
-                            print(f"delete_exercise: rolling back, {e}")
-                            continue
+        try:
+            for row in rows:
+                db.session.delete(row)
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f"delete_exercise: rolling back, {e}")
+            return
 
-                        # Close the hole the delete just opened, otherwise
-                        # order_in_workout becomes 1, 3, 4 and anything that
-                        # walks the sequence breaks.
-                        self._compact_workout_order(workouts_id[day])
-
-                else:
-                    print(f"Unexpected key format: {key}")
+        # Close the holes the deletes just opened, otherwise order_in_workout
+        # becomes 1, 3, 4 and anything that walks the sequence breaks.
+        for workout_id in touched_workouts:
+            self._compact_workout_order(workout_id)
 
     # For tryining sessions mainly ---------------------------------------
     def add_session_to_db(self, chosen_day_by_user, workouts_id):
