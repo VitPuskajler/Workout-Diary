@@ -2733,6 +2733,142 @@ class WorkoutManagement:
 
         return rows
 
+    DAY_SUMMARY_COLUMNS = [
+        "Exercise",
+        "Sessions",
+        "Max reps",
+        "Max weight (kg)",
+        "Max weight start (kg)",
+        "Max weight end (kg)",
+        "Max weight change (kg)",
+        "Max weight change (%)",
+        "Total volume (kg)",
+        "Total reps",
+        "Est. 1RM start (kg)",
+        "Est. 1RM end (kg)",
+        "Est. 1RM change (kg)",
+    ]
+
+    @staticmethod
+    def _slovak_day(value):
+        """14.8.2026 - how a date reads in Slovak. No leading zeroes.
+
+        Built by hand rather than with strftime("%-d.%-m.%Y"): the dash flag is
+        a glibc extension and is not portable.
+        """
+        if value is None or (value != value):        # NaT / NaN
+            return ""
+        return f"{value.day}.{value.month}.{value.year}"
+
+    @classmethod
+    def _day_summary(cls, day_frame):
+        """One row per exercise: how it started, how it ended, what moved.
+
+        A workout day sheet used to be the same set-by-set log as "All sets"
+        with two extra columns, which told you nothing the flat sheet did not.
+        It is a summary now - the flat sheet stays the place to read individual
+        sets.
+
+        "Start" and "end" are the first and last session this exercise was
+        actually performed in, NOT the first and last week of the mesocycle: an
+        exercise swapped in halfway through is then measured across the weeks it
+        existed instead of showing a fake jump up from nothing.
+
+        Change columns are blank when an exercise was trained only once. There
+        is no progress to report, and a 0 would read as a plateau. Same for an
+        exercise that is 0 kg at both ends - that is bodyweight work, not a
+        stalled lift, and "Total reps" is where its progress shows.
+        """
+        rows = []
+
+        # Row order = the order of the MOST RECENT session, which is the workout
+        # as it stands today. Plain first-appearance order would be wrong: an
+        # exercise swapped in during week 3 first appears after one that was
+        # dropped in week 2, so it would sort above its actual slot. Exercises
+        # no longer in the newest session follow, in first-appearance order,
+        # rather than disappearing.
+        latest_day = day_frame["Date"].dropna().max() if len(day_frame) else None
+
+        order = []
+        if latest_day is not None:
+            order = list(
+                dict.fromkeys(day_frame[day_frame["Date"] == latest_day]["Exercise"])
+            )
+        order += [
+            name for name in dict.fromkeys(day_frame["Exercise"]) if name not in order
+        ]
+
+        for name in order:
+            block = day_frame[day_frame["Exercise"] == name]
+            dates = block["Date"].dropna()
+            first_day = dates.min() if len(dates) else None
+            last_day = dates.max() if len(dates) else None
+
+            def best(column, on_day):
+                """The best single set of `column` on one day."""
+                if on_day is None:
+                    return None
+                values = block[block["Date"] == on_day][column].dropna()
+                return round(float(values.max()), 1) if len(values) else None
+
+            weight_start = best("Weight (kg)", first_day)
+            weight_end = best("Weight (kg)", last_day)
+            rm_start = best("Est. 1RM (kg)", first_day)
+            rm_end = best("Est. 1RM (kg)", last_day)
+
+            sessions = int(dates.nunique()) if len(dates) else 0
+            moved = sessions > 1
+
+            loaded = bool(weight_start or weight_end)
+            weight_change = (
+                round(weight_end - weight_start, 1)
+                if moved and loaded
+                and weight_start is not None and weight_end is not None
+                else None
+            )
+            # A falsy weight_start is either missing or a bodyweight 0, and
+            # neither has a percentage.
+            weight_percent = (
+                round((weight_end - weight_start) / weight_start * 100, 1)
+                if moved and weight_start and weight_end is not None
+                else None
+            )
+            rm_change = (
+                round(rm_end - rm_start, 1)
+                if moved and rm_start is not None and rm_end is not None
+                else None
+            )
+
+            reps = block["Reps"].dropna()
+            weights = block["Weight (kg)"].dropna()
+            volume = block["Volume (kg)"].dropna()
+
+            rows.append(
+                {
+                    "Exercise": name,
+                    "Sessions": sessions,
+                    "Max reps": int(reps.max()) if len(reps) else None,
+                    "Max weight (kg)": (
+                        round(float(weights.max()), 1) if len(weights) else None
+                    ),
+                    "Max weight start (kg)": weight_start,
+                    "Max weight end (kg)": weight_end,
+                    "Max weight change (kg)": weight_change,
+                    "Max weight change (%)": weight_percent,
+                    "Total volume (kg)": (
+                        round(float(volume.sum()), 1) if len(volume) else None
+                    ),
+                    # The only progress signal a bodyweight exercise has:
+                    # volume in kg is undefined when the weight is 0.
+                    "Total reps": int(reps.sum()) if len(reps) else None,
+                    "Est. 1RM start (kg)": rm_start,
+                    "Est. 1RM end (kg)": rm_end,
+                    "Est. 1RM change (kg)": rm_change,
+                }
+            )
+
+        return pd.DataFrame(rows, columns=cls.DAY_SUMMARY_COLUMNS)
+
     @staticmethod
     def _sheet_name(raw, taken):
         """A workout day name Excel will accept, and that is not already used."""
@@ -2756,10 +2892,11 @@ class WorkoutManagement:
                               no spacer rows, no repeated headers. This is the
                               sheet to point an LLM at, because it is a single
                               rectangle that cannot be misread.
-        Then one sheet per workout day, named after the day, carrying the same
-        rows minus the now-redundant "Workout day" column. That is the human
-        view - several tables stacked on ONE sheet would read fine to a person
-        but forces a parser to guess where each table ends.
+        Then one sheet per workout day, named after the day, each a per-exercise
+        SUMMARY - one row per exercise, start vs end, what moved. That is the
+        human view; the flat sheet remains the place to read individual sets.
+        Several tables stacked on ONE sheet would read fine to a person but
+        forces a parser to guess where each table ends, hence a sheet each.
         """
         rows = self.mesocycle_report_rows(chosen_mesocycle, mesocycle_info)
         if not rows:
@@ -2772,8 +2909,9 @@ class WorkoutManagement:
         with pd.ExcelWriter(
             output,
             engine="xlsxwriter",
-            datetime_format="yyyy-mm-dd",
-            date_format="yyyy-mm-dd",
+            # Slovak reads 14.8.2026, not 2026-08-14.
+            datetime_format="d.m.yyyy",
+            date_format="d.m.yyyy",
         ) as writer:
             workbook = writer.book
             header_format = workbook.add_format(
@@ -2787,9 +2925,22 @@ class WorkoutManagement:
                 }
             )
             label_format = workbook.add_format(
-                {"bold": True, "border": 1, "fg_color": "#F2F2F2"}
+                {
+                    "bold": True,
+                    "border": 1,
+                    "fg_color": "#F2F2F2",
+                    "align": "center",
+                    "valign": "vcenter",
+                }
             )
-            value_format = workbook.add_format({"border": 1})
+            value_format = workbook.add_format(
+                {
+                    "border": 1,
+                    "align": "center",
+                    "valign": "vcenter",
+                    "text_wrap": True,
+                }
+            )
 
             days = list(dict.fromkeys(frame["Workout day"]))
 
@@ -2803,8 +2954,8 @@ class WorkoutManagement:
                 ("Planned weeks", meta.get("duration")),
                 ("Workouts per week", meta.get("per_week")),
                 ("Workout days", ", ".join(str(d) for d in days)),
-                ("First session", str(frame["Date"].min())),
-                ("Last session", str(frame["Date"].max())),
+                ("First session", self._slovak_day(frame["Date"].min())),
+                ("Last session", self._slovak_day(frame["Date"].max())),
                 ("Weeks with data", int(frame["Week"].max())),
                 ("Sessions logged", int(frame.groupby(["Date", "Workout day"]).ngroups)),
                 ("Exercises", int(frame["Exercise"].nunique())),
@@ -2836,10 +2987,10 @@ class WorkoutManagement:
             write_table("All sets", frame)
 
             for day in days:
-                day_rows = frame[frame["Workout day"] == day].drop(
-                    columns=["Workout day"]
+                write_table(
+                    self._sheet_name(day, taken),
+                    self._day_summary(frame[frame["Workout day"] == day]),
                 )
-                write_table(self._sheet_name(day, taken), day_rows)
 
         output.seek(0)
         return output
