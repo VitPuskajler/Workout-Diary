@@ -92,6 +92,24 @@
         width: 32px;
         height: 44px;
       }
+
+      /* Tapping an exercise field hands it the whole row. On a phone the cell
+         is too narrow to show a full exercise name, which makes the
+         suggestions dropdown useless - you cannot read what you are picking.
+         The other cells step aside while the field is being edited.
+
+         Hiding them is only half of it: a table lays cells out by COLUMN, so a
+         lone visible cell drops into column 1 and comes out narrower than it
+         started. The script also swaps in a colspan across the whole row - see
+         expandExerciseRow(). The dropdown is width: 100%, so it follows. */
+      tr.wd-editing > td.wd-row-extra,
+      tr.wd-editing > td.wd-drag-cell {
+        display: none;
+      }
+
+      tr.wd-editing > td.wd-exercise-cell {
+        width: 100%;
+      }
     }
   </style>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -246,7 +264,7 @@
                     </svg>
                   </span>
                 </td>
-                <td>
+                <td class="wd-exercise-cell">
                   <input type="text" id="exercise_{{ exe['id'] }}" name="exercise_{{ exe['id'] }}"
                     class="form-control text-center" value="{{ exe['exercise'] }}" autocomplete="off" />
                   <!-- Suggestions dropdown -->
@@ -256,15 +274,15 @@
                     </ul>
                   </div>
                 </td>
-                <td>
+                <td class="wd-row-extra">
                   <input type="number" name="sets_{{ exe['id'] }}" class="form-control text-center"
                     value="{{ exe['sets'] }}" />
                 </td>
-                <td>
+                <td class="wd-row-extra">
                   <input type="number" name="pauses_{{ exe['id'] }}" class="form-control text-center"
                     value="{{ exe['pauses'] }}" />
                 </td>
-                <td>
+                <td class="wd-row-extra">
                   <!-- "Remove" checkbox -->
                   <input class="form-check-input" type="checkbox" name="remove_{{ exe['id'] }}" value="yes" />
                 </td>
@@ -273,7 +291,7 @@
               
               <tr>
                 <td class="wd-drag-cell"></td>
-                <td>
+                <td class="wd-exercise-cell">
                   <input type="text" id="exercise_new_{{ x }}" name="new_exercise_{{ x }}"
                     class="form-control text-center bg-info-subtle" placeholder="Select Exercise" autocomplete="off" />
                   <!-- Suggestions dropdown -->
@@ -283,15 +301,15 @@
                     </ul>
                   </div>
                 </td>
-                <td class="col-2">
+                <td class="col-2 wd-row-extra">
                   <input type="number" name="new_sets_{{ x }}" class="form-control text-center bg-info-subtle" placeholder="2"
                     maxlength="1" />
                 </td>
-                <td class="col-2">
+                <td class="col-2 wd-row-extra">
                   <input type="number" name="new_pauses_{{ x }}" class="form-control text-center bg-info-subtle" placeholder="120"
                     maxlength="3" />
                 </td>
-                <td>
+                <td class="wd-row-extra">
                   <button type="submit" name="submit" value="save" style="border: none; background: none; padding: 0;">
                     <img src="{{ url_for('static', filename='pictures/notifications/confirm.png') }}" alt="Del"
                       style="width: 40px; height: 40px; object-fit: cover;" title="Save" />
@@ -311,9 +329,18 @@
           <div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 d-none"
             id="order_changed_{{ x }}" role="status">
             <span>Order changed for day {{ x + 1 }} &mdash; not saved yet.</span>
-            <button type="submit" name="submit" value="save" class="btn btn-warning btn-sm">
-              Save order
-            </button>
+            <span class="d-flex gap-2">
+              <button type="submit" name="submit" value="save" class="btn btn-warning btn-sm">
+                Save order
+              </button>
+              <!-- type="button": this must never submit. It only puts the rows
+                   back where they were, so anything else typed on the page is
+                   left alone. -->
+              <button type="button" class="btn btn-danger btn-sm"
+                data-wd-discard-order="{{ x }}">
+                Discard
+              </button>
+            </span>
           </div>
           </div>
           {% endfor %}
@@ -357,6 +384,13 @@
         xhr.onreadystatechange = function () {
           if (xhr.readyState !== 4 || xhr.status !== 200) return;
 
+          // The field has moved on since this request went out: the row was
+          // collapsed and reverted, or more was typed and a later response is
+          // the right one. Either way this answer is stale - dropping it stops
+          // a dropdown popping open over a row nobody is editing any more,
+          // which PythonAnywhere's latency makes easy to hit.
+          if (input.value !== query) return;
+
           const response = JSON.parse(xhr.responseText);
           suggestions.innerHTML = "";
 
@@ -372,7 +406,11 @@
             li.textContent = exercise;
             li.onclick = function () {
               input.value = exercise;
+              // Picking from the dropdown IS the change, so it becomes the new
+              // baseline - collapsing afterwards must not undo it.
+              input.dataset.wdOriginal = exercise;
               suggestions.style.display = "none";
+              collapseExerciseRow(false);
             };
             suggestions.appendChild(li);
           });
@@ -380,6 +418,88 @@
         xhr.send();
       });
     }
+
+    // ----------------------------------------------------------------
+    // Phone only: give the exercise field the whole row while it is being
+    // typed in. Collapsing reverts whatever was typed unless it came from the
+    // dropdown - tapping away means "I changed my mind", so a half-typed name
+    // can never be left sitting in the row looking like a real exercise.
+    // ----------------------------------------------------------------
+    const NARROW = window.matchMedia("(max-width: 576px)");
+
+    function expandExerciseRow(row) {
+      const cell = row.querySelector("td.wd-exercise-cell");
+      if (!cell) return;
+
+      // Span every column, so the cell is not left sitting in column 1 at the
+      // drag handle's width once its neighbours are hidden.
+      cell.dataset.wdSpan = cell.colSpan;
+      cell.colSpan = row.cells.length;
+      row.classList.add("wd-editing");
+    }
+
+    function collapseExerciseRow(revert) {
+      const row = document.querySelector("tr.wd-editing");
+      if (!row) return;
+
+      const cell = row.querySelector("td.wd-exercise-cell");
+      if (cell && cell.dataset.wdSpan !== undefined) {
+        cell.colSpan = parseInt(cell.dataset.wdSpan, 10) || 1;
+        delete cell.dataset.wdSpan;
+      }
+
+      const input = row.querySelector('input[type="text"]');
+      if (input) {
+        if (revert && input.dataset.wdOriginal !== undefined) {
+          input.value = input.dataset.wdOriginal;
+        }
+        delete input.dataset.wdOriginal;
+        const suggestions = row.querySelector("ul.dropdown-menu");
+        if (suggestions) suggestions.style.display = "none";
+
+        // Expanding is driven by focusin, so the field must not keep focus
+        // after it collapses - otherwise tapping the same field again fires no
+        // focusin and it never reopens. Escape is where this bites: unlike a
+        // tap somewhere else, it does not move focus on its own. Blurring also
+        // drops the phone keyboard, which is what you want at this point.
+        if (document.activeElement === input) input.blur();
+      }
+
+      row.classList.remove("wd-editing");
+    }
+
+    document.addEventListener("focusin", function (e) {
+      const input = e.target.closest
+        ? e.target.closest('tbody[data-day] input[type="text"]')
+        : null;
+      if (!input) return;
+
+      const row = input.closest("tr");
+      // Moving between two exercise fields: put the first one back first.
+      if (row && row.classList.contains("wd-editing")) return;
+      collapseExerciseRow(true);
+
+      if (!NARROW.matches || !row) return;
+      input.dataset.wdOriginal = input.value;
+      expandExerciseRow(row);
+    });
+
+    // "Click on empty page or any other place and it collapses." pointerdown
+    // rather than click, so it also fires when a tap starts a scroll - and the
+    // dropdown lives inside the row, so picking a suggestion is not "outside".
+    document.addEventListener("pointerdown", function (e) {
+      if (e.target.closest && e.target.closest("tr.wd-editing")) return;
+      collapseExerciseRow(true);
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") collapseExerciseRow(true);
+    });
+
+    // Rotating the phone out of the narrow layout mid-edit.
+    NARROW.addEventListener("change", function () {
+      if (!NARROW.matches) collapseExerciseRow(false);
+    });
 
     EXERCISE_FIELD_IDS.forEach(wireExerciseAutocomplete);
   </script>
@@ -455,6 +575,26 @@
             notice.classList.toggle("d-none", orderField.value === renderedOrder);
           },
         });
+
+        // Discard: put the rows back where the page rendered them. No reload,
+        // so sets, pauses, workout names and anything half-typed survive.
+        const discard = document.querySelector(
+          `[data-wd-discard-order="${day}"]`
+        );
+        if (discard) {
+          discard.addEventListener("click", function () {
+            // Every row is inserted BEFORE the "add an exercise" row rather
+            // than appended, so that row keeps its place at the bottom.
+            const anchor = tbody.querySelector("tr:not([data-we-id])");
+            renderedOrder.split(",").forEach(function (id) {
+              const row = tbody.querySelector(`tr[data-we-id="${id}"]`);
+              if (row) tbody.insertBefore(row, anchor);
+            });
+
+            orderField.value = renderedOrder;
+            notice.classList.add("d-none");
+          });
+        }
       });
     }
   </script>
