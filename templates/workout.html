@@ -171,17 +171,58 @@
           </div>
           {% endfor %}
 
-          <form method="POST" action="{{ url_for('workout_plan_page') }}"
-            class="d-flex flex-wrap justify-content-center gap-2">
-            <button type="submit" name="action" value="export_excel" class="btn btn-success">
-              Export to Excel
+          <!-- One button instead of two side by side: the pair had different
+               widths and crowded the page on a desktop, which is where an
+               analysis actually gets done. The choice moves into the dialog. -->
+          <div class="d-flex justify-content-center my-4">
+            <button type="button" class="btn btn-success" data-bs-toggle="modal"
+              data-bs-target="#downloadOptions">
+              Download to Excel
             </button>
-            <!-- The plan is what the button above exports. This one exports what
-                 was actually lifted, for evaluating the mesocycle. -->
-            <button type="submit" name="action" value="mesocycle_report" class="btn btn-success">
-              Download mesocycle report
-            </button>
-          </form>
+          </div>
+
+          <div class="modal fade" id="downloadOptions" tabindex="-1"
+            aria-labelledby="downloadOptionsLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content text-start">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="downloadOptionsLabel">What would you like to download?</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <!-- data-wd-no-loader: these submits return a file, so the page
+                       never navigates and the spinning overlay would hang around
+                       until its own timeout. See static/js/loader.js.
+                       data-bs-dismiss on the buttons is for the same reason - the
+                       dialog would otherwise still be sitting open behind the
+                       saved file. Bootstrap only preventDefaults a dismiss on
+                       <a>/<area>, so these still submit. -->
+                  <form method="POST" action="{{ url_for('workout_plan_page') }}"
+                    data-wd-no-loader>
+                    <p class="text-body-secondary mb-2">
+                      The plan as it stands &mdash; every exercise in each workout day,
+                      with its prescribed sets and rest.
+                    </p>
+                    <button type="submit" name="action" value="export_excel"
+                      class="btn btn-success w-100 mb-4" data-bs-dismiss="modal">
+                      Current workout plan structure
+                    </button>
+
+                    <p class="text-body-secondary mb-2">
+                      Everything you actually lifted this mesocycle &mdash; one row per
+                      set with weight, reps, RPE, volume and estimated 1RM, split by
+                      workout day.
+                    </p>
+                    <button type="submit" name="action" value="mesocycle_report"
+                      class="btn btn-success w-100" data-bs-dismiss="modal">
+                      Mesocycle report
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
           {% endif %}
 
 

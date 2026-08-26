@@ -46,8 +46,18 @@
     document.body.appendChild(overlay);
   }
 
-  function show() {
+  function show(e) {
     if (!overlay) { return; }
+
+    // A form whose response is a file download never replaces the page, so
+    // nothing would ever take the veil away and it would sit there until the
+    // timeout below. Such a form opts out with data-wd-no-loader.
+    var form = e && e.target;
+    if (form && form.nodeType === 1 && form.closest &&
+        form.closest("[data-wd-no-loader]")) {
+      return;
+    }
+
     overlay.classList.add("wd-on");
     clearTimeout(timer);
     timer = setTimeout(hide, TIMEOUT);
@@ -63,6 +73,7 @@
     build();
 
     // Every ordinary submit - Confirm, Repeat, next_day, previous_day.
+    // Forms marked data-wd-no-loader are skipped; see show().
     // Capture phase, so we still fire if something downstream stops propagation.
     document.addEventListener("submit", show, true);
 
