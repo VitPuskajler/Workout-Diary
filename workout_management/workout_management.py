@@ -1197,10 +1197,10 @@ class WorkoutManagement:
         tomorrow = today + timedelta(days=1)
 
         if workout_id and workout_key is not None:
-            select_all_exercises = (
-                db.session.query(WorkoutExercises)
-                .filter(WorkoutExercises.workout_id == workout_id[workout_key])
-                .all()
+            # Same sort as /create_workout and the exercise dropdown, so the
+            # preview lists the workout in the order it is actually trained.
+            select_all_exercises = self._workout_exercises_ordered(
+                workout_id[workout_key]
             )
 
             # Find last session ID -> if not, preview will be all none
@@ -1483,13 +1483,7 @@ class WorkoutManagement:
                 )
                 if workout_name_db:
                     w_name_to_dict = workout_name_db[0]
-                    workout_exercises = (
-                        db.session.query(WorkoutExercises)
-                        .filter(
-                            WorkoutExercises.workout_id == wid,
-                        )
-                        .all()
-                    )
+                    workout_exercises = self._workout_exercises_ordered(wid)
 
                     # Initialize a dictionary for this workout
                     exercise_dict = {}
@@ -1544,13 +1538,7 @@ class WorkoutManagement:
                 )
                 if workout_name_db:
                     w_name_to_dict = workout_name_db[0]
-                    workout_exercises = (
-                        db.session.query(WorkoutExercises)
-                        .filter(
-                            WorkoutExercises.workout_id == wid,
-                        )
-                        .all()
-                    )
+                    workout_exercises = self._workout_exercises_ordered(wid)
 
                     # print(f"what do we have here{workout_name_db[0]} - {wid}")
 
@@ -1637,10 +1625,8 @@ class WorkoutManagement:
                                 .all()
                             )
 
-                        exercises_in_workout = (
-                            db.session.query(WorkoutExercises)
-                            .filter(WorkoutExercises.workout_id == workout_id)
-                            .all()
+                        exercises_in_workout = self._workout_exercises_ordered(
+                            workout_id
                         )
 
                         if exercises_in_workout:
@@ -2067,10 +2053,8 @@ class WorkoutManagement:
         )
 
         if today_workout:
-            find_saved_exercises_query = (
-                db.session.query(WorkoutExercises)
-                .filter(WorkoutExercises.workout_id == today_workout.workout_id)
-                .all()
+            find_saved_exercises_query = self._workout_exercises_ordered(
+                today_workout.workout_id
             )
 
             for x in find_saved_exercises_query:
