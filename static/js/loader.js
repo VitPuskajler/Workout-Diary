@@ -2,7 +2,8 @@
    loader.js - "the click registered" overlay
 
    Shows a full screen veil with a spinning dumbbell the moment a form is
-   submitted, and lets it die with the page when the new one arrives.
+   submitted or a link is followed, and lets it die with the page when the new
+   one arrives.
    Server round trips on PythonAnywhere are slow enough that without this
    you cannot tell a real click from a missclick.
 
@@ -84,6 +85,37 @@
       show();
       return nativeSubmit.apply(this, arguments);
     };
+
+    // Links, so the navbar and every other hyperlink give the same feedback a
+    // button does. A link only earns the veil if it actually leaves the page,
+    // and plenty do not - each of these exists in this app and would otherwise
+    // leave the veil up until the timeout above:
+    //   href="#"                the current page's own nav item
+    //   data-bs-toggle          a collapse or dropdown toggle, profile.html
+    //   target="_blank"         the GitHub link in index.html
+    //   ctrl/cmd/middle click   the browser opens a new tab instead
+    // Bubble phase on purpose, unlike the submit listener: by the time a click
+    // reaches the document every handler has run, so defaultPrevented is
+    // trustworthy. Missing a click that something else swallowed just means no
+    // veil; showing one for a click that never navigates means a stuck veil.
+    document.addEventListener("click", function (e) {
+      if (e.defaultPrevented) { return; }
+      if (e.button !== 0) { return; }
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) { return; }
+
+      var link = e.target && e.target.closest && e.target.closest("a[href]");
+      if (!link) { return; }
+      if (link.closest("[data-wd-no-loader]")) { return; }
+      if (link.hasAttribute("download")) { return; }
+      if (link.hasAttribute("data-bs-toggle")) { return; }
+      if (link.target && link.target !== "_self") { return; }
+
+      var href = link.getAttribute("href") || "";
+      if (!href || href.charAt(0) === "#") { return; }
+      if (/^(javascript|mailto|tel|sms):/i.test(href)) { return; }
+
+      show();
+    });
 
     // Coming back via the browser's back button restores the old page from
     // cache - overlay and all. Clear it.
