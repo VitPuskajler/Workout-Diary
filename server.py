@@ -157,6 +157,7 @@ statistics_range_options = db_operations.statistics_range_options
 statistics_range_label = db_operations.statistics_range_label
 last_custom_day = db_operations.last_custom_day
 workout_to_excel = db_operations.workout_to_excel
+mesocycle_report_to_excel = db_operations.mesocycle_report_to_excel
 last_mesocycle_by_default = db_operations.last_mesocycle_by_default
 user_last_session_id = db_operations.user_last_session_id
 suggest_training_focus = db_operations.suggest_training_focus
@@ -274,6 +275,25 @@ def workout_plan_page():
                 mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', # Tells the browser it's an Excel .xlsx file
                 as_attachment=True, # Forces the browser to download the file instead of trying to display it
                 download_name='workout_plan.xlsx' # Sets the default filename for the downloaded file
+            )
+
+        # What was actually lifted this mesocycle, as opposed to the plan above
+        elif request.form.get('action') == 'mesocycle_report':
+            report = mesocycle_report_to_excel(chosen_mesocycle, dropdown_menu_info)
+
+            if report is None:
+                flash("No sets logged in this mesocycle yet - nothing to report.", "warning")
+                return redirect(url_for("workout_plan_page"))
+
+            safe_name = "".join(
+                c if c.isalnum() or c in "-_" else "_"
+                for c in str(chosen_mesocycle or "mesocycle")
+            )
+            return send_file(
+                report,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                download_name=f"mesocycle_report_{safe_name}.xlsx"
             )
 
 

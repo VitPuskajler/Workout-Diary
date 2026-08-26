@@ -2583,6 +2583,267 @@ class WorkoutManagement:
         return output  # Return the BytesIO object containing the Excel file data
 
     # Function created for progress page -> set default mesocycle for user's last one in db
+    # ------------------------------------------------------------------
+    # Mesocycle report
+    #
+    # What was actually lifted, not what was planned. workout_to_excel() above
+    # exports the plan and is left alone - this reads Sessions/ExerciseEntries.
+    # ------------------------------------------------------------------
+    REPORT_COLUMNS = [
+        "Date",
+        "Week",
+        "Workout day",
+        "Exercise",
+        "Set",
+        "Weight (kg)",
+        "Reps",
+        "RPE",
+        "Volume (kg)",
+        "Est. 1RM (kg)",
+        "Notes",
+    ]
+
+    @staticmethod
+    def _mesocycle_entry(chosen_mesocycle, mesocycle_info):
+        """Pull one mesocycle's slot out of show_tables_to_user()'s dict.
+
+        That dict is keyed by an index, with the mesocycle NAME as a key inside
+        each value - so finding one means scanning. Returns (workout_ids, slot).
+        Custom "c" days are already filtered out upstream, so a report never
+        includes an intuitive session.
+        """
+        for value in (mesocycle_info or {}).values():
+            if chosen_mesocycle in value:
+                return value.get("workout_ids") or [], value
+        return [], {}
+
+    def mesocycle_report_rows(self, chosen_mesocycle, mesocycle_info):
+        """Every set logged in this mesocycle, one flat dict per set.
+
+        Ordered by session date, then by where the exercise sits in the plan,
+        so a sheet reads in the order the workout was actually done.
+        """
+        workout_ids, _ = self._mesocycle_entry(chosen_mesocycle, mesocycle_info)
+        if not workout_ids:
+            return []
+
+        user_id = self.current_user_id_db()
+
+        records = (
+            db.session.query(
+                Sessions.session_date,
+                Sessions.session_id,
+                Sessions.workout_id,
+                WorkoutPlan.workout_name,
+                Exercise.exercise_name,
+                ExerciseEntries.entry_id,
+                ExerciseEntries.exercise_id,
+                ExerciseEntries.set_number,
+                ExerciseEntries.weight,
+                ExerciseEntries.reps,
+                ExerciseEntries.rpe,
+                ExerciseEntries.notes,
+            )
+            .join(ExerciseEntries, ExerciseEntries.session_id == Sessions.session_id)
+            .join(Exercise, Exercise.exercise_id == ExerciseEntries.exercise_id)
+            .join(WorkoutPlan, WorkoutPlan.workout_id == Sessions.workout_id)
+            .filter(
+                Sessions.user_id == user_id,
+                Sessions.workout_id.in_(workout_ids),
+            )
+            .all()
+        )
+
+        if not records:
+            return []
+
+        # Plan position per (workout, exercise), for sorting only. Fetched
+        # separately rather than joined into the query above: a workout holding
+        # the same exercise twice would multiply every entry row in the join.
+        plan_order = {}
+        for row in (
+            db.session.query(
+                WorkoutExercises.workout_id,
+                WorkoutExercises.exercise_id,
+                WorkoutExercises.order_in_workout,
+            )
+            .filter(WorkoutExercises.workout_id.in_(workout_ids))
+            .all()
+        ):
+            key = (row.workout_id, row.exercise_id)
+            if key not in plan_order or row.order_in_workout < plan_order[key]:
+                plan_order[key] = row.order_in_workout
+
+        def sort_key(r):
+            return (
+                r.session_date or datetime.min,
+                r.session_id,
+                # An exercise dropped from the plan since it was logged has no
+                # position; park those at the end rather than at the front.
+                plan_order.get((r.workout_id, r.exercise_id), 9999),
+                r.entry_id,
+            )
+
+        records.sort(key=sort_key)
+
+        dated = [r.session_date for r in records if r.session_date]
+        first_day = min(dated).date() if dated else None
+
+        # Set numbers are renumbered 1..N per exercise per session rather than
+        # copied from ExerciseEntries.set_number. _next_set_number() is 1-based
+        # today, but older rows were written 0-based, so the stored column is a
+        # mix - a report showing "Set 0" reads as an error to a person and
+        # misleads anything counting sets. Position within the session is the
+        # only thing that column ever meant, and the sort above already fixes
+        # that, so derive it.
+        set_counter = {}
+
+        rows = []
+        for r in records:
+            day = r.session_date.date() if r.session_date else None
+            weight, reps = r.weight, r.reps
+            usable = bool(weight and reps and weight > 0 and reps > 0)
+
+            counter_key = (r.session_id, r.exercise_id)
+            set_counter[counter_key] = set_counter.get(counter_key, 0) + 1
+
+            rows.append(
+                {
+                    "Date": day,
+                    "Week": (
+                        (day - first_day).days // 7 + 1
+                        if day and first_day
+                        else None
+                    ),
+                    "Workout day": r.workout_name,
+                    "Exercise": r.exercise_name,
+                    "Set": set_counter[counter_key],
+                    "Weight (kg)": weight,
+                    "Reps": reps,
+                    "RPE": r.rpe,
+                    "Volume (kg)": round(weight * reps, 1) if usable else None,
+                    # Epley. Fair on low reps, optimistic on high ones - it is
+                    # a trend line, not a max attempt.
+                    "Est. 1RM (kg)": (
+                        round(weight * (1 + reps / 30), 1) if usable else None
+                    ),
+                    "Notes": (r.notes or "").strip(),
+                }
+            )
+
+        return rows
+
+    @staticmethod
+    def _sheet_name(raw, taken):
+        """A workout day name Excel will accept, and that is not already used."""
+        cleaned = "".join(c for c in str(raw) if c not in "[]:*?/\\").strip()
+        cleaned = (cleaned or "Day")[:31]
+
+        candidate, n = cleaned, 2
+        while candidate.lower() in taken:
+            suffix = f" ({n})"
+            candidate = cleaned[: 31 - len(suffix)] + suffix
+            n += 1
+
+        taken.add(candidate.lower())
+        return candidate
+
+    def mesocycle_report_to_excel(self, chosen_mesocycle, mesocycle_info):
+        """The mesocycle report workbook, or None if nothing has been logged.
+
+        Sheet 1 "Mesocycle" - a small key/value card of context.
+        Sheet 2 "All sets"  - every set, flat: one row per set, no merged cells,
+                              no spacer rows, no repeated headers. This is the
+                              sheet to point an LLM at, because it is a single
+                              rectangle that cannot be misread.
+        Then one sheet per workout day, named after the day, carrying the same
+        rows minus the now-redundant "Workout day" column. That is the human
+        view - several tables stacked on ONE sheet would read fine to a person
+        but forces a parser to guess where each table ends.
+        """
+        rows = self.mesocycle_report_rows(chosen_mesocycle, mesocycle_info)
+        if not rows:
+            return None
+
+        frame = pd.DataFrame(rows, columns=self.REPORT_COLUMNS)
+        _, meta = self._mesocycle_entry(chosen_mesocycle, mesocycle_info)
+
+        output = io.BytesIO()
+        with pd.ExcelWriter(
+            output,
+            engine="xlsxwriter",
+            datetime_format="yyyy-mm-dd",
+            date_format="yyyy-mm-dd",
+        ) as writer:
+            workbook = writer.book
+            header_format = workbook.add_format(
+                {
+                    "bold": True,
+                    "valign": "vcenter",
+                    "align": "center",
+                    "fg_color": "#D7E4BC",
+                    "border": 1,
+                    "text_wrap": True,
+                }
+            )
+            label_format = workbook.add_format(
+                {"bold": True, "border": 1, "fg_color": "#F2F2F2"}
+            )
+            value_format = workbook.add_format({"border": 1})
+
+            days = list(dict.fromkeys(frame["Workout day"]))
+
+            # --- context card, so an analysis does not have to infer any of it
+            info = workbook.add_worksheet("Mesocycle")
+            writer.sheets["Mesocycle"] = info
+            info.set_column(0, 0, 24)
+            info.set_column(1, 1, 48)
+            summary = [
+                ("Mesocycle", chosen_mesocycle),
+                ("Planned weeks", meta.get("duration")),
+                ("Workouts per week", meta.get("per_week")),
+                ("Workout days", ", ".join(str(d) for d in days)),
+                ("First session", str(frame["Date"].min())),
+                ("Last session", str(frame["Date"].max())),
+                ("Weeks with data", int(frame["Week"].max())),
+                ("Sessions logged", int(frame.groupby(["Date", "Workout day"]).ngroups)),
+                ("Exercises", int(frame["Exercise"].nunique())),
+                ("Sets logged", int(len(frame))),
+                ("Total volume (kg)", round(float(frame["Volume (kg)"].sum()), 1)),
+                ("Units", "kilograms"),
+                ("Est. 1RM formula", "Epley: weight x (1 + reps / 30)"),
+            ]
+            for r, (label, value) in enumerate(summary):
+                info.write(r, 0, label, label_format)
+                info.write(r, 1, "" if value is None else value, value_format)
+
+            def write_table(name, table):
+                table.to_excel(writer, sheet_name=name, index=False)
+                sheet = writer.sheets[name]
+
+                for col, title in enumerate(table.columns):
+                    sheet.write(0, col, title, header_format)
+                    widest = max(
+                        [len(str(title))]
+                        + [len(str(v)) for v in table[title].head(300).fillna("")]
+                    )
+                    sheet.set_column(col, col, min(max(widest + 2, 9), 45))
+
+                sheet.freeze_panes(1, 0)
+                sheet.autofilter(0, 0, len(table), len(table.columns) - 1)
+
+            taken = {"mesocycle", "all sets"}
+            write_table("All sets", frame)
+
+            for day in days:
+                day_rows = frame[frame["Workout day"] == day].drop(
+                    columns=["Workout day"]
+                )
+                write_table(self._sheet_name(day, taken), day_rows)
+
+        output.seek(0)
+        return output
+
     def last_mesocycle_by_default(self) -> str:
         user_id = self.current_user_id_db()
         last_meso_query = (

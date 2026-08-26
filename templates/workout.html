@@ -171,8 +171,16 @@
           </div>
           {% endfor %}
 
-          <form method="POST" action="{{ url_for('workout_plan_page') }}">
-            <button type="submit" name="action" value="export_excel" class="btn btn-success">Export to Excel</button>
+          <form method="POST" action="{{ url_for('workout_plan_page') }}"
+            class="d-flex flex-wrap justify-content-center gap-2">
+            <button type="submit" name="action" value="export_excel" class="btn btn-success">
+              Export to Excel
+            </button>
+            <!-- The plan is what the button above exports. This one exports what
+                 was actually lifted, for evaluating the mesocycle. -->
+            <button type="submit" name="action" value="mesocycle_report" class="btn btn-success">
+              Download mesocycle report
+            </button>
           </form>
           {% endif %}
 
