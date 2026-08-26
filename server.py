@@ -285,10 +285,16 @@ def workout_plan_page():
                 flash("No sets logged in this mesocycle yet - nothing to report.", "warning")
                 return redirect(url_for("workout_plan_page"))
 
+            # All lower case, and no runs of underscores where the name had
+            # spaces or punctuation: "Strenght & Regeneration" would otherwise
+            # land as ..._Strenght___Regeneration.xlsx.
             safe_name = "".join(
                 c if c.isalnum() or c in "-_" else "_"
-                for c in str(chosen_mesocycle or "mesocycle")
+                for c in str(chosen_mesocycle or "mesocycle").lower()
             )
+            while "__" in safe_name:
+                safe_name = safe_name.replace("__", "_")
+            safe_name = safe_name.strip("_") or "mesocycle"
             return send_file(
                 report,
                 mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

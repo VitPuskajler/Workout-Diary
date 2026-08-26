@@ -2594,7 +2594,6 @@ class WorkoutManagement:
         "Week",
         "Workout day",
         "Exercise",
-        "Set",
         "Weight (kg)",
         "Reps",
         "RPE",
@@ -2689,23 +2688,11 @@ class WorkoutManagement:
         dated = [r.session_date for r in records if r.session_date]
         first_day = min(dated).date() if dated else None
 
-        # Set numbers are renumbered 1..N per exercise per session rather than
-        # copied from ExerciseEntries.set_number. _next_set_number() is 1-based
-        # today, but older rows were written 0-based, so the stored column is a
-        # mix - a report showing "Set 0" reads as an error to a person and
-        # misleads anything counting sets. Position within the session is the
-        # only thing that column ever meant, and the sort above already fixes
-        # that, so derive it.
-        set_counter = {}
-
         rows = []
         for r in records:
             day = r.session_date.date() if r.session_date else None
             weight, reps = r.weight, r.reps
             usable = bool(weight and reps and weight > 0 and reps > 0)
-
-            counter_key = (r.session_id, r.exercise_id)
-            set_counter[counter_key] = set_counter.get(counter_key, 0) + 1
 
             rows.append(
                 {
@@ -2717,16 +2704,11 @@ class WorkoutManagement:
                     ),
                     "Workout day": r.workout_name,
                     "Exercise": r.exercise_name,
-                    "Set": set_counter[counter_key],
                     "Weight (kg)": weight,
                     "Reps": reps,
                     "RPE": r.rpe,
                     "Volume (kg)": round(weight * reps, 1) if usable else None,
-                    # Epley. Fair on low reps, optimistic on high ones - it is
-                    # a trend line, not a max attempt.
-                    "Est. 1RM (kg)": (
-                        round(weight * (1 + reps / 30), 1) if usable else None
-                    ),
+                    "Est. 1RM (kg)": self._estimated_1rm(weight, reps, r.rpe),
                     "Notes": (r.notes or "").strip(),
                 }
             )
@@ -2736,18 +2718,60 @@ class WorkoutManagement:
     DAY_SUMMARY_COLUMNS = [
         "Exercise",
         "Sessions",
-        "Max reps",
-        "Max weight (kg)",
-        "Max weight start (kg)",
-        "Max weight end (kg)",
-        "Max weight change (kg)",
-        "Max weight change (%)",
+        "Best set by weight",
+        "Best set by reps",
+        "Top set: start -> end",
         "Total volume (kg)",
         "Total reps",
         "Est. 1RM start (kg)",
         "Est. 1RM end (kg)",
         "Est. 1RM change (kg)",
     ]
+
+    @staticmethod
+    def _estimated_1rm(weight, reps, rpe):
+        """Epley, but on the reps you COULD have done, not the reps you did.
+
+        Ten reps with four left in the tank is not the same set as ten reps to
+        failure, and plain Epley cannot tell them apart - it sees "10" either
+        way. RPE gives reps in reserve (RIR = 10 - RPE), so the estimate runs
+        on reps + RIR instead.
+
+        RIR is capped at 5: below RPE 5 the extrapolation is guesswork. Without
+        a usable RPE there is nothing to extrapolate from, so the set gets no
+        number rather than an invented one - which also keeps the ~1% of rows
+        carrying an RPE of 0 or 12 out of the maths entirely.
+        """
+        if not weight or not reps or weight <= 0 or reps <= 0:
+            return None
+        if rpe is None or rpe != rpe or rpe <= 0 or rpe > 10:
+            return None
+
+        reps_in_reserve = min(5.0, 10.0 - float(rpe))
+        return round(float(weight) * (1 + (float(reps) + reps_in_reserve) / 30), 1)
+
+    @staticmethod
+    def _set_label(reps, weight):
+        """One set as one readable string: "8 x 34 kg", or "20 x bodyweight".
+
+        reps first, then load - the way Vit writes it himself ("10x20 kg"), and
+        the same way round in every column, so a number is never ambiguous.
+        """
+        if reps is None or reps != reps:
+            return ""
+        if not weight or weight != weight:
+            return f"{int(reps)} \u00d7 bodyweight"
+        return f"{int(reps)} \u00d7 {float(weight):g} kg"
+
+    @staticmethod
+    def _best_set(block, ranked_by):
+        """The single best set in `block`, ranked by `ranked_by` descending."""
+        if block is None or not len(block):
+            return None, None
+
+        row = block.sort_values(ranked_by, ascending=False, na_position="last").iloc[0]
+        reps, weight = row["Reps"], row["Weight (kg)"]
+        return (None if reps != reps else reps), (None if weight != weight else weight)
 
     @staticmethod
     def _slovak_day(value):
@@ -2774,12 +2798,24 @@ class WorkoutManagement:
         exercise swapped in halfway through is then measured across the weeks it
         existed instead of showing a fake jump up from nothing.
 
-        Change columns are blank when an exercise was trained only once. There
-        is no progress to report, and a 0 would read as a plateau. Same for an
-        exercise that is 0 kg at both ends - that is bodyweight work, not a
-        stalled lift, and "Total reps" is where its progress shows.
+        Reps never appear without the load they were done at: every set is
+        rendered as "8 x 34 kg" by _set_label(), so a rep count can never be
+        read on its own. "Top set: start -> end" spells the change out
+        ("10 x 20 kg -> 15 x 15 kg") because a raw kg delta calls dropping
+        weight to chase reps a regression, which it usually is not. The
+        RPE-adjusted 1RM change beside it is the number that judges the swap:
+        it weighs load and reps against how close to failure the set was.
+
+        The 1RM change is blank when an exercise was trained only once - there
+        is no progress to report, and a 0 would read as a plateau - and when
+        either end has no set with a usable RPE.
         """
         rows = []
+
+        # Ranking orders for _best_set: heaviest set (reps break the tie), and
+        # most reps (load breaks the tie).
+        BY_WEIGHT = ["Weight (kg)", "Reps"]
+        BY_REPS = ["Reps", "Weight (kg)"]
 
         # Row order = the order of the MOST RECENT session, which is the workout
         # as it stands today. Plain first-appearance order would be wrong: an
@@ -2804,35 +2840,29 @@ class WorkoutManagement:
             first_day = dates.min() if len(dates) else None
             last_day = dates.max() if len(dates) else None
 
-            def best(column, on_day):
-                """The best single set of `column` on one day."""
-                if on_day is None:
-                    return None
-                values = block[block["Date"] == on_day][column].dropna()
-                return round(float(values.max()), 1) if len(values) else None
-
-            weight_start = best("Weight (kg)", first_day)
-            weight_end = best("Weight (kg)", last_day)
-            rm_start = best("Est. 1RM (kg)", first_day)
-            rm_end = best("Est. 1RM (kg)", last_day)
+            start_sets = block[block["Date"] == first_day] if first_day is not None else None
+            end_sets = block[block["Date"] == last_day] if last_day is not None else None
 
             sessions = int(dates.nunique()) if len(dates) else 0
             moved = sessions > 1
 
-            loaded = bool(weight_start or weight_end)
-            weight_change = (
-                round(weight_end - weight_start, 1)
-                if moved and loaded
-                and weight_start is not None and weight_end is not None
-                else None
-            )
-            # A falsy weight_start is either missing or a bodyweight 0, and
-            # neither has a percentage.
-            weight_percent = (
-                round((weight_end - weight_start) / weight_start * 100, 1)
-                if moved and weight_start and weight_end is not None
-                else None
-            )
+            # "Top set" = heaviest set of that session, reps breaking the tie.
+            start_reps, start_weight = cls._best_set(start_sets, BY_WEIGHT)
+            end_reps, end_weight = cls._best_set(end_sets, BY_WEIGHT)
+
+            start_label = cls._set_label(start_reps, start_weight)
+            end_label = cls._set_label(end_reps, end_weight)
+            # A single session has nothing to point an arrow at.
+            progress = f"{start_label} \u2192 {end_label}" if moved else start_label
+
+            def best_1rm(sets):
+                if sets is None or not len(sets):
+                    return None
+                values = sets["Est. 1RM (kg)"].dropna()
+                return round(float(values.max()), 1) if len(values) else None
+
+            rm_start = best_1rm(start_sets)
+            rm_end = best_1rm(end_sets)
             rm_change = (
                 round(rm_end - rm_start, 1)
                 if moved and rm_start is not None and rm_end is not None
@@ -2840,21 +2870,17 @@ class WorkoutManagement:
             )
 
             reps = block["Reps"].dropna()
-            weights = block["Weight (kg)"].dropna()
             volume = block["Volume (kg)"].dropna()
 
             rows.append(
                 {
                     "Exercise": name,
                     "Sessions": sessions,
-                    "Max reps": int(reps.max()) if len(reps) else None,
-                    "Max weight (kg)": (
-                        round(float(weights.max()), 1) if len(weights) else None
+                    "Best set by weight": cls._set_label(
+                        *cls._best_set(block, BY_WEIGHT)
                     ),
-                    "Max weight start (kg)": weight_start,
-                    "Max weight end (kg)": weight_end,
-                    "Max weight change (kg)": weight_change,
-                    "Max weight change (%)": weight_percent,
+                    "Best set by reps": cls._set_label(*cls._best_set(block, BY_REPS)),
+                    "Top set: start -> end": progress,
                     "Total volume (kg)": (
                         round(float(volume.sum()), 1) if len(volume) else None
                     ),
@@ -2962,7 +2988,11 @@ class WorkoutManagement:
                 ("Sets logged", int(len(frame))),
                 ("Total volume (kg)", round(float(frame["Volume (kg)"].sum()), 1)),
                 ("Units", "kilograms"),
-                ("Est. 1RM formula", "Epley: weight x (1 + reps / 30)"),
+                (
+                    "Est. 1RM formula",
+                    "Epley on reps + RIR: weight x (1 + (reps + RIR) / 30), "
+                    "RIR = 10 - RPE capped at 5. Blank without a usable RPE.",
+                ),
             ]
             for r, (label, value) in enumerate(summary):
                 info.write(r, 0, label, label_format)
