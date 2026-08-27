@@ -83,55 +83,151 @@
   {% include "partials/_flashes.html" %}
 
 
-  <!-- First Section -->
-<div class="container text-center">
-  <div class="my-4 p-4 bg-body">
+  <div class="container">
     <div class="row justify-content-center">
-      <div class="col-12">
-        <p class="h2">Provide Mesocycle Information</p>
-        <!-- Additional content if needed -->
-        <p class="h3"><b></b></p>
+      <div class="col-sm-12 col-md-10 col-lg-8">
+
+        <p class="h2 text-center my-4">New mesocycle</p>
+
+        {# Two ways in. The caption above each button says what it does, so the
+           buttons themselves stay two words. #}
+        <div class="row g-3 text-center">
+          <div class="col-12 col-md-6">
+            <p class="text-body-secondary small mb-2">Choose everything from scratch</p>
+            <button type="button" class="btn btn-success w-100" data-bs-toggle="collapse"
+              data-bs-target="#fromScratch" aria-expanded="false" aria-controls="fromScratch">
+              Create new mesocycle
+            </button>
+          </div>
+          <div class="col-12 col-md-6">
+            <p class="text-body-secondary small mb-2">Pick a template and customise it as you wish</p>
+            <button type="button" class="btn btn-warning w-100" data-bs-toggle="modal"
+              data-bs-target="#templatePicker">
+              Choose template
+            </button>
+          </div>
+        </div>
+
+        <div class="collapse" id="fromScratch">
+          <div class="my-3 p-3 bg-body rounded shadow-sm">
+            <form action="{{ url_for('table_layout') }}" method="post">
+              <!-- Mesocycle Name -->
+              <div class="mb-3">
+                <label for="meso_name" class="form-label"><b>Mesocycle Name</b></label>
+                <input type="text" id="name" name="meso_name" class="form-control"
+                  placeholder="Eg. Hypertrophy Mesocycle... Beast mode. Or leave this blank">
+              </div>
+
+              <!-- Mesocycle Period -->
+              <div class="mb-3">
+                <label for="period" class="form-label"><b>Mesocycle Period</b></label>
+                <input type="text" id="period" name="mesocycle" class="form-control"
+                  placeholder="How many weeks will last your mesocycle? Usually 4 - 12 weeks">
+              </div>
+
+              {# "Workouts Per Week" used to be asked for here. It now defaults
+                 to four in the route - the column stays, it is just no longer
+                 a question. #}
+
+              <!-- Submit Button -->
+              <div class="my-1 p-3 text-center">
+                <button type="submit" class="btn btn-dark">Confirm</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
-</div>
 
-<!-- Second Section -->
-<div class="container">
-  <div class="row justify-content-center">
-    <div class="col-sm-12 col-md-10 col-lg-8">
-      <div class="my-3 p-3 bg-body rounded shadow-sm">
-        <form action="{{ url_for('table_layout') }}" method="post">
-          <!-- Mesocycle Name -->
-          <div class="mb-3">
-            <label for="meso_name" class="form-label"><b>Mesocycle Name</b></label>
-            <input type="text" id="name" name="meso_name" class="form-control"
-              placeholder="Eg. Hypertrophy Mesocycle... Beast mode. Or leave this blank">
+  {# ------------------------------------------------------------------
+     Template picker. Two views in one dialog: the list of plans, and one
+     plan's tables. The back arrow returns to the list; the red X leaves
+     without creating anything. Every plan's detail is rendered up front and
+     hidden, so switching between them needs no request and no JS templating.
+     ------------------------------------------------------------------ #}
+  <div class="modal fade" id="templatePicker" tabindex="-1" aria-hidden="true"
+    aria-labelledby="templatePickerTitle">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="btn btn-sm btn-outline-secondary d-none me-2"
+            id="templateBack" aria-label="Back to the list">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+            </svg>
+          </button>
+
+          <h5 class="modal-title" id="templatePickerTitle">Choose template</h5>
+
+          <button type="button" class="btn btn-sm btn-outline-danger ms-auto"
+            data-bs-dismiss="modal" aria-label="Close without changes">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div id="templateList">
+            {% if templates %}
+            <p class="text-body-secondary small text-center mb-3">Click to preview</p>
+            <div class="list-group">
+              {% for template in templates %}
+              <button type="button"
+                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                data-template="{{ template.id }}">
+                <span class="fw-medium">{{ template.name }}</span>
+                <span class="text-body-secondary small">{{ template.summary }}</span>
+              </button>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-center text-body-secondary my-4">No templates are available.</p>
+            {% endif %}
           </div>
 
-          <!-- Mesocycle Period -->
-          <div class="mb-3">
-            <label for="period" class="form-label"><b>Mesocycle Period</b></label>
-            <input type="text" id="period" name="mesocycle" class="form-control"
-              placeholder="How many weeks will last your mesocycle? Usually 4 - 12 weeks">
-          </div>
+          {% for template in templates %}
+          <div class="d-none" data-template-detail="{{ template.id }}"
+            data-template-name="{{ template.name }}">
+            <form action="{{ url_for('table_layout') }}" method="post" class="text-center mb-4">
+              <input type="hidden" name="action" value="use_template" />
+              <input type="hidden" name="template_id" value="{{ template.id }}" />
+              <button type="submit" class="btn btn-success">Use this plan</button>
+              <p class="text-body-secondary small mt-2 mb-0">
+                {{ template.summary }} &middot; {{ template.duration_weeks }} weeks &middot;
+                {{ template.exercise_count }} exercises
+              </p>
+            </form>
 
-          <!-- Workouts Per Week -->
-          <div class="mb-3">
-            <label for="per_week" class="form-label"><b>Workouts Per Week</b></label>
-            <input type="text" id="per_week" name="per_week" class="form-control"
-              placeholder="How many times you want to exercise per week?">
+            {% for day in template.days %}
+            <h6 class="text-center text-success border-bottom pb-2 mb-3">{{ day.name }}</h6>
+            <table class="table table-striped table-sm text-center mb-4">
+              <thead>
+                <tr>
+                  <th class="text-center">Exercise</th>
+                  <th class="text-center">Sets</th>
+                  <th class="text-center">Rest</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in day.exercises %}
+                <tr>
+                  <td>{{ item.exercise }}</td>
+                  <td>{{ item.sets }}</td>
+                  <td>{{ item.rest }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% endfor %}
           </div>
-
-          <!-- Submit Button -->
-          <div class="my-1 p-3 text-center">
-            <button type="submit" class="btn btn-dark">Confirm</button>
-          </div>
-        </form>
+          {% endfor %}
+        </div>
       </div>
     </div>
   </div>
-</div>
 
 
   <div class="p-3">
@@ -145,6 +241,47 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
     crossorigin="anonymous"></script>
+
+  <script>
+    // Swap the dialog between its two views. Nothing is fetched: every plan's
+    // tables are already in the page, hidden.
+    (function () {
+      const dialog = document.getElementById("templatePicker");
+      if (!dialog) return;
+
+      const list = document.getElementById("templateList");
+      const back = document.getElementById("templateBack");
+      const title = document.getElementById("templatePickerTitle");
+      const details = dialog.querySelectorAll("[data-template-detail]");
+      const body = dialog.querySelector(".modal-body");
+
+      function showList() {
+        details.forEach((d) => d.classList.add("d-none"));
+        list.classList.remove("d-none");
+        back.classList.add("d-none");
+        title.textContent = "Choose template";
+        body.scrollTop = 0;
+      }
+
+      list.querySelectorAll("[data-template]").forEach(function (row) {
+        row.addEventListener("click", function () {
+          const id = row.dataset.template;
+          list.classList.add("d-none");
+          details.forEach(function (detail) {
+            const match = detail.dataset.templateDetail === id;
+            detail.classList.toggle("d-none", !match);
+            if (match) title.textContent = detail.dataset.templateName;
+          });
+          back.classList.remove("d-none");
+          body.scrollTop = 0;
+        });
+      });
+
+      back.addEventListener("click", showList);
+      // Reopening should always start at the list, never mid-preview.
+      dialog.addEventListener("hidden.bs.modal", showList);
+    })();
+  </script>
 
   <!-- waiting overlay -->
   <script src="{{ url_for('static', filename='js/loader.js') }}"></script>

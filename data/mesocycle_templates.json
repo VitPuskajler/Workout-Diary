@@ -1,0 +1,665 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "id": "full-body-beast",
+      "name": "Full Body Beast",
+      "duration_weeks": 6,
+      "days": [
+        {
+          "name": "Full Body A",
+          "exercises": [
+            {
+              "exercise": "Dumbbell Bench Press (Palms in)",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Barbell Romanian Deadlift",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Calf Raise",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Cable Rope Face Pull",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Bench Crunch",
+              "sets": 2,
+              "rest": 120
+            }
+          ]
+        },
+        {
+          "name": "Full Body B",
+          "exercises": [
+            {
+              "exercise": "Machine Squat",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Weighted Pull-Up",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Dip",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "EZ Bar Curl",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Seated Leg Curl",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Push-Up",
+              "sets": 3,
+              "rest": 120
+            }
+          ]
+        },
+        {
+          "name": "Full Body C",
+          "exercises": [
+            {
+              "exercise": "Dumbbell Incline Bench Press",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Cable Seated Row",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Barbell Bulgarian Split Squat",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Lateral Shoulder Raise",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Cable Tricep Extension",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Fly",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Cable Crunch",
+              "sets": 2,
+              "rest": 120
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "beast-mode",
+      "name": "Beast Mode",
+      "duration_weeks": 4,
+      "days": [
+        {
+          "name": "Upper Body",
+          "exercises": [
+            {
+              "exercise": "Dumbbell Incline Bench Press",
+              "sets": 3,
+              "rest": 180
+            },
+            {
+              "exercise": "Pull-Up",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Shoulder Press",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Seated Row",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Cable Rope Face Pull",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Cable Tricep Extension",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Hammer Curl (Cross Body)",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Lateral Raise",
+              "sets": 2,
+              "rest": 120
+            }
+          ]
+        },
+        {
+          "name": "Lower Body",
+          "exercises": [
+            {
+              "exercise": "Barbell Squat",
+              "sets": 2,
+              "rest": 180
+            },
+            {
+              "exercise": "Barbell Stiff-Leg Deadlift",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Seated Leg Curl",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Leg Extension",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Calf Raise",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Leg Press",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Ab Crunch",
+              "sets": 2,
+              "rest": 120
+            }
+          ]
+        },
+        {
+          "name": "Full Body A",
+          "exercises": [
+            {
+              "exercise": "Machine Lat Pulldown",
+              "sets": 2,
+              "rest": 160
+            },
+            {
+              "exercise": "Cable Decline Chest Fly",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell One-Arm Row",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Cable Rope Face Pull",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Seated Row",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Barbell JM Press",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Hammer Curl",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Leg Raise",
+              "sets": 2,
+              "rest": 120
+            }
+          ]
+        },
+        {
+          "name": "Full Body B",
+          "exercises": [
+            {
+              "exercise": "Barbell Incline Bench Press",
+              "sets": 2,
+              "rest": 180
+            },
+            {
+              "exercise": "Hack Squat",
+              "sets": 2,
+              "rest": 180
+            },
+            {
+              "exercise": "Dumbbell Shoulder Press",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Seated Leg Curl",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Lateral Raise",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Calf Raise",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Ab Crunch",
+              "sets": 2,
+              "rest": 120
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "demon-slayer",
+      "name": "Demon Slayer",
+      "duration_weeks": 5,
+      "days": [
+        {
+          "name": "Upper Body",
+          "exercises": [
+            {
+              "exercise": "Dumbbell Incline Bench Press",
+              "sets": 2,
+              "rest": 180
+            },
+            {
+              "exercise": "Machine Lat Pulldown",
+              "sets": 2,
+              "rest": 180
+            },
+            {
+              "exercise": "Dumbbell Shoulder Press",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Seated Row",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Cable Rope Face Pull",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Cable Tricep Extension",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Bicep Curl",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Lateral Raise",
+              "sets": 2,
+              "rest": 120
+            }
+          ]
+        },
+        {
+          "name": "Lower Body",
+          "exercises": [
+            {
+              "exercise": "Barbell Squat",
+              "sets": 2,
+              "rest": 180
+            },
+            {
+              "exercise": "Barbell Stiff-Leg Deadlift",
+              "sets": 2,
+              "rest": 180
+            },
+            {
+              "exercise": "Machine Seated Leg Curl",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Leg Extension",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Calf Raise",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Leg Press",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Ab Crunch",
+              "sets": 2,
+              "rest": 120
+            }
+          ]
+        },
+        {
+          "name": "Full Body A",
+          "exercises": [
+            {
+              "exercise": "Machine Lat Pulldown",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Cable Decline Chest Fly",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell One-Arm Row",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Cable Rope Face Pull",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Seated Row",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Barbell JM Press",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Hammer Curl",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Leg Raise",
+              "sets": 2,
+              "rest": 120
+            }
+          ]
+        },
+        {
+          "name": "Full Body B",
+          "exercises": [
+            {
+              "exercise": "Barbell Incline Bench Press",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Hack Squat",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Shoulder Press",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Seated Leg Curl",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Lateral Raise",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Calf Raise",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Ab Crunch",
+              "sets": 2,
+              "rest": 120
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "first-blood",
+      "name": "First Blood",
+      "duration_weeks": 4,
+      "days": [
+        {
+          "name": "Lower Body",
+          "exercises": [
+            {
+              "exercise": "Barbell Squat",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Lunge",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Barbell Romanian Deadlift",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Barbell Hip Thrust",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Hip Adduction",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Hip Abduction",
+              "sets": 2,
+              "rest": 120
+            }
+          ]
+        },
+        {
+          "name": "Upper Body",
+          "exercises": [
+            {
+              "exercise": "Cable Lat Pulldown (Wide Grip)",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Bench Press",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Bicep Curl",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dual Cable Triceps Extension",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Lateral Raise",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "EZ Bar Curl",
+              "sets": 2,
+              "rest": 120
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "iron-rebound",
+      "name": "Iron Rebound",
+      "duration_weeks": 6,
+      "days": [
+        {
+          "name": "Upper Body",
+          "exercises": [
+            {
+              "exercise": "Dumbbell Bench Press",
+              "sets": 3,
+              "rest": 140
+            },
+            {
+              "exercise": "Machine Dip",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Fly",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Lateral Raise",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Dragon Flag",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Seated Bicep Curl",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Cable One-Arm Seated Row",
+              "sets": 2,
+              "rest": 120
+            }
+          ]
+        },
+        {
+          "name": "Lower Body",
+          "exercises": [
+            {
+              "exercise": "Barbell Squat",
+              "sets": 2,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Leg Extension",
+              "sets": 3,
+              "rest": 100
+            },
+            {
+              "exercise": "Machine Leg Curl (Prone)",
+              "sets": 3,
+              "rest": 100
+            },
+            {
+              "exercise": "Cable Lat Pulldown (Wide Grip)",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Calf Raise",
+              "sets": 2,
+              "rest": 120
+            }
+          ]
+        },
+        {
+          "name": "Full Body",
+          "exercises": [
+            {
+              "exercise": "Machine Incline Chest Press",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Hack Squat (Narrow Stance)",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Shoulder Press",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Dumbbell Lateral Raise",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Machine Ab Crunch",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "EZ Bar Close Grip Curl",
+              "sets": 3,
+              "rest": 120
+            },
+            {
+              "exercise": "Push-Up",
+              "sets": 3,
+              "rest": 100
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

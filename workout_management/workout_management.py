@@ -1,4 +1,6 @@
 import inspect
+import json
+import os
 import matplotlib.dates
 import base64
 import io
@@ -2772,6 +2774,193 @@ class WorkoutManagement:
         row = block.sort_values(ranked_by, ascending=False, na_position="last").iloc[0]
         reps, weight = row["Reps"], row["Weight (kg)"]
         return (None if reps != reps else reps), (None if weight != weight else weight)
+
+    # ------------------------------------------------------------------
+    # Mesocycle templates
+    #
+    # Five ready-made plans lifted out of real mesocycles, kept as JSON in
+    # data/mesocycle_templates.json rather than in the database: they are
+    # content that ships with the app, the same for every user, and a file in
+    # git can be edited and reviewed without a migration.
+    # ------------------------------------------------------------------
+    _TEMPLATE_CACHE = None
+
+    @classmethod
+    def _template_path(cls):
+        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return os.path.join(here, "data", "mesocycle_templates.json")
+
+    @classmethod
+    def load_mesocycle_templates(cls):
+        """The templates, each with a summary line for the picker.
+
+        Read once and cached - the file never changes while the app runs. A
+        missing or broken file returns an empty list rather than raising: the
+        template button then shows nothing, and creating a plan from scratch
+        still works.
+        """
+        if cls._TEMPLATE_CACHE is not None:
+            return cls._TEMPLATE_CACHE
+
+        try:
+            with io.open(cls._template_path(), encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (OSError, ValueError) as e:
+            print(f"load_mesocycle_templates: {e}")
+            cls._TEMPLATE_CACHE = []
+            return cls._TEMPLATE_CACHE
+
+        templates = []
+        for entry in data.get("templates", []):
+            days = entry.get("days") or []
+            if not days:
+                continue
+
+            names = " ".join(d.get("name", "") for d in days).lower()
+            if "upper" in names and "lower" in names and "full" in names:
+                split = "Upper / Lower / Full body"
+            elif "upper" in names and "lower" in names:
+                split = "Upper / Lower"
+            elif "full" in names:
+                split = "Full body"
+            else:
+                split = "Mixed"
+
+            templates.append(
+                {
+                    "id": entry.get("id"),
+                    "name": entry.get("name"),
+                    "duration_weeks": int(entry.get("duration_weeks") or 4),
+                    "days": days,
+                    "day_count": len(days),
+                    "exercise_count": sum(len(d.get("exercises") or []) for d in days),
+                    "summary": f"{len(days)} days \u00b7 {split}",
+                }
+            )
+
+        cls._TEMPLATE_CACHE = templates
+        return templates
+
+    @classmethod
+    def _find_template(cls, template_id):
+        for template in cls.load_mesocycle_templates():
+            if template["id"] == template_id:
+                return template
+        return None
+
+    def _free_mesocycle_name(self, user_id, wanted):
+        """`wanted`, or "wanted (2)" if this user already has one by that name.
+
+        Picking the same template twice is a reasonable thing to do - a second
+        run of the same block - and two identically named mesocycles make the
+        dropdown on /workout_plan_page unusable.
+        """
+        taken = {
+            name for (name,) in db.session.query(Mesocycles.name)
+            .filter(Mesocycles.user_id == user_id).all()
+        }
+        if wanted not in taken:
+            return wanted
+
+        suffix = 2
+        while f"{wanted} ({suffix})" in taken:
+            suffix += 1
+        return f"{wanted} ({suffix})"
+
+    def apply_mesocycle_template(self, template_id):
+        """Create a whole mesocycle for the current user from a template.
+
+        Returns the new mesocycle's name, or None if the id is unknown.
+
+        workouts_per_week is set to the template's REAL number of days, not to
+        a fixed default. find_users_weeks() uses that column to LIMIT the
+        workouts it loads and create_workout() then walks range(weekly), so a
+        column claiming four days when only three exist walks off the end of
+        the list.
+        """
+        template = self._find_template(template_id)
+        if not template:
+            return None
+
+        user_id = self.current_user_id_db()
+        if not user_id:
+            return None
+
+        name = self._free_mesocycle_name(user_id, template["name"])
+
+        try:
+            mesocycle = Mesocycles(
+                name=name,
+                user_id=user_id,
+                mesocycle_duration_weeks=template["duration_weeks"],
+                workouts_per_week=template["day_count"],
+            )
+            db.session.add(mesocycle)
+            db.session.commit()
+
+            for day in template["days"]:
+                plan = WorkoutPlan(
+                    workout_name=day.get("name"),
+                    user_id=user_id,
+                    mesocycle_id=mesocycle.mesocycle_id,
+                )
+                db.session.add(plan)
+                db.session.commit()
+
+                for position, item in enumerate(day.get("exercises") or [], start=1):
+                    exercise_id = self._exercise_id_or_create(item.get("exercise"))
+                    if exercise_id is None:
+                        continue
+
+                    db.session.add(
+                        WorkoutExercises(
+                            workout_id=plan.workout_id,
+                            exercise_id=exercise_id,
+                            order_in_workout=position,
+                            prescribed_sets=int(item.get("sets") or 3),
+                            rest_period=int(item.get("rest") or 120),
+                        )
+                    )
+                db.session.commit()
+
+                # A skipped exercise would leave a hole in 1..N.
+                self._compact_workout_order(plan.workout_id)
+
+        except (SQLAlchemyError, ValueError, TypeError) as e:
+            db.session.rollback()
+            print(f"apply_mesocycle_template: rolling back, {e}")
+            return None
+
+        return name
+
+    @staticmethod
+    def _exercise_id_or_create(exercise_name):
+        """The catalogue id for this name, adding it if the catalogue lacks it.
+
+        The templates came out of this database, so every name is already
+        there. Creating the missing one anyway means a template still lands
+        complete on a fresh install, instead of silently dropping exercises.
+        """
+        if not exercise_name:
+            return None
+
+        row = (
+            db.session.query(Exercise.exercise_id)
+            .filter_by(exercise_name=exercise_name)
+            .first()
+        )
+        if row:
+            return row[0]
+
+        try:
+            created = Exercise(exercise=exercise_name, muscle_group="Other")
+            db.session.add(created)
+            db.session.commit()
+            return created.exercise_id
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f"_exercise_id_or_create: {e}")
+            return None
 
     @staticmethod
     def _slovak_day(value):

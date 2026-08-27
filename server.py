@@ -124,6 +124,8 @@ find_workout_name_from_user = db_operations.find_workout_name_from_user
 add_exercise = db_operations.add_exercise
 delete_exercise = db_operations.delete_exercise
 reorder_exercises = db_operations.reorder_exercises
+load_mesocycle_templates = db_operations.load_mesocycle_templates
+apply_mesocycle_template = db_operations.apply_mesocycle_template
 add_session_to_db = db_operations.add_session_to_db
 find_exercise_id_db = db_operations.find_exercise_id_db
 find_exercise_name_db = db_operations.find_exercise_name_db
@@ -322,9 +324,23 @@ def table_layout():
     username = current_user.username
 
     if request.method == "POST":
+        # The template picker: build the whole mesocycle and go straight to it.
+        if request.form.get("action") == "use_template":
+            created = apply_mesocycle_template(request.form.get("template_id"))
+            if not created:
+                flash("That template could not be loaded.", "warning")
+                return redirect(url_for("table_layout"))
+
+            flash(f"Created \"{created}\" - edit it below.", "success")
+            return redirect(url_for("create_workout"))
+
         meso_name = request.form.get("meso_name")
         meso_duration = request.form.get("mesocycle")
-        workouts_per_week = request.form.get("per_week")
+        # "Workouts Per Week" is no longer asked for. Four days is the default
+        # for a from-scratch plan; the column still has to match the number of
+        # WorkoutPlan rows created below, because find_users_weeks() limits by
+        # it and create_workout() walks range() over the result.
+        workouts_per_week = 4
 
         try:
             mesocycles_db = Mesocycles(
@@ -362,7 +378,9 @@ def table_layout():
             db.session.rollback()
             return redirect(url_for("home"))
             
-    return render_template("table_layout.html", year=YEAR)
+    return render_template(
+        "table_layout.html", year=YEAR, templates=load_mesocycle_templates()
+    )
 
 # Here is created mesocycle workout
 @app.route("/create_workout", methods=["GET", "POST"])
