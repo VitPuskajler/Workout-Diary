@@ -47,6 +47,7 @@
         }
     </style>
 
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/headings.css') }}">
 </head>
 
 <body>
@@ -124,7 +125,7 @@
          a desktop the box hung halfway down an empty screen. Stacked in flow
          they cannot collide at any width, whatever either one grows to. -->
     <main class="container my-4">
-        <h1 class="h3 text-center mb-4">Menu</h1>
+        <h1 class="wd-label text-center mb-4">Menu</h1>
 
         <!-- ------------------------ Table-like Container for Buttons ------------------------- -->
         <form method="post" action="{{ url_for('profile')}}">
