@@ -172,6 +172,11 @@
                     <button type="button" class="btn btn-primary btn-block" data-bs-toggle="modal"
                         data-bs-target="#changePasswordModal">Change Password</button>
 
+                    <!-- Deliberately last and deliberately red: this is the way
+                         to the one page that can delete a plan. -->
+                    <button type="submit" class="btn btn-outline-danger btn-block" name="action"
+                        value="mesocycle_management">Manage Mesocycles</button>
+
                     {% if current_user.is_admin and not impersonator %}
                     <!-- admins only: the route behind this modal 404s for everyone else -->
                     <button type="button" class="btn btn-warning btn-block" data-bs-toggle="modal"

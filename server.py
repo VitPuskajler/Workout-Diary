@@ -126,6 +126,8 @@ delete_exercise = db_operations.delete_exercise
 reorder_exercises = db_operations.reorder_exercises
 load_mesocycle_templates = db_operations.load_mesocycle_templates
 apply_mesocycle_template = db_operations.apply_mesocycle_template
+mesocycles_for_management = db_operations.mesocycles_for_management
+delete_mesocycles = db_operations.delete_mesocycles
 add_session_to_db = db_operations.add_session_to_db
 find_exercise_id_db = db_operations.find_exercise_id_db
 find_exercise_name_db = db_operations.find_exercise_name_db
@@ -380,6 +382,49 @@ def table_layout():
             
     return render_template(
         "table_layout.html", year=YEAR, templates=load_mesocycle_templates()
+    )
+
+# ----------------------------------------------------------------------
+# The only page that can destroy a plan. Tick, press Delete, confirm.
+#
+# A delete removes the mesocycle, its workout days and their exercises. Every
+# session and every logged set stays in the database - /statistics still draws
+# that training. See delete_mesocycles() for the full list.
+@app.route("/mesocycle_management", methods=["GET", "POST"])
+@login_required
+def mesocycle_management():
+    NOW = datetime.now()
+    YEAR = NOW.strftime("%Y")
+
+    if request.method == "POST" and request.form.get("action") == "delete":
+        # getlist, not get: one name carries every ticked box.
+        chosen = request.form.getlist("mesocycle_id")
+        if not chosen:
+            flash("Nothing was ticked, so nothing was deleted.", "warning")
+            return redirect(url_for("mesocycle_management"))
+
+        deleted = delete_mesocycles(chosen)
+
+        if not deleted:
+            flash("Nothing was deleted.", "warning")
+        else:
+            # /workout_plan_page and /progress remember a mesocycle by NAME in
+            # the cookie session. Left pointing at a deleted one they render an
+            # empty plan with no explanation.
+            if session.get("chosen_mesocycle") in deleted:
+                session.pop("chosen_mesocycle", None)
+                session.pop("chosen_day", None)
+                session.pop("training_day", None)
+
+            names = ", ".join(f'"{name}"' for name in deleted)
+            flash(f"Deleted {names}. Your logged training was kept.", "success")
+
+        return redirect(url_for("mesocycle_management"))
+
+    return render_template(
+        "mesocycle_management.html",
+        year=YEAR,
+        mesocycles=mesocycles_for_management(),
     )
 
 # Here is created mesocycle workout
@@ -748,6 +793,9 @@ def profile():
     elif action == 'statistics':
         # Handle statistics
         return redirect(url_for("statistics"))
+    elif action == 'mesocycle_management':
+        # Handle deleting old mesocycles
+        return redirect(url_for("mesocycle_management"))
 
     users_to_impersonate = []
     if current_user.is_admin and not session.get(IMPERSONATOR_KEY):

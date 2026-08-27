@@ -2962,6 +2962,187 @@ class WorkoutManagement:
             print(f"_exercise_id_or_create: {e}")
             return None
 
+    # ------------------------------------------------------------------
+    # Mesocycle management - /mesocycle_management, the one page that can
+    # destroy a plan.
+    #
+    # What a delete removes: the Mesocycles row, its WorkoutPlan days, those
+    # days' WorkoutExercises, and the SessionMesocycles links.
+    # What it deliberately keeps: every Sessions row and every ExerciseEntries
+    # row. The training you actually did stays in the database, so /statistics
+    # still draws it. The plan around it is what goes.
+    # ------------------------------------------------------------------
+    def mesocycles_for_management(self):
+        """Every mesocycle this user owns, newest first, with its days.
+
+        Shaped like load_mesocycle_templates() - id, name, summary, and
+        days: [{name, exercises: [{exercise, sets, rest}]}] - so the preview
+        dialog can be the same markup as the template picker on /table_layout.
+
+        sessions_logged is how many training sessions were recorded against
+        the plan. It is what the confirm dialog warns with: an empty plan is
+        cheap to lose, one with thirty sessions behind it is not.
+        """
+        user_id = self.current_user_id_db()
+        if not user_id:
+            return []
+
+        rows = (
+            db.session.query(Mesocycles)
+            .filter(Mesocycles.user_id == user_id)
+            .order_by(desc(Mesocycles.mesocycle_id))
+            .all()
+        )
+
+        mesocycles = []
+        for position, meso in enumerate(rows):
+            # Every plan row, including the intuitive "c" days that hang off
+            # whichever mesocycle was newest at the time - they are counted
+            # separately but they do get deleted with it.
+            plans = (
+                db.session.query(WorkoutPlan)
+                .filter(
+                    WorkoutPlan.user_id == user_id,
+                    WorkoutPlan.mesocycle_id == meso.mesocycle_id,
+                )
+                .order_by(WorkoutPlan.workout_id.asc())
+                .all()
+            )
+
+            days = []
+            exercise_count = 0
+            for plan in plans:
+                if plan.workout_name is None or plan.workout_name == "c":
+                    continue
+
+                exercises = []
+                for row in self._workout_exercises_ordered(plan.workout_id):
+                    name = (
+                        db.session.query(Exercise.exercise_name)
+                        .filter(Exercise.exercise_id == row.exercise_id)
+                        .first()
+                    )
+                    exercises.append(
+                        {
+                            "exercise": name[0] if name else "(removed exercise)",
+                            "sets": row.prescribed_sets,
+                            "rest": row.rest_period,
+                        }
+                    )
+
+                exercise_count += len(exercises)
+                days.append({"name": plan.workout_name, "exercises": exercises})
+
+            workout_ids = [plan.workout_id for plan in plans]
+            sessions_logged = 0
+            if workout_ids:
+                sessions_logged = (
+                    db.session.query(func.count(Sessions.session_id))
+                    .filter(
+                        Sessions.user_id == user_id,
+                        Sessions.workout_id.in_(workout_ids),
+                    )
+                    .scalar()
+                    or 0
+                )
+
+            mesocycles.append(
+                {
+                    "id": meso.mesocycle_id,
+                    "name": meso.name,
+                    "duration_weeks": meso.mesocycle_duration_weeks,
+                    "days": days,
+                    "day_count": len(days),
+                    "exercise_count": exercise_count,
+                    "sessions_logged": sessions_logged,
+                    # The newest mesocycle is the one find_users_weeks() hands
+                    # to /create_workout, so deleting it changes what that page
+                    # edits. The dialog says so before you go ahead.
+                    "is_newest": position == 0,
+                    "summary": (
+                        f"{len(days)} day{'' if len(days) == 1 else 's'}"
+                        f" \u00b7 {exercise_count}"
+                        f" exercise{'' if exercise_count == 1 else 's'}"
+                    ),
+                }
+            )
+
+        return mesocycles
+
+    def delete_mesocycles(self, mesocycle_ids):
+        """Delete these mesocycles and their plans. Returns the names removed.
+
+        Ownership is re-checked here, against the database, not taken from the
+        form: the ids arrive from a page anyone can edit. Anything not owned by
+        the signed-in user is silently skipped.
+
+        Logged sessions and sets are left alone on purpose - see the note above
+        this section.
+        """
+        user_id = self.current_user_id_db()
+        if not user_id:
+            return []
+
+        wanted = set()
+        for raw in mesocycle_ids or []:
+            try:
+                wanted.add(int(raw))
+            except (TypeError, ValueError):
+                continue
+
+        if not wanted:
+            return []
+
+        owned = (
+            db.session.query(Mesocycles)
+            .filter(
+                Mesocycles.user_id == user_id,
+                Mesocycles.mesocycle_id.in_(wanted),
+            )
+            .all()
+        )
+        if not owned:
+            return []
+
+        deleted = []
+        try:
+            for meso in owned:
+                workout_ids = [
+                    wid for (wid,) in db.session.query(WorkoutPlan.workout_id)
+                    .filter(
+                        WorkoutPlan.user_id == user_id,
+                        WorkoutPlan.mesocycle_id == meso.mesocycle_id,
+                    )
+                    .all()
+                ]
+
+                if workout_ids:
+                    # Children first: the exercise rows point at the workouts.
+                    db.session.query(WorkoutExercises).filter(
+                        WorkoutExercises.workout_id.in_(workout_ids)
+                    ).delete(synchronize_session=False)
+
+                    db.session.query(WorkoutPlan).filter(
+                        WorkoutPlan.workout_id.in_(workout_ids)
+                    ).delete(synchronize_session=False)
+
+                # A link table, not data: without the mesocycle it points to
+                # nothing, and leaving it would strand rows nothing can read.
+                db.session.query(SessionMesocycles).filter(
+                    SessionMesocycles.mesocycle_id == meso.mesocycle_id
+                ).delete(synchronize_session=False)
+
+                deleted.append(meso.name)
+                db.session.delete(meso)
+
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f"delete_mesocycles: rolling back, {e}")
+            return []
+
+        return deleted
+
     @staticmethod
     def _slovak_day(value):
         """14.8.2026 - how a date reads in Slovak. No leading zeroes.

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mesocycle management</title>
+  <link rel="icon" href="/static/title/barbell_title.jpg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
+
+  <style>
+    /* A tick box you can hit with a thumb. The default 1em box is a small
+       target for a control whose job is to arm a delete. */
+    .wd-tick {
+      width: 1.35rem;
+      height: 1.35rem;
+    }
+
+    /* The whole cell is the target, not just the box inside it. */
+    .wd-tick-cell {
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="p-3 mb-5">
+    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
+        <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
+          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarCollapse">
+          <ul class="navbar-nav me-auto mb-2 mb-md-0">
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('training_session_redirect') }}">Training Session</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('workout_plan') }}">Workout Plan</a>
+            </li>
+          </ul>
+          <ul class="navbar-nav ms-auto">
+            {% if current_user.is_authenticated %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('profile') }}">{{ current_user.username }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+            </li>
+            {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+            </li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </nav>
+  </div>
+
+  {% include "partials/_impersonation_banner.html" %}
+  {% include "partials/_flashes.html" %}
+
+  <main class="container my-4">
+    <div class="row justify-content-center">
+      <div class="col-12 col-lg-9">
+
+        <p class="h2 text-center mb-2">Mesocycle management</p>
+        <p class="text-body-secondary small text-center mb-4">
+          Tap a name to see the plan. Tick what you want gone, then press Delete.
+        </p>
+
+        {% if mesocycles %}
+        {# The ticks and the Delete button live in this form. The button that
+           actually submits it sits in the confirm dialog below, reaching back
+           here with form="deleteMesoForm" - so the dialog can stay outside the
+           form and there is exactly one submit path. #}
+        <form method="post" action="{{ url_for('mesocycle_management') }}" id="deleteMesoForm">
+          <input type="hidden" name="action" value="delete" />
+
+          <div class="table-responsive">
+            <table class="table table-striped align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">Mesocycle</th>
+                  <th scope="col" class="text-center d-none d-sm-table-cell">Sessions</th>
+                  <th scope="col" class="text-center">Delete?</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for meso in mesocycles %}
+                <tr>
+                  <td>
+                    <button type="button" class="btn btn-link p-0 text-start text-decoration-none fw-medium"
+                      data-meso-preview="{{ meso.id }}">{{ meso.name }}</button>
+                    <span class="d-block text-body-secondary small">
+                      {{ meso.summary }}{% if meso.duration_weeks %} &middot; {{ meso.duration_weeks }} weeks{% endif %}
+                      <span class="d-inline d-sm-none">&middot; {{ meso.sessions_logged }} sessions</span>
+                    </span>
+                  </td>
+                  <td class="text-center d-none d-sm-table-cell">{{ meso.sessions_logged }}</td>
+                  <td class="text-center wd-tick-cell">
+                    <input class="form-check-input wd-tick" type="checkbox" name="mesocycle_id"
+                      value="{{ meso.id }}" id="tick_{{ meso.id }}"
+                      data-meso-name="{{ meso.name }}"
+                      data-sessions="{{ meso.sessions_logged }}"
+                      data-newest="{{ 1 if meso.is_newest else 0 }}"
+                      aria-label="Select {{ meso.name }} for deletion" />
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          {# Disabled until something is ticked: a Delete button that does
+             nothing is a button you learn to press without thinking. #}
+          <div class="text-center my-4">
+            <button type="button" class="btn btn-danger" id="deleteMesoOpen" disabled
+              data-bs-toggle="modal" data-bs-target="#confirmDeleteMeso">Delete</button>
+          </div>
+        </form>
+        {% else %}
+        <p class="text-center text-body-secondary my-5">
+          You have no mesocycles yet.
+          <a href="{{ url_for('table_layout') }}">Create one</a>.
+        </p>
+        {% endif %}
+
+      </div>
+    </div>
+  </main>
+
+  {# ------------------------------------------------------------------
+     Preview. Same shape as the template picker on /table_layout: every
+     mesocycle's tables are rendered here hidden, and opening one only
+     unhides it - no request, no JS templating.
+     ------------------------------------------------------------------ #}
+  <div class="modal fade" id="mesoPreview" tabindex="-1" aria-hidden="true" aria-labelledby="mesoPreviewTitle">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="mesoPreviewTitle">Mesocycle</h5>
+          <button type="button" class="btn btn-sm btn-outline-danger ms-auto" data-bs-dismiss="modal"
+            aria-label="Close">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          {% for meso in mesocycles %}
+          <div class="d-none" data-meso-detail="{{ meso.id }}" data-meso-name="{{ meso.name }}">
+            <p class="text-body-secondary small text-center mb-4">
+              {{ meso.summary }} &middot; {{ meso.duration_weeks }} weeks &middot;
+              {{ meso.sessions_logged }} sessions logged
+            </p>
+
+            {% for day in meso.days %}
+            <h6 class="text-center text-success border-bottom pb-2 mb-3">{{ day.name }}</h6>
+            <table class="table table-striped table-sm text-center mb-4">
+              <thead>
+                <tr>
+                  <th class="text-center">Exercise</th>
+                  <th class="text-center">Sets</th>
+                  <th class="text-center">Rest</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in day.exercises %}
+                <tr>
+                  <td>{{ item.exercise }}</td>
+                  <td>{{ item.sets }}</td>
+                  <td>{{ item.rest }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% else %}
+            <p class="text-center text-body-secondary my-4">This mesocycle has no workout days.</p>
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ------------------------------------------------------------------
+     The confirm. Cancel is green and on the left, Delete red on the right -
+     the same hand position as the unsaved-changes dialog on /create_workout,
+     so the safe button is always in the same place.
+     ------------------------------------------------------------------ #}
+  <div class="modal fade" id="confirmDeleteMeso" tabindex="-1" aria-hidden="true"
+    aria-labelledby="confirmDeleteMesoTitle">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title text-danger" id="confirmDeleteMesoTitle">Delete mesocycle?</h5>
+        </div>
+        <div class="modal-body">
+          <p class="mb-3">
+            Are you sure you want to delete
+            <span id="confirmDeleteCount">this mesocycle</span>?
+            <strong>This action is irreversible.</strong>
+          </p>
+
+          <ul class="list-unstyled small mb-3" id="confirmDeleteList"></ul>
+
+          <div class="alert alert-warning py-2 px-3 small mb-3 d-none" id="confirmDeleteNewest">
+            One of these is your newest mesocycle - the plan
+            <strong>Change Current Mesocycle</strong> opens for editing. Delete it and that
+            page falls back to the one before it.
+          </div>
+
+          <p class="text-body-secondary small mb-0">
+            The plan, its workout days and their exercises go. Every session and every
+            set you logged stays in the database, so Statistics still shows that training.
+          </p>
+        </div>
+        <div class="modal-footer d-flex justify-content-between">
+          <button type="button" class="btn btn-success" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger" form="deleteMesoForm">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="p-3">
+    <div class="fixed-bottom text-center py-2">
+      © {{ year }} | Created by Vít Puskajler
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+    crossorigin="anonymous"></script>
+
+  <script>
+    (function () {
+      const form = document.getElementById("deleteMesoForm");
+      if (!form) return;
+
+      const ticks = [...form.querySelectorAll('input[name="mesocycle_id"]')];
+      const openButton = document.getElementById("deleteMesoOpen");
+      const countLabel = document.getElementById("confirmDeleteCount");
+      const list = document.getElementById("confirmDeleteList");
+      const newestWarning = document.getElementById("confirmDeleteNewest");
+
+      function ticked() {
+        return ticks.filter((t) => t.checked);
+      }
+
+      function refresh() {
+        const n = ticked().length;
+        openButton.disabled = n === 0;
+        openButton.textContent = n > 1 ? `Delete (${n})` : "Delete";
+      }
+
+      ticks.forEach((tick) => tick.addEventListener("change", refresh));
+
+      // The whole cell is the hit area, but a click that lands ON the box
+      // must not be counted twice - that would tick and untick in one tap.
+      form.querySelectorAll(".wd-tick-cell").forEach(function (cell) {
+        cell.addEventListener("click", function (event) {
+          if (event.target.matches("input")) return;
+          const box = cell.querySelector("input");
+          if (!box) return;
+          box.checked = !box.checked;
+          refresh();
+        });
+      });
+
+      // Name every plan about to go, with what is behind it. A count alone
+      // ("delete 2 mesocycles?") is not enough to catch a mis-tick.
+      document.getElementById("confirmDeleteMeso").addEventListener("show.bs.modal", function () {
+        const chosen = ticked();
+        countLabel.textContent =
+          chosen.length > 1 ? `these ${chosen.length} mesocycles` : "this mesocycle";
+
+        list.innerHTML = "";
+        let newest = false;
+        chosen.forEach(function (tick) {
+          const sessions = Number(tick.dataset.sessions || 0);
+          const item = document.createElement("li");
+          const name = document.createElement("strong");
+          name.textContent = tick.dataset.mesoName;
+          item.appendChild(name);
+          item.appendChild(document.createTextNode(
+            sessions === 1 ? " - 1 session logged" : ` - ${sessions} sessions logged`));
+          list.appendChild(item);
+          if (tick.dataset.newest === "1") newest = true;
+        });
+        newestWarning.classList.toggle("d-none", !newest);
+      });
+
+      // Every plan's tables are already in the page, hidden.
+      const preview = document.getElementById("mesoPreview");
+      const details = preview.querySelectorAll("[data-meso-detail]");
+      const title = document.getElementById("mesoPreviewTitle");
+      const body = preview.querySelector(".modal-body");
+      const dialog = bootstrap.Modal.getOrCreateInstance(preview);
+
+      document.querySelectorAll("[data-meso-preview]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          const id = button.dataset.mesoPreview;
+          details.forEach(function (detail) {
+            const match = detail.dataset.mesoDetail === id;
+            detail.classList.toggle("d-none", !match);
+            if (match) title.textContent = detail.dataset.mesoName;
+          });
+          body.scrollTop = 0;
+          dialog.show();
+        });
+      });
+
+      refresh();
+    })();
+  </script>
+
+  <!-- waiting overlay -->
+  <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
+</body>
+
+</html>
