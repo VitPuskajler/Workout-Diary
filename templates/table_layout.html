@@ -176,10 +176,10 @@
             <div class="list-group">
               {% for template in templates %}
               <button type="button"
-                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-3"
                 data-template="{{ template.id }}">
-                <span class="fw-medium">{{ template.name }}</span>
-                <span class="text-body-secondary small">{{ template.summary }}</span>
+                <span class="fw-medium text-start">{{ template.name }}</span>
+                <span class="text-body-secondary small text-end ms-auto">{{ template.summary }}</span>
               </button>
               {% endfor %}
             </div>
