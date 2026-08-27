@@ -326,19 +326,29 @@
           <input type="hidden" name="order_{{ x }}" id="order_{{ x }}"
             value="{% for exe in user_exe[x] %}{{ exe['id'] }}{% if not loop.last %},{% endif %}{% endfor %}" />
 
-          <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2 d-none"
-            id="order_changed_{{ x }}" role="status">
-            <span>Order changed for day {{ x + 1 }} &mdash; not saved yet.</span>
-            <button type="submit" name="submit" value="save" class="btn btn-warning btn-sm">
-              Save order
+          {# No wording: the yellow strip appearing under this day's table says
+             it on its own. Cancel is FIRST, so the rightmost button - the one
+             directly under the table's Confirm - is the harmless one. A
+             downward misclick off Confirm then saves instead of throwing the
+             reorder away. #}
+          <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2 d-none
+            justify-content-md-end" id="order_changed_{{ x }}" role="status"
+            aria-label="Unsaved changes">
+            <!-- type="button" so it can never submit. It only puts the rows
+                 back; sets, pauses and workout names are left alone, which is
+                 what the title spells out. -->
+            <button type="button" class="btn btn-danger btn-sm"
+              data-wd-discard-order="{{ x }}"
+              title="Put the exercises back in their original order. Nothing else you typed is touched.">
+              Cancel
             </button>
-            <!-- ms-auto parks Discard in the far corner, well away from Save:
-                 side by side they were easy to catch by mistake, and this one
-                 throws work away. type="button" so it can never submit - it
-                 only puts the rows back, leaving everything else typed alone. -->
-            <button type="button" class="btn btn-danger btn-sm ms-auto"
-              data-wd-discard-order="{{ x }}">
-              Discard
+            <!-- ms-auto splits the pair to opposite edges on a phone, where a
+                 thumb is imprecise; ms-md-0 lets them sit together on a desktop,
+                 right-aligned by justify-content-md-end. -->
+            <button type="submit" name="submit" value="save"
+              class="btn btn-warning btn-sm ms-auto ms-md-0"
+              title="Save this workout plan">
+              Save changes
             </button>
           </div>
           </div>
