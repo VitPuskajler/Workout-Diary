@@ -116,30 +116,21 @@
         </nav>
     </div>
 
-    <!-- -----------------------------Starting point in here------------------------------- -->
-    <div class="position-absolute top-15 start-50 translate-middle">
-        <p class="d-inline-flex gap-1">
-            <a class="btn btn-success" data-bs-toggle="collapse" href="#collapseExample" role="button"
-                aria-expanded="false" aria-controls="collapseExample">
-                Your Possibilities
-            </a>
-        </p>
-    </div>
-    <div class="p-3">
-        <div class="collapse" id="collapseExample">
-            <div class="card card-body text-center">
-                You can add, or change your exercises.
-                <br>
-                You can see your progress in your mesocycles
-                </br>
-            </div>
-        </div>
-    </div>
+    <!-- -----------------------------Starting point in here-------------------------------
+         Heading and menu box sit in NORMAL FLOW, one after the other. They used
+         to be two position-absolute blocks pinned at top-15 and top-50: taken
+         out of the flow they knew nothing about each other, so the expanded
+         "Your Possibilities" card lay straight over the menu on a phone, and on
+         a desktop the box hung halfway down an empty screen. Stacked in flow
+         they cannot collide at any width, whatever either one grows to. -->
+    <main class="container my-4">
+        <h1 class="h3 text-center mb-4">Menu</h1>
 
-    <!-- ------------------------ Table-like Container for Buttons ------------------------- -->
-    <form method="post" action="{{ url_for('profile')}}">
-        <div class="position-absolute top-50 start-50 translate-middle">
-            <div class="border rounded p-4" style="width: 300px;"> <!-- Added border and width -->
+        <!-- ------------------------ Table-like Container for Buttons ------------------------- -->
+        <form method="post" action="{{ url_for('profile')}}">
+            <!-- max-width, not width: below 300px the box used to overflow the
+                 screen rather than shrink with it. -->
+            <div class="border rounded p-4 mx-auto w-100" style="max-width: 300px;">
                 {% include "partials/_flashes.html" %}
                 {% if impersonator %}
                 <div class="alert alert-warning py-2 px-2 mb-3 text-center small">
@@ -176,8 +167,8 @@
                     {% endif %}
                 </div>
             </div>
-        </div>
-    </form>
+        </form>
+    </main>
 
     <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordLabel"
         aria-hidden="true">
