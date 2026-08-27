@@ -128,6 +128,8 @@ load_mesocycle_templates = db_operations.load_mesocycle_templates
 apply_mesocycle_template = db_operations.apply_mesocycle_template
 mesocycles_for_management = db_operations.mesocycles_for_management
 delete_mesocycles = db_operations.delete_mesocycles
+current_mesocycle_name = db_operations.current_mesocycle_name
+rename_current_mesocycle = db_operations.rename_current_mesocycle
 add_session_to_db = db_operations.add_session_to_db
 find_exercise_id_db = db_operations.find_exercise_id_db
 find_exercise_name_db = db_operations.find_exercise_name_db
@@ -453,6 +455,24 @@ def create_workout():
         # Process form submission and save the workout data
         submitted_data = request.form.to_dict()
 
+        # Renaming the mesocycle is its own little form at the top of the page,
+        # nothing to do with the plan below it. Handled first and returned from,
+        # so a rename never runs the exercise save with an empty form.
+        if submitted_data.get("action") == "rename_mesocycle":
+            ok, old_name, message = rename_current_mesocycle(
+                submitted_data.get("mesocycle_name")
+            )
+            if not ok:
+                flash(message or "That name could not be saved.", "warning")
+            else:
+                new_name = (submitted_data.get("mesocycle_name") or "").strip()[:100]
+                if new_name != old_name:
+                    # The cookie remembers a mesocycle by name, not by id.
+                    if session.get("chosen_mesocycle") == old_name:
+                        session["chosen_mesocycle"] = new_name
+                    flash(f'Renamed to "{new_name}".', "success")
+            return redirect(url_for("create_workout"))
+
         # Name of workout is default set 1-x and user can change it
         workout_names = find_workout_name_from_user(submitted_data, weekly, workout_names)
 
@@ -491,6 +511,7 @@ def create_workout():
         w_names=workout_names,
         exe_order=order,
         user_exe=jinja_exercises,
+        mesocycle_name=current_mesocycle_name(),
     )
 
 # Training session ---------------------------------------------------------

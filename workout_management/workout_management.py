@@ -2962,6 +2962,83 @@ class WorkoutManagement:
             print(f"_exercise_id_or_create: {e}")
             return None
 
+    def current_mesocycle_name(self):
+        """The name of the mesocycle /create_workout is editing, or "".
+
+        The newest one, the same row find_users_weeks() picks. Returns an empty
+        string rather than raising when the user has none yet.
+        """
+        user_id = self.current_user_id_db()
+        if not user_id:
+            return ""
+
+        newest = (
+            db.session.query(Mesocycles)
+            .filter(Mesocycles.user_id == user_id)
+            .order_by(desc(Mesocycles.mesocycle_id))
+            .first()
+        )
+        return newest.name if newest else ""
+
+    def rename_current_mesocycle(self, new_name):
+        """Rename that same newest mesocycle. Returns (ok, old_name, message).
+
+        A template lands with the template's name ("Beast Mode"), which is fine
+        until you run it twice - so renaming has to be possible from the page
+        where you are editing the plan.
+
+        The old name comes back because /workout_plan_page and /progress
+        remember a mesocycle BY NAME in the cookie session; the route uses it to
+        keep that pointer valid.
+        """
+        user_id = self.current_user_id_db()
+        if not user_id:
+            return False, None, "Could not find your account."
+
+        name = (new_name or "").strip()
+        if not name:
+            return False, None, "A mesocycle needs a name."
+        # The column is String(100); SQLite would not complain, it would just
+        # store a name no other screen has room for.
+        name = name[:100]
+
+        newest = (
+            db.session.query(Mesocycles)
+            .filter(Mesocycles.user_id == user_id)
+            .order_by(desc(Mesocycles.mesocycle_id))
+            .first()
+        )
+        if not newest:
+            return False, None, "You have no mesocycle to rename yet."
+
+        old_name = newest.name
+        if old_name == name:
+            return True, old_name, None
+
+        # Two mesocycles with one name make the dropdown on /workout_plan_page
+        # ambiguous - it selects by name.
+        clash = (
+            db.session.query(Mesocycles)
+            .filter(
+                Mesocycles.user_id == user_id,
+                Mesocycles.name == name,
+                Mesocycles.mesocycle_id != newest.mesocycle_id,
+            )
+            .first()
+        )
+        if clash:
+            return False, old_name, f'You already have a mesocycle called "{name}".'
+
+        try:
+            newest.name = name
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f"rename_current_mesocycle: rolling back, {e}")
+            return False, old_name, "That name could not be saved."
+
+        return True, old_name, None
+
     # ------------------------------------------------------------------
     # Mesocycle management - /mesocycle_management, the one page that can
     # destroy a plan.

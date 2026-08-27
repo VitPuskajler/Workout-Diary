@@ -219,6 +219,34 @@
     </div>
   </div>
 
+  {# ------------------------------------------------------------------
+     Rename the mesocycle this page is editing - the newest one. A template
+     arrives called "Beast Mode", and the second time you run it you want it
+     called something else.
+
+     Its own <form>, deliberately: the plan below is one big form, and a name
+     change has nothing to do with the exercises in it.
+     ------------------------------------------------------------------ #}
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-12 col-md-7">
+        <form action="{{ url_for('create_workout') }}" method="POST" class="mb-4">
+          <input type="hidden" name="action" value="rename_mesocycle" />
+          <label for="mesocycle_name"
+            class="form-label d-block text-center text-body-secondary small mb-1">
+            Mesocycle name
+          </label>
+          <div class="input-group mx-auto" style="max-width: 420px;">
+            <input type="text" class="form-control text-center" id="mesocycle_name"
+              name="mesocycle_name" value="{{ mesocycle_name }}" maxlength="100" required
+              placeholder="Name this mesocycle" aria-label="Mesocycle name" />
+            <button type="submit" class="btn btn-outline-primary" data-wd-rename>Rename</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Collapse section for additional instructions -->
   <div style="min-height: 0px">
     <div class="collapse collapse-horizontal" id="collapseWidthExample">
@@ -236,7 +264,7 @@
       <!-- Column that adjusts width based on screen size -->
       <div class="col-12 col-md-7">
         {% for x in range(week) %}
-        <form action="{{ url_for('create_workout') }}" method="POST">
+        <form action="{{ url_for('create_workout') }}" method="POST" data-wd-plan>
           <!-- If no no name keep input else use h3 -->
           {% if w_names[x] is not none %}
 
@@ -536,6 +564,12 @@
       document.addEventListener('keydown', function (event) {
         // Check if Enter key was pressed and prevent default behavior
         if (event.key === "Enter") {
+          // Enter inside a form of its own - the rename box at the top - has
+          // to submit THAT form. Without this it saved the plan instead.
+          const active = document.activeElement;
+          const planForm = document.querySelector("[data-wd-plan]");
+          if (active && active.form && active.form !== planForm) return;
+          if (!saveButton) return;
           event.preventDefault();
           saveButton.click();  // Trigger the save button click
         }
@@ -613,7 +647,9 @@
     // (It does go stale if the same plan is saved in a second tab - the price
     // of not asking the server, and worth it.)
     // ----------------------------------------------------------------
-    const planForm = document.querySelector("form");
+    // Not querySelector("form"): the rename box at the top of the page is a
+    // form too, and it is first in the document. This has to be the plan.
+    const planForm = document.querySelector("[data-wd-plan]");
 
     function snapshot() {
       if (!planForm) return "";
@@ -729,6 +765,26 @@
     }
 
     refreshSaveButtons();
+  </script>
+
+  <script>
+    // The rename box is its own form, so the plan's dirty check knows nothing
+    // about it. Give its button the same filled-in cue the day Save buttons
+    // have, so a typed name that has not been submitted is visible.
+    (function () {
+      const box = document.getElementById("mesocycle_name");
+      const button = document.querySelector("[data-wd-rename]");
+      if (!box || !button) return;
+
+      const original = box.value;
+      function refresh() {
+        const changed = box.value.trim() !== original.trim();
+        button.classList.toggle("btn-primary", changed);
+        button.classList.toggle("btn-outline-primary", !changed);
+      }
+      box.addEventListener("input", refresh);
+      refresh();
+    })();
   </script>
 
   <!-- waiting overlay -->
