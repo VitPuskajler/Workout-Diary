@@ -406,7 +406,20 @@ def create_workout():
         # Call function to overwrite exercise
         overwrite_exercise(submitted_data, workouts_id)
 
-        # Use the PRG pattern: Redirect to prevent resubmission
+        # Use the PRG pattern: Redirect to prevent resubmission.
+        #
+        # "next" is set only by the unsaved-changes dialog, so that saving on
+        # the way out lands you where you were going. Anything but a plain
+        # same-site path is ignored: a leading "//" or "/\\" is read by
+        # browsers as another origin, which would make this an open redirect.
+        next_url = (submitted_data.get("next") or "").strip()
+        if (
+            next_url.startswith("/")
+            and not next_url.startswith("//")
+            and not next_url.startswith("/\\")
+        ):
+            return redirect(next_url)
+
         return redirect(url_for("create_workout"))
 
     return render_template(

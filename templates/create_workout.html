@@ -21,6 +21,21 @@
       text-overflow: ellipsis;
     }
 
+    /* The dialog dims the page the same way the waiting overlay does - a pale
+       veil and a blur - rather than Bootstrap's dark sheet, so the two feel
+       like one app. Scoped to this page's own stylesheet. */
+    .modal-backdrop.show {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.78);
+      -webkit-backdrop-filter: blur(2px);
+      backdrop-filter: blur(2px);
+    }
+
+    /* A white card on a pale veil needs its own edge to read as lifted. */
+    .wd-unsaved-card {
+      box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.25);
+    }
+
     /* Drag handle for reordering exercises */
     .wd-drag-cell {
       width: 44px;
@@ -309,51 +324,37 @@
                   <input type="number" name="new_pauses_{{ x }}" class="form-control text-center bg-info-subtle" placeholder="120"
                     maxlength="3" />
                 </td>
-                <td class="wd-row-extra">
-                  <button type="submit" name="submit" value="save" style="border: none; background: none; padding: 0;">
-                    <img src="{{ url_for('static', filename='pictures/notifications/confirm.png') }}" alt="Del"
-                      style="width: 40px; height: 40px; object-fit: cover;" title="Save" />
-                  </button>
-                </td>
+                <td class="wd-row-extra"></td>
               </tr>
             </tbody>
           </table>
 
           {# The order the rows are in right now, as workout_exercise_ids.
              Sortable rewrites this on drop; the server reads it in
-             reorder_exercises(). Rendered value doubles as the "unchanged"
-             baseline, so dragging a row back hides the notice again. #}
+             reorder_exercises(). It is also part of the dirty snapshot below,
+             so a drag counts as an unsaved change like any other edit. #}
           <input type="hidden" name="order_{{ x }}" id="order_{{ x }}"
             value="{% for exe in user_exe[x] %}{{ exe['id'] }}{% if not loop.last %},{% endif %}{% endfor %}" />
 
-          {# No wording: the yellow strip appearing under this day's table says
-             it on its own. Cancel is FIRST, so the rightmost button - the one
-             directly under the table's Confirm - is the harmless one. A
-             downward misclick off Confirm then saves instead of throwing the
-             reorder away. #}
-          <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2 d-none
-            justify-content-md-end" id="order_changed_{{ x }}" role="status"
-            aria-label="Unsaved changes">
-            <!-- type="button" so it can never submit. It only puts the rows
-                 back; sets, pauses and workout names are left alone, which is
-                 what the title spells out. -->
-            <button type="button" class="btn btn-danger btn-sm"
-              data-wd-discard-order="{{ x }}"
-              title="Put the exercises back in their original order. Nothing else you typed is touched.">
-              Cancel
-            </button>
-            <!-- ms-auto splits the pair to opposite edges on a phone, where a
-                 thumb is imprecise; ms-md-0 lets them sit together on a desktop,
-                 right-aligned by justify-content-md-end. -->
+          {# One button per day so there is always one within reach, but the
+             page is a single form - this saves every day, hence "changes" and
+             not "this day". Outline until something is unsaved, then it fills
+             in: the only hint the page gives, and it needs no words. #}
+          <div class="d-flex justify-content-center mb-4">
             <button type="submit" name="submit" value="save"
-              class="btn btn-warning btn-sm ms-auto ms-md-0"
-              title="Save this workout plan">
+              class="btn btn-outline-success" data-wd-save>
               Save changes
             </button>
           </div>
+
           </div>
           {% endfor %}
-          
+
+          {# Set by the unsaved-changes dialog to the link that was clicked, so
+             Save lands you where you were going instead of back here. The
+             route only honours a same-site path. #}
+          <input type="hidden" name="next" id="wd_next" value="" />
+
         </form>
       </div>
     </div>
@@ -558,15 +559,7 @@
       document.querySelectorAll("tbody[data-day]").forEach(function (tbody) {
         const day = tbody.dataset.day;
         const orderField = document.getElementById(`order_${day}`);
-        const notice = document.getElementById(`order_changed_${day}`);
-        if (!orderField || !notice) return;
-
-        // The order the page was rendered with, kept so the notice can go away
-        // when a row is dragged back where it started. It has to live in a
-        // variable: for type="hidden" the value IDL attribute reflects the
-        // content attribute, so assigning .value also moves .defaultValue and
-        // comparing against that would always say "unchanged".
-        const renderedOrder = orderField.value;
+        if (!orderField) return;
 
         Sortable.create(tbody, {
           handle: ".wd-drag-handle",
@@ -581,31 +574,161 @@
               .map((tr) => tr.dataset.weId)
               .join(",");
 
-            notice.classList.toggle("d-none", orderField.value === renderedOrder);
+            // A drag is an unsaved change like any other edit; the Save
+            // button filling in is what says so.
+            if (window.wdRefreshSaveButtons) window.wdRefreshSaveButtons();
           },
         });
-
-        // Discard: put the rows back where the page rendered them. No reload,
-        // so sets, pauses, workout names and anything half-typed survive.
-        const discard = document.querySelector(
-          `[data-wd-discard-order="${day}"]`
-        );
-        if (discard) {
-          discard.addEventListener("click", function () {
-            // Every row is inserted BEFORE the "add an exercise" row rather
-            // than appended, so that row keeps its place at the bottom.
-            const anchor = tbody.querySelector("tr:not([data-we-id])");
-            renderedOrder.split(",").forEach(function (id) {
-              const row = tbody.querySelector(`tr[data-we-id="${id}"]`);
-              if (row) tbody.insertBefore(row, anchor);
-            });
-
-            orderField.value = renderedOrder;
-            notice.classList.add("d-none");
-          });
-        }
       });
     }
+  </script>
+
+  <div class="modal fade" id="wd_unsaved" tabindex="-1" aria-hidden="true"
+    aria-labelledby="wd_unsaved_title">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content wd-unsaved-card">
+        <div class="modal-body text-center p-4">
+          <p class="mb-4" id="wd_unsaved_title">You have unsaved changes.</p>
+          <div class="d-flex justify-content-between gap-3">
+            <button type="button" class="btn btn-success flex-fill" id="wd_unsaved_save">
+              Save
+            </button>
+            <button type="button" class="btn btn-danger flex-fill" id="wd_unsaved_discard">
+              Discard
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ----------------------------------------------------------------
+    // Unsaved changes.
+    //
+    // No request is needed to know whether anything differs from the
+    // database: this page was RENDERED from the database, so the values
+    // sitting in the form on load are the database. Snapshot them once and
+    // compare against that. Instant, works offline, and survives a slow host.
+    // (It does go stale if the same plan is saved in a second tab - the price
+    // of not asking the server, and worth it.)
+    // ----------------------------------------------------------------
+    const planForm = document.querySelector("form");
+
+    function snapshot() {
+      if (!planForm) return "";
+      return Array.from(planForm.elements)
+        .filter((el) => el.name)
+        .map((el) =>
+          el.type === "checkbox" || el.type === "radio"
+            ? el.name + "=" + el.checked
+            : el.name + "=" + el.value
+        )
+        .join("\n");
+    }
+
+    // "next" is written only when the dialog sends you somewhere, so it must
+    // not count as a change on its own.
+    const savedState = snapshot();
+    const nextField = document.getElementById("wd_next");
+
+    function isDirty() {
+      const before = nextField ? nextField.value : "";
+      if (nextField) nextField.value = "";
+      const now = snapshot();
+      if (nextField) nextField.value = before;
+      return now !== savedState;
+    }
+
+    function refreshSaveButtons() {
+      const dirty = isDirty();
+      document.querySelectorAll("[data-wd-save]").forEach(function (button) {
+        button.classList.toggle("btn-success", dirty);
+        button.classList.toggle("btn-outline-success", !dirty);
+      });
+    }
+
+    document.addEventListener("input", refreshSaveButtons);
+    document.addEventListener("change", refreshSaveButtons);
+    window.wdRefreshSaveButtons = refreshSaveButtons;
+
+    // ---- leaving the page
+    let pendingHref = null;
+    let leaving = false;
+    const unsavedDialog =
+      typeof bootstrap !== "undefined"
+        ? new bootstrap.Modal(document.getElementById("wd_unsaved"))
+        : null;
+
+    // Same rules as loader.js: only links that actually navigate. A link that
+    // does nothing must not raise a dialog about losing work.
+    document.addEventListener("click", function (e) {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+      const link = e.target.closest && e.target.closest("a[href]");
+      if (!link) return;
+      if (link.hasAttribute("download") || link.hasAttribute("data-bs-toggle")) return;
+      if (link.target && link.target !== "_self") return;
+
+      const href = link.getAttribute("href") || "";
+      if (!href || href.charAt(0) === "#") return;
+      if (/^(javascript|mailto|tel|sms):/i.test(href)) return;
+
+      if (!isDirty() || !unsavedDialog) return;
+
+      e.preventDefault();
+      e.stopPropagation();          // loader.js must not raise its veil either
+      pendingHref = link.href;
+      unsavedDialog.show();
+    }, true);
+
+    const saveButton = document.getElementById("wd_unsaved_save");
+    if (saveButton) {
+      saveButton.addEventListener("click", function () {
+        if (nextField && pendingHref) {
+          // Only the path, so the route has nothing off-site to honour.
+          const target = new URL(pendingHref, window.location.href);
+          if (target.origin === window.location.origin) {
+            nextField.value = target.pathname + target.search;
+          }
+        }
+        leaving = true;
+        unsavedDialog.hide();
+        planForm.requestSubmit
+          ? planForm.requestSubmit()
+          : planForm.submit();
+      });
+    }
+
+    const discardButton = document.getElementById("wd_unsaved_discard");
+    if (discardButton) {
+      discardButton.addEventListener("click", function () {
+        leaving = true;
+        unsavedDialog.hide();
+        // A scripted navigation fires no click, so loader.js needs telling.
+        if (window.showLoader) window.showLoader();
+        window.location.href = pendingHref || window.location.href;
+      });
+    }
+
+    // Closing the tab or reloading. The browser owns this dialog - it cannot
+    // be styled and its wording cannot be set, so it will not match the one
+    // above. It is the only thing that can catch a tab close at all.
+    window.addEventListener("beforeunload", function (e) {
+      if (leaving || !isDirty()) return;
+      e.preventDefault();
+      e.returnValue = "";
+    });
+
+    // A normal submit is a save, not an escape.
+    if (planForm) {
+      planForm.addEventListener("submit", function () {
+        leaving = true;
+      });
+    }
+
+    refreshSaveButtons();
   </script>
 
   <!-- waiting overlay -->
