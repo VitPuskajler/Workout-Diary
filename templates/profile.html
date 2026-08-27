@@ -45,9 +45,28 @@
             z-index: 1030;
             /* Ensure above other fixed elements */
         }
+
+        /* The "Menu" heading. A quiet section label: small, uppercase, widely
+           tracked, muted - it names a region of the page rather than shouting
+           the page's title.
+
+           No webfont; this is the system stack the rest of the app uses, made
+           to look deliberate with case, tracking and weight alone.
+
+           padding-left cancels the trailing gap letter-spacing leaves after
+           the last letter, which otherwise nudges centred text off centre.
+
+           Deliberately scoped to this page only. */
+        .wd-label {
+            font-size: 1.05rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.35em;
+            color: var(--bs-secondary-color, #6c757d);
+            padding-left: 0.35em;
+        }
     </style>
 
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/headings.css') }}">
 </head>
 
 <body>
