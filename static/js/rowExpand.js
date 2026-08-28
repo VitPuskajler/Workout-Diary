@@ -101,6 +101,16 @@
     var rows = document.querySelectorAll(ROW);
     for (var i = 0; i < rows.length; i++) {
       if (rows[i].classList.contains("wd-note-row")) { continue; }
+
+      // wd-editable tables (opt-in, see progressEdit.js) open every row that
+      // carries a data-entry-id, note or not - the point is "is there
+      // something to edit", not "does the note overflow".
+      var table = rows[i].closest("table");
+      if (table && table.classList.contains("wd-editable")) {
+        rows[i].classList.toggle("wd-can-open", rows[i].hasAttribute("data-entry-id"));
+        continue;
+      }
+
       var note = rows[i].querySelector(".wd-notes > div");
       rows[i].classList.toggle("wd-can-open", !!note && isExpandable(note, rows[i]));
     }
@@ -135,9 +145,27 @@
     td.appendChild(text);
     tr.appendChild(td);
     row.parentNode.insertBefore(tr, row.nextSibling);
+
+    // Let an opt-in companion script (progressEdit.js) build an edit UI in
+    // here without this generic file knowing anything about reps/weight/
+    // save logic.
+    if (table.classList.contains("wd-editable")) {
+      row.dispatchEvent(new CustomEvent("wd:row-opened", {
+        bubbles: true,
+        detail: { row: row, noteRow: tr, noteCell: td, entryId: row.dataset.entryId }
+      }));
+    }
   }
 
   function closeRow(row) {
+    var table = row.closest("table");
+    if (table && table.classList.contains("wd-editable")) {
+      row.dispatchEvent(new CustomEvent("wd:row-closing", {
+        bubbles: true,
+        detail: { row: row }
+      }));
+    }
+
     row.classList.remove("wd-open");
     var next = row.nextElementSibling;
     if (next && next.classList.contains("wd-note-row")) {

@@ -190,6 +190,51 @@
             opacity: .75;
           }
         }
+
+        /* Edit UI injected into an open note panel by progressEdit.js. Kept
+           tiny on purpose - editing a set should not visually take over the
+           table the way expanding the note already does. */
+        .wd-edit-toolbar {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          gap: .5rem;
+          margin-top: .35rem;
+        }
+        .wd-edit-btn {
+          width: 1.75rem;
+          height: 1.75rem;
+          padding: 0;
+          line-height: 1;
+          font-size: .85rem;
+        }
+        .wd-discard-link {
+          font-size: .85rem;
+          cursor: pointer;
+        }
+        .wd-field-input {
+          width: 100%;
+          text-align: center;
+        }
+        .wd-note-edit {
+          width: 100%;
+          max-width: 70ch;
+        }
+        .wd-edit-error {
+          font-size: .8rem;
+        }
+
+        /* The unsaved-changes dialog, matching the pale-veil treatment
+           create_workout.html already uses for the same interaction. */
+        .modal-backdrop.show {
+          opacity: 1;
+          background: rgba(255, 255, 255, 0.78);
+          -webkit-backdrop-filter: blur(2px);
+          backdrop-filter: blur(2px);
+        }
+        .wd-unsaved-card {
+          box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.25);
+        }
       </style>
 
       {% for key, value in progress.items() %}
@@ -200,7 +245,7 @@
         </div>
         <div class="row">
           <div class="col-12">
-            <table class="table table-striped text-center wd-rows wd-wide-note">
+            <table class="table table-striped text-center wd-rows wd-wide-note wd-editable">
               <thead class="thead-dark">
                 <tr>
                   <th>Date</th>
@@ -213,12 +258,12 @@
               <tbody>
                 {% if value %}
                   {% for data in value %}
-                    <tr>
+                    <tr data-entry-id="{{ data.entry_id }}">
                       <td class="col-2">{{ data.date }}</td>
-                      <td class="col-2">{{ data.reps }}</td>
-                      <td class="col-2">{{ data.weight }}</td>
-                      <td class="col-2">{{ data.rpe }}</td>
-                      <td class="col-4 wd-notes"><div>{{ data.notes if data.notes else "" }}</div></td>                  
+                      <td class="col-2" data-field="reps"><span class="wd-view-value">{{ data.reps }}</span></td>
+                      <td class="col-2" data-field="weight"><span class="wd-view-value">{{ data.weight }}</span></td>
+                      <td class="col-2" data-field="rpe"><span class="wd-view-value">{{ data.rpe }}</span></td>
+                      <td class="col-4 wd-notes"><div>{{ data.notes if data.notes else "" }}</div></td>
                     </tr>
                   {% endfor %}
                 {% else %}
@@ -251,6 +296,27 @@
       </div>
     </div>
 
+    {% if progress %}
+    <!-- Confirmation before an in-progress edit on this page is lost. -->
+    <div class="modal fade" id="progress_unsaved" tabindex="-1" aria-hidden="true"
+      aria-labelledby="progress_unsaved_title">
+      <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content wd-unsaved-card">
+          <div class="modal-body text-center p-4">
+            <p class="mb-4" id="progress_unsaved_title">You have unsaved changes.</p>
+            <div class="d-flex justify-content-between gap-3">
+              <button type="button" class="btn btn-success flex-fill" id="progress_unsaved_save">
+                Save
+              </button>
+              <button type="button" class="btn btn-danger flex-fill" id="progress_unsaved_discard">
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
       integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
@@ -319,6 +385,7 @@
     </script>
 
   <script src="{{ url_for('static', filename='js/rowExpand.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/progressEdit.js') }}"></script>
   <!-- waiting overlay -->
   <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
 </body>

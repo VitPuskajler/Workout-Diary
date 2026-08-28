@@ -146,6 +146,7 @@ tables_informations = db_operations.tables_informations
 workout_day_information = db_operations.workout_day_information
 exercise_progress_data = db_operations.exercise_progress_data
 progress_as_markdown = db_operations.progress_as_markdown
+update_progress_entry = db_operations.update_progress_entry
 fetch_exercise_suggestions = db_operations.fetch_exercise_suggestions
 get_today_intuitive_traing = db_operations.get_today_intuitive_traing
 create_custom_workout_exercise = db_operations.create_custom_workout_exercise
@@ -948,6 +949,23 @@ def progress():
     progress=exercise_progress,
     copy_text=copy_text,
 )
+
+@app.route("/progress/update_entry", methods=["POST"])
+@login_required
+def progress_update_entry():
+    payload = request.get_json(silent=True) or {}
+    entry_id = payload.get("entry_id")
+    if not entry_id:
+        return jsonify({"ok": False, "error": "Missing entry_id."}), 400
+
+    result = update_progress_entry(
+        entry_id=entry_id,
+        reps=payload.get("reps"),
+        weight=payload.get("weight"),
+        rpe=payload.get("rpe"),
+        notes=payload.get("notes"),
+    )
+    return jsonify(result), (200 if result.get("ok") else 400)
 
 @app.route("/statistics", methods=["GET", "POST"])
 @login_required

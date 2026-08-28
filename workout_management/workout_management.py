@@ -1336,6 +1336,77 @@ class WorkoutManagement:
                         print(f"Changing your set data failed because of {e}")
                         db.session.rollback()
 
+    # Ownership-checked single-entry save for the /progress inline editor.
+    # Unlike modify_set (used by /training_session's bulk form), this is
+    # reachable over AJAX from any browser tab, so it verifies the entry
+    # actually belongs to the caller before touching it.
+    def update_progress_entry(self, entry_id, reps, weight, rpe, notes):
+        current_user_id = self.current_user_id_db()
+
+        entry = (
+            db.session.query(ExerciseEntries)
+            .join(Sessions, ExerciseEntries.session_id == Sessions.session_id)
+            .filter(
+                ExerciseEntries.entry_id == entry_id,
+                Sessions.user_id == current_user_id,
+            )
+            .first()
+        )
+        if not entry:
+            return {"ok": False, "error": "Set not found."}
+
+        def parse_number(value, cast, minimum, maximum, label):
+            if value is None or str(value).strip() == "":
+                return True, None
+            try:
+                number = cast(value)
+            except (TypeError, ValueError):
+                return False, f"{label} must be a number."
+            if number < minimum or (maximum is not None and number > maximum):
+                if maximum is not None:
+                    return False, f"{label} must be between {minimum} and {maximum}."
+                return False, f"{label} must be {minimum} or more."
+            return True, number
+
+        ok, reps_val = parse_number(reps, int, 0, None, "Reps")
+        if not ok:
+            return {"ok": False, "error": reps_val}
+
+        ok, weight_val = parse_number(weight, float, 0, 501, "Weight")
+        if not ok:
+            return {"ok": False, "error": weight_val}
+
+        ok, rpe_val = parse_number(rpe, float, 0, 10, "RPE")
+        if not ok:
+            return {"ok": False, "error": rpe_val}
+
+        notes_val = (notes or "").strip()
+        if len(notes_val) > 150:
+            return {"ok": False, "error": "Notes can be at most 150 characters."}
+
+        entry.reps = reps_val
+        entry.weight = weight_val
+        entry.rpe = rpe_val
+        entry.notes = notes_val
+
+        try:
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f"Saving progress entry {entry_id} failed because of {e}")
+            return {"ok": False, "error": "Could not save, try again."}
+
+        return {
+            "ok": True,
+            "entry": {
+                "entry_id": entry.entry_id,
+                "reps": entry.reps or 0,
+                "weight": entry.weight or 0,
+                "rpe": entry.rpe or 0,
+                "notes": entry.notes or "",
+            },
+        }
+
     def sets_to_do(self, chosen_exercise, chosen_day):
         current_user_id = self.current_user_id_db()
         # Exercise id
@@ -1666,6 +1737,7 @@ class WorkoutManagement:
                                     for som in find_exe:
                                         # Create a new small_data_set dictionary for each entry
                                         small_data_set = {
+                                            "entry_id": som.entry_id,
                                             "date": f"{sess.session_date.day}.{sess.session_date.month}.{sess.session_date.year}",
                                             "reps": som.reps or 0,
                                             "weight": som.weight or 0,
