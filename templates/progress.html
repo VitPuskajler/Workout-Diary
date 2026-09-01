@@ -107,7 +107,17 @@
 
 
         <div class="col-md-7 col-sm-7 mb-5 p-1">
-          {% if workouts_info %}
+          {% if chosen_day == custom_sentinel %}
+          <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="get">
+            <select class="form-select mb-1 mx-auto text-center" aria-label="Default select example"
+              id="CustomDateSelect" name="custom_date" onchange="this.form.submit()">
+              {% for item in custom_dates %}
+              <option value="{{ item.session_id }}" {% if item.session_id==chosen_custom_session_id %}selected{% endif %}>
+                {{ item.label }}</option>
+              {% endfor %}
+            </select>
+          </form>
+          {% elif workouts_info or custom_dates %}
           <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="get">
             <select class="form-select mb-1 mx-auto text-center" aria-label="Default select example"
               id="WorkoutDaySelect" name="training_day" onchange="this.form.submit()">
@@ -115,6 +125,9 @@
               {% for key, value in workouts_info.items() %}
               <option value="{{ key }}" {% if key==session.get('chosen_day') %}selected{% endif %}>{{ key }}</option>
               {% endfor %}
+              {% if custom_dates %}
+              <option value="{{ custom_sentinel }}">Custom Workouts</option>
+              {% endif %}
             </select>
           </form>
           {% else %}
@@ -124,7 +137,7 @@
         </div>
       </div>
 
-      {% if workouts_info %}
+      {% if workouts_info or chosen_day == custom_sentinel %}
   {% if progress %}
     <div class="container mb-5">
 

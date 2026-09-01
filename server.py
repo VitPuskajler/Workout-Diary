@@ -152,9 +152,9 @@ get_today_intuitive_traing = db_operations.get_today_intuitive_traing
 create_custom_workout_exercise = db_operations.create_custom_workout_exercise
 add_intuitive_exercise = db_operations.add_intuitive_exercise
 check_c_session = db_operations.check_c_session
-create_custom_session = db_operations.create_custom_session
 create_custom_workout_plan = db_operations.create_custom_workout_plan
 load_custom_exercises_for_day = db_operations.load_custom_exercises_for_day
+custom_session_exercises_overview = db_operations.custom_session_exercises_overview
 exercises_progress = db_operations.exercises_progress
 data_for_graph= db_operations.data_for_graph
 statistics_for_exercise = db_operations.statistics_for_exercise
@@ -170,6 +170,13 @@ user_last_session_id = db_operations.user_last_session_id
 suggest_training_focus = db_operations.suggest_training_focus
 last_exercise_preview = db_operations.last_exercise_preview
 arrow_buttons_next_exercise = db_operations.arrow_buttons_next_exercise
+custom_session_dates = db_operations.custom_session_dates
+custom_session_progress = db_operations.custom_session_progress
+
+# Sentinel value for the "Custom Workouts" option in the /progress mesocycle
+# dropdown - distinct from any real Mesocycles.name so a user's own mesocycle
+# can never collide with it.
+CUSTOM_WORKOUTS_OPTION = "__custom__"
 
 # --------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
@@ -863,6 +870,8 @@ def progress():
     chosen_exercise = session.get("chosen_exercise")
     dropdown_menu_info = {}
     workout_day_info = {}
+    custom_dates = []
+    chosen_custom_session_id = session.get("chosen_custom_session_id")
 
     if all_users_mesocycles_query:
         dropdown_menu_info = show_tables_to_user(current_user_id)
@@ -876,6 +885,12 @@ def progress():
             if chosen_mesocycle:
                 session["chosen_mesocycle"] = chosen_mesocycle
                 session["training_day"] = training_day
+                # A different mesocycle invalidates whatever day/date was
+                # picked under the old one - "Custom Workouts" for mesocycle A
+                # is not the same list as for mesocycle B.
+                session.pop("chosen_day", None)
+                session.pop("chosen_exercise", None)
+                session.pop("chosen_custom_session_id", None)
             else:
                 # If no mesocycle selected, remove from session
                 session.pop("chosen_mesocycle", None)
@@ -885,9 +900,10 @@ def progress():
         # Ensure `chosen_mesocycle` is set before generating `workout_day_info`
         if chosen_mesocycle:
             workout_day_info = workout_day_information(chosen_mesocycle, dropdown_menu_info)
+            custom_dates = custom_session_dates(chosen_mesocycle, dropdown_menu_info)
         else:
             workout_day_info = {}
-    # If no workout plan exists redirect to workout creation        
+    # If no workout plan exists redirect to workout creation
     else:
         return render_template("table_layout.html", year=YEAR)
 
@@ -915,11 +931,15 @@ def progress():
                 session.pop("chosen_day", None)
                 chosen_day = None
             else:
+                # "Custom Workouts" is just another option in this same
+                # dropdown - it is not a real training day, but it is picked
+                # the same way, and switching to/from it invalidates whatever
+                # was chosen one level down just like switching days does.
                 session["chosen_day"] = load_workout_day
                 chosen_day = load_workout_day
-                # If day is changed, pop session
                 session.pop("chosen_exercise", None)
                 chosen_exercise = None
+                session.pop("chosen_custom_session_id", None)
                 return redirect(url_for("progress"))
 
         load_chosen_exercise = request.args.get("chosen_exercise")
@@ -930,12 +950,37 @@ def progress():
             else:
                 session["chosen_exercise"] = load_chosen_exercise
                 chosen_exercise = load_chosen_exercise
-        
-        if workout_day_info:
+
+        load_custom_date = request.args.get("custom_date")
+        if load_custom_date is not None:
+            if load_custom_date == "":
+                session.pop("chosen_custom_session_id", None)
+                chosen_custom_session_id = None
+            else:
+                try:
+                    chosen_custom_session_id = int(load_custom_date)
+                except ValueError:
+                    chosen_custom_session_id = None
+                session["chosen_custom_session_id"] = chosen_custom_session_id
+
+        if chosen_day == CUSTOM_WORKOUTS_OPTION:
+            # Nothing picked yet - default to the most recent freestyle
+            # session, same "open the latest one" behaviour as the arrows.
+            if chosen_custom_session_id is None and custom_dates:
+                chosen_custom_session_id = custom_dates[0]["session_id"]
+            exercise_progress = custom_session_progress(chosen_custom_session_id)
+        elif workout_day_info:
             exercise_progress = exercise_progress_data(workout_day_info, chosen_day, chosen_mesocycle)
 
-    # Plain-text version of the tables below, for the one-tap copy button.
-    copy_text = progress_as_markdown(exercise_progress, chosen_day, chosen_mesocycle)
+    # Human-readable title bits for the copy-to-markdown button.
+    if chosen_day == CUSTOM_WORKOUTS_OPTION:
+        chosen_custom_date_label = next(
+            (d["label"] for d in custom_dates if d["session_id"] == chosen_custom_session_id),
+            None,
+        )
+        copy_text = progress_as_markdown(exercise_progress, chosen_custom_date_label, chosen_mesocycle)
+    else:
+        copy_text = progress_as_markdown(exercise_progress, chosen_day, chosen_mesocycle)
 
     return render_template(
     "progress.html",
@@ -945,6 +990,9 @@ def progress():
     chosen_day=chosen_day,
     dropdown=dropdown_menu_info,
     chosen_mesocycle=chosen_mesocycle,
+    custom_sentinel=CUSTOM_WORKOUTS_OPTION,
+    custom_dates=custom_dates,
+    chosen_custom_session_id=chosen_custom_session_id,
     workouts_info=workout_day_info,
     progress=exercise_progress,
     copy_text=copy_text,
@@ -1030,10 +1078,12 @@ def intuitive_training():
         user_confirm = request.args.get("confirm_freestyle")
 
         if user_confirm:
-            # Create new session for today
+            # Create today's freestyle plan. The Session itself is created
+            # lazily, on the first logged set (see add_set_to_db), so
+            # confirming freestyle without ever logging anything leaves no
+            # trace behind.
             try_to_create_custom_w_plan = create_custom_workout_plan()
             if try_to_create_custom_w_plan:
-                create_custom_session()
                 return redirect(url_for('intuitive_training'))
         else:
             print('No confirmation yet')
@@ -1047,6 +1097,15 @@ def intuitive_training():
     else:  # POST
         submitted_data = request.form.to_dict()
         delete_set(submitted_data)
+
+        if "previous_day" in submitted_data or "next_day" in submitted_data:
+            move = "previous_day" if "previous_day" in submitted_data else "next_day"
+            target_exercise = arrow_buttons_next_exercise(move, selected_exercise, "c")
+            if target_exercise:
+                session["chosen_exercise_by_user"] = target_exercise
+                session.pop("new_exercise", None)
+            return redirect(url_for("intuitive_training"))
+
         action = submitted_data.get("action")
 
         if action == "choose_exercise":
@@ -1056,23 +1115,23 @@ def intuitive_training():
                 session.pop("new_exercise", None)
                 return redirect(url_for("intuitive_training"))
 
-        elif action == "add_exercise_name":
-            # Same as choose_exercise this will aslo set new exercise as
-            # currently exercised
+        else:
+            # Same shared form also carries the "add a new exercise" text
+            # box. Registering it must NOT short-circuit past the reps
+            # below - the natural flow is search, click a suggestion, type
+            # today's weight/reps, then hit Confirm once.
             new_exercise = submitted_data.get("exercise")
 
             if new_exercise:
                create_custom_workout_exercise(new_exercise)
                session["new_exercise"] = new_exercise
                session.pop("chosen_exercise_by_user", None)
-               return redirect(url_for("intuitive_training"))
-            else:
-                pass
-            
-        if submitted_data.get("reps"):
-            day_for_function = "c"
-            add_set_to_db(submitted_data, selected_exercise, day_for_function)
-            print('reps_to_save are provided correctly')
+               selected_exercise = new_exercise
+
+            if submitted_data.get("reps"):
+                add_set_to_db(submitted_data, selected_exercise, "c")
+
+            return redirect(url_for("intuitive_training"))
     
     # Check for last sets (FIXED: Use the unified selected_exercise)
     if selected_exercise:
@@ -1086,12 +1145,15 @@ def intuitive_training():
 
     if not sets_for_jinja:
         sets_for_jinja = None
-    
+
     # Reset placeholders to zero after the first set is saved
     if sets_for_jinja:
         exercise_placeholders = {'weight': 0, 'reps': 0, 'rpe': 0, 'notes': '...'}
     else:
         exercise_placeholders = current_exercise_info(selected_exercise, "c")
+
+    exercises_overview = custom_session_exercises_overview() if today_session else []
+
     return render_template(
         "intuitive_training.html",
         today=DATE,
@@ -1102,7 +1164,8 @@ def intuitive_training():
         sets_for_jinja = sets_for_jinja,
         placeholders= exercise_placeholders,
         preview = last_day,
-        current_exercise_name = exercise_name_for_last_sets
+        current_exercise_name = exercise_name_for_last_sets,
+        exercises_overview = exercises_overview
     )
 
 @app.errorhandler(404)

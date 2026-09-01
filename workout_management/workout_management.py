@@ -4,6 +4,7 @@ import os
 import matplotlib.dates
 import base64
 import io
+from types import SimpleNamespace
 import pandas as pd
 from db_setup import db
 from flask_login import current_user
@@ -967,31 +968,51 @@ class WorkoutManagement:
             print(f"add_set_to_db: unknown exercise '{exercise}'")
             return None
 
-        # Latest mesocycle only - a set must never land in an old plan.
-        current_workout_id = self._current_workout_id(user_id_db, chosen_day)
-        if current_workout_id is None:
-            print(
-                f"add_set_to_db: no workout named '{chosen_day}' in this user's "
-                f"current mesocycle"
-            )
-            return None
+        # Custom/freestyle training ("c") isn't tied to a mesocycle plan, and
+        # its session is created lazily, right here, on the first set logged
+        # today - not when the user merely opens intuitive_training - so an
+        # abandoned freestyle day leaves nothing behind. create_custom_session()
+        # is idempotent, so a later set the same day just reuses it.
+        if chosen_day == "c":
+            session_id = self.create_custom_session()
+        else:
+            # Latest mesocycle only - a set must never land in an old plan.
+            current_workout_id = self._current_workout_id(user_id_db, chosen_day)
+            if current_workout_id is None:
+                print(
+                    f"add_set_to_db: no workout named '{chosen_day}' in this user's "
+                    f"current mesocycle"
+                )
+                return None
 
-        # Sets are only ever written into TODAY's session, which is also the
-        # only session the training page renders. Same rule as repeat_set.
-        session_id = self._todays_session_id(
-            user_id_db, current_workout_id, create=True
-        )
+            # Sets are only ever written into TODAY's session, which is also the
+            # only session the training page renders. Same rule as repeat_set.
+            session_id = self._todays_session_id(
+                user_id_db, current_workout_id, create=True
+            )
         if session_id is None:
             return None
+
+        def _optional_number(raw, cast, default):
+            """Blank/invalid optional fields become `default` instead of
+            raising. Flask always submits every named input, blank or not, so
+            submitted_data.get(key, default)'s own default never fires - an
+            empty Kg or RPE box arrives as "", and int("")/float("") raises."""
+            if raw is None or str(raw).strip() == "":
+                return default
+            try:
+                return cast(raw)
+            except (TypeError, ValueError):
+                return default
 
         try:
             exercise_entry_add = ExerciseEntries(
                 session_id=session_id,
                 exercise_id=exe_id[0],
                 set_number=self._next_set_number(session_id, exe_id[0]),
-                reps=int(submitted_data.get("reps", 0)),
-                weight=float(submitted_data.get("kg", 0.0)),
-                rpe=int(submitted_data.get("rpe", 0)),
+                reps=_optional_number(submitted_data.get("reps"), int, 0),
+                weight=_optional_number(submitted_data.get("kg"), float, 0.0),
+                rpe=_optional_number(submitted_data.get("rpe"), float, 0.0),
                 notes=submitted_data.get("notes", ""),
             )
             db.session.add(exercise_entry_add)
@@ -1753,6 +1774,97 @@ class WorkoutManagement:
         else:
             return {None: None}
 
+    # Freestyle ("c") session dates for /progress's "Custom Workouts" picker,
+    # newest first, restricted to sessions logged while `chosen_mesocycle` was
+    # current - the same SessionMesocycles link mesocycle_report_rows() uses,
+    # so a mesocycle's page never shows another mesocycle's freestyle days.
+    # create_custom_session() only ever creates one "c" session per calendar
+    # day, so date and session_id are 1:1 here.
+    def custom_session_dates(self, chosen_mesocycle, mesocycle_info):
+        _, meta = self._mesocycle_entry(chosen_mesocycle, mesocycle_info)
+        mesocycle_id = meta.get(chosen_mesocycle)
+        if mesocycle_id is None:
+            return []
+
+        user_id = self.current_user_id_db()
+        rows = (
+            db.session.query(Sessions.session_id, Sessions.session_date)
+            .join(
+                SessionMesocycles,
+                SessionMesocycles.session_id == Sessions.session_id,
+            )
+            .filter(
+                Sessions.user_id == user_id,
+                Sessions.workout_id == "c",
+                SessionMesocycles.mesocycle_id == mesocycle_id,
+            )
+            # Sessions are created lazily on the first logged set now, but
+            # this still hides any empty ones left over from before that
+            # change - a session with nothing in it isn't worth picking.
+            .filter(
+                db.session.query(ExerciseEntries.entry_id)
+                .filter(ExerciseEntries.session_id == Sessions.session_id)
+                .exists()
+            )
+            .order_by(desc(Sessions.session_date), desc(Sessions.session_id))
+            .all()
+        )
+        return [
+            {
+                "session_id": row.session_id,
+                "label": f"{row.session_date.day}.{row.session_date.month}.{row.session_date.year}",
+            }
+            for row in rows
+        ]
+
+    # Same {exercise: [{entry_id, date, reps, weight, rpe, notes}, ...]} shape
+    # exercise_progress_data() returns, but scoped to a single freestyle
+    # session instead of a mesocycle's full history - so progress.html renders
+    # it with no template changes of its own.
+    def custom_session_progress(self, session_id):
+        if session_id is None:
+            return {}
+
+        session_row = (
+            db.session.query(Sessions)
+            .filter(Sessions.session_id == session_id)
+            .first()
+        )
+        if session_row is None:
+            return {}
+
+        date_label = (
+            f"{session_row.session_date.day}."
+            f"{session_row.session_date.month}."
+            f"{session_row.session_date.year}"
+        )
+
+        entries = (
+            db.session.query(ExerciseEntries)
+            .filter(ExerciseEntries.session_id == session_id)
+            .order_by(
+                ExerciseEntries.exercise_id.asc(),
+                ExerciseEntries.set_number.asc(),
+                ExerciseEntries.entry_id.asc(),
+            )
+            .all()
+        )
+
+        result = {}
+        for entry in entries:
+            exercise_name = self.find_exercise_name_db(entry.exercise_id)[0]
+            result.setdefault(exercise_name, []).append(
+                {
+                    "entry_id": entry.entry_id,
+                    "date": date_label,
+                    "reps": entry.reps or 0,
+                    "weight": entry.weight or 0,
+                    "rpe": entry.rpe or 0,
+                    "notes": entry.notes or "",
+                }
+            )
+        return result
+
     @staticmethod
     def _md_cell(value):
         """Make a value safe to sit inside a markdown table cell."""
@@ -1859,6 +1971,12 @@ class WorkoutManagement:
         exe_id = (
             db.session.query(Exercise).filter_by(exercise_name=exercise_name).first()
         )
+        if exe_id is None:
+            # Not an exact match against the catalog (e.g. leftover/typo'd
+            # search text) - nothing to attach, and nothing downstream can
+            # dereference a name that isn't in the Exercise table.
+            print(f"create_custom_workout_exercise: unknown exercise '{exercise_name}'")
+            return False
 
         # Find workout id and order in workout
         workout_id_query = (
@@ -1999,40 +2117,48 @@ class WorkoutManagement:
 
     # Custom workout - check if current day exists
     def check_c_session(self):
+        """Whether today's freestyle plan has been started - gates the "Are
+        you aiming for a freestyle workout?" landing screen on
+        /intuitive_training.
+
+        Checks WorkoutPlan, not Sessions: the Sessions row is now created
+        lazily by create_custom_session(), on the first logged set, so a
+        freestyle day the user opened but never logged a set into must still
+        pass this check, or the landing screen would keep reappearing.
+        """
         user = Users.query.filter_by(username=current_user.username).first()
         user_id_db = user.user_id
+        today, tomorrow = self._today_bounds()
 
-        # Help function to determine current day - sessions are valid only for that day
-        today = datetime.combine(date.today(), datetime.min.time())
-        tomorrow = today + timedelta(days=1)
-
-        # Check if a session already exists for today
-        does_session_exist = (
-            db.session.query(Sessions.session_id)
+        does_plan_exist = (
+            db.session.query(WorkoutPlan.workout_id)
             .filter(
-                and_(
-                    Sessions.workout_id == "c",
-                    Sessions.user_id == user_id_db,
-                    Sessions.session_date >= today,
-                    Sessions.session_date < tomorrow,
-                )
+                WorkoutPlan.user_id == user_id_db,
+                WorkoutPlan.workout_name == "c",
+                WorkoutPlan.created_at >= today,
+                WorkoutPlan.created_at < tomorrow,
             )
             .first()
         )
-
-        if does_session_exist:
-            return True
-        else:
-            return False
+        return does_plan_exist is not None
 
     def create_custom_session(self):
-        user = Users.query.filter_by(username=current_user.username).first()
-        user_id_db = user.user_id
+        """Today's freestyle ("c") session, creating it (with its
+        SessionMesocycles link) on first call - idempotent, so calling it
+        again for a later set the same day just returns the existing one.
 
-        today = datetime.combine(date.today(), datetime.min.time())
-        tomorrow = today + timedelta(days=1)
+        Deliberately lazy: this used to run the moment the user confirmed
+        "freestyle workout" on /intuitive_training, so an idle confirm with
+        no set ever logged left a phantom session behind - visible, for
+        instance, as an empty date in /progress's Custom Workouts picker.
+        Now it only runs from add_set_to_db, on the first real set.
+        """
+        user_id_db = self.current_user_id_db()
 
-        # Create custom session - 'c' for simple search in DB
+        existing_session_id = self._todays_session_id(user_id_db, "c", create=False)
+        if existing_session_id is not None:
+            return existing_session_id
+
         new_session_query = Sessions(
             user_id=user_id_db,
             workout_id="c",
@@ -2041,7 +2167,6 @@ class WorkoutManagement:
         db.session.add(new_session_query)
         db.session.commit()
 
-        # Retrieve the assigned session_id
         session_id_result = new_session_query.session_id
 
         # Also add data to session_mesocycles
@@ -2064,7 +2189,7 @@ class WorkoutManagement:
             .first()
         )
 
-        if session_id_result is not None and mesocycle_id_query is not None:
+        if mesocycle_id_query is not None:
             new_session_mesocycles_query = SessionMesocycles(
                 session_id=session_id_result,
                 mesocycle_id=mesocycle_id_query[0],
@@ -2072,6 +2197,8 @@ class WorkoutManagement:
             )
             db.session.add(new_session_mesocycles_query)
             db.session.commit()
+
+        return session_id_result
 
     # Insert custom exercise into workout_exercises
     def create_custom_workout_plan(self):
@@ -2148,6 +2275,57 @@ class WorkoutManagement:
                 result.append(self.find_exercise_name_db(x.exercise_id)[0])
 
         return result
+
+    # Exercises added to today's freestyle session, each paired with the
+    # heaviest set from the most recent EARLIER session it was logged in -
+    # the row summary for the exercise list under the Confirm button.
+    def custom_session_exercises_overview(self):
+        user_id_db = self.current_user_id_db()
+        today, tomorrow = self._today_bounds()
+
+        todays_session = (
+            db.session.query(Sessions.session_id)
+            .filter(
+                Sessions.user_id == user_id_db,
+                Sessions.workout_id == "c",
+                Sessions.session_date >= today,
+                Sessions.session_date < tomorrow,
+            )
+            .order_by(desc(Sessions.session_id))
+            .first()
+        )
+        today_session_id = todays_session[0] if todays_session else None
+
+        previous_sessions_query = db.session.query(Sessions.session_id).filter(
+            Sessions.user_id == user_id_db
+        )
+        if today_session_id is not None:
+            previous_sessions_query = previous_sessions_query.filter(
+                Sessions.session_id != today_session_id
+            )
+        previous_session_ids = [
+            row[0]
+            for row in previous_sessions_query.order_by(
+                desc(Sessions.session_date), desc(Sessions.session_id)
+            ).all()
+        ]
+
+        overview = []
+        for exercise_name in self.load_custom_exercises_for_day():
+            exercise_row = self.find_exercise_id_db(exercise_name)
+            if not exercise_row:
+                continue
+            exercise_id = exercise_row[0]
+
+            best_entry = None
+            for session_id in previous_session_ids:
+                best_entry = self._heaviest_entry(session_id, exercise_id)
+                if best_entry is not None:
+                    break
+
+            overview.append({"exercise": exercise_name, "best": best_entry})
+
+        return overview
 
     # Load data for each user's exercise - first and last entry
     def exercises_progress(self, exercises_data, period_label=None):
@@ -2676,14 +2854,21 @@ class WorkoutManagement:
         "Notes",
     ]
 
+    # "Workout day" label for every freestyle/custom session in a report,
+    # regardless of which calendar day it was logged on - the Date column
+    # already carries that.
+    CUSTOM_WORKOUT_LABEL = "Custom Workout"
+
     @staticmethod
     def _mesocycle_entry(chosen_mesocycle, mesocycle_info):
         """Pull one mesocycle's slot out of show_tables_to_user()'s dict.
 
         That dict is keyed by an index, with the mesocycle NAME as a key inside
         each value - so finding one means scanning. Returns (workout_ids, slot).
-        Custom "c" days are already filtered out upstream, so a report never
-        includes an intuitive session.
+        workout_ids covers real training days only; mesocycle_report_rows()
+        merges in any freestyle ("c") sessions separately, since those don't
+        have a WorkoutPlan.workout_id a Sessions row can join against (see
+        below).
         """
         for value in (mesocycle_info or {}).values():
             if chosen_mesocycle in value:
@@ -2691,41 +2876,103 @@ class WorkoutManagement:
         return [], {}
 
     def mesocycle_report_rows(self, chosen_mesocycle, mesocycle_info):
-        """Every set logged in this mesocycle, one flat dict per set.
+        """Every set logged in this mesocycle, one flat dict per set - both
+        the plan's training days and any freestyle sessions logged while this
+        mesocycle was current, tagged CUSTOM_WORKOUT_LABEL.
 
-        Ordered by session date, then by where the exercise sits in the plan,
-        so a sheet reads in the order the workout was actually done.
+        Ordered by session date, then by where the exercise sits in the plan -
+        a freestyle session has no such position, so its sets fall back to the
+        order they were actually logged in - so a sheet reads in the order the
+        workout was done, and every session's own sets stay contiguous.
         """
-        workout_ids, _ = self._mesocycle_entry(chosen_mesocycle, mesocycle_info)
-        if not workout_ids:
-            return []
-
+        workout_ids, meta = self._mesocycle_entry(chosen_mesocycle, mesocycle_info)
+        mesocycle_id = meta.get(chosen_mesocycle)
         user_id = self.current_user_id_db()
 
-        records = (
-            db.session.query(
-                Sessions.session_date,
-                Sessions.session_id,
-                Sessions.workout_id,
-                WorkoutPlan.workout_name,
-                Exercise.exercise_name,
-                ExerciseEntries.entry_id,
-                ExerciseEntries.exercise_id,
-                ExerciseEntries.set_number,
-                ExerciseEntries.weight,
-                ExerciseEntries.reps,
-                ExerciseEntries.rpe,
-                ExerciseEntries.notes,
+        records = []
+        if workout_ids:
+            records.extend(
+                db.session.query(
+                    Sessions.session_date,
+                    Sessions.session_id,
+                    Sessions.workout_id,
+                    WorkoutPlan.workout_name,
+                    Exercise.exercise_name,
+                    ExerciseEntries.entry_id,
+                    ExerciseEntries.exercise_id,
+                    ExerciseEntries.set_number,
+                    ExerciseEntries.weight,
+                    ExerciseEntries.reps,
+                    ExerciseEntries.rpe,
+                    ExerciseEntries.notes,
+                )
+                .join(ExerciseEntries, ExerciseEntries.session_id == Sessions.session_id)
+                .join(Exercise, Exercise.exercise_id == ExerciseEntries.exercise_id)
+                .join(WorkoutPlan, WorkoutPlan.workout_id == Sessions.workout_id)
+                .filter(
+                    Sessions.user_id == user_id,
+                    Sessions.workout_id.in_(workout_ids),
+                )
+                .all()
             )
-            .join(ExerciseEntries, ExerciseEntries.session_id == Sessions.session_id)
-            .join(Exercise, Exercise.exercise_id == ExerciseEntries.exercise_id)
-            .join(WorkoutPlan, WorkoutPlan.workout_id == Sessions.workout_id)
-            .filter(
-                Sessions.user_id == user_id,
-                Sessions.workout_id.in_(workout_ids),
-            )
-            .all()
-        )
+
+        # Freestyle sessions all share the literal "c" sentinel as their
+        # Sessions.workout_id - never a real WorkoutPlan.workout_id - so they
+        # cannot join to WorkoutPlan the way plan days do above.
+        # SessionMesocycles is the actual link back to which mesocycle a given
+        # freestyle session belongs to.
+        if mesocycle_id is not None:
+            custom_session_ids = [
+                row[0]
+                for row in db.session.query(Sessions.session_id)
+                .join(
+                    SessionMesocycles,
+                    SessionMesocycles.session_id == Sessions.session_id,
+                )
+                .filter(
+                    Sessions.user_id == user_id,
+                    Sessions.workout_id == "c",
+                    SessionMesocycles.mesocycle_id == mesocycle_id,
+                )
+                .all()
+            ]
+            if custom_session_ids:
+                custom_rows = (
+                    db.session.query(
+                        Sessions.session_date,
+                        Sessions.session_id,
+                        Sessions.workout_id,
+                        Exercise.exercise_name,
+                        ExerciseEntries.entry_id,
+                        ExerciseEntries.exercise_id,
+                        ExerciseEntries.set_number,
+                        ExerciseEntries.weight,
+                        ExerciseEntries.reps,
+                        ExerciseEntries.rpe,
+                        ExerciseEntries.notes,
+                    )
+                    .join(ExerciseEntries, ExerciseEntries.session_id == Sessions.session_id)
+                    .join(Exercise, Exercise.exercise_id == ExerciseEntries.exercise_id)
+                    .filter(Sessions.session_id.in_(custom_session_ids))
+                    .all()
+                )
+                records.extend(
+                    SimpleNamespace(
+                        session_date=row.session_date,
+                        session_id=row.session_id,
+                        workout_id=row.workout_id,
+                        workout_name=self.CUSTOM_WORKOUT_LABEL,
+                        exercise_name=row.exercise_name,
+                        entry_id=row.entry_id,
+                        exercise_id=row.exercise_id,
+                        set_number=row.set_number,
+                        weight=row.weight,
+                        reps=row.reps,
+                        rpe=row.rpe,
+                        notes=row.notes,
+                    )
+                    for row in custom_rows
+                )
 
         if not records:
             return []
@@ -2733,26 +2980,31 @@ class WorkoutManagement:
         # Plan position per (workout, exercise), for sorting only. Fetched
         # separately rather than joined into the query above: a workout holding
         # the same exercise twice would multiply every entry row in the join.
+        # Freestyle sessions have no plan slot (their workout_id, "c", never
+        # matches a WorkoutExercises.workout_id), so they simply never get a
+        # key here and fall through to the entry_id tiebreak below.
         plan_order = {}
-        for row in (
-            db.session.query(
-                WorkoutExercises.workout_id,
-                WorkoutExercises.exercise_id,
-                WorkoutExercises.order_in_workout,
-            )
-            .filter(WorkoutExercises.workout_id.in_(workout_ids))
-            .all()
-        ):
-            key = (row.workout_id, row.exercise_id)
-            if key not in plan_order or row.order_in_workout < plan_order[key]:
-                plan_order[key] = row.order_in_workout
+        if workout_ids:
+            for row in (
+                db.session.query(
+                    WorkoutExercises.workout_id,
+                    WorkoutExercises.exercise_id,
+                    WorkoutExercises.order_in_workout,
+                )
+                .filter(WorkoutExercises.workout_id.in_(workout_ids))
+                .all()
+            ):
+                key = (row.workout_id, row.exercise_id)
+                if key not in plan_order or row.order_in_workout < plan_order[key]:
+                    plan_order[key] = row.order_in_workout
 
         def sort_key(r):
             return (
                 r.session_date or datetime.min,
                 r.session_id,
-                # An exercise dropped from the plan since it was logged has no
-                # position; park those at the end rather than at the front.
+                # An exercise dropped from the plan since it was logged - or
+                # one logged in a freestyle session - has no position; park
+                # those at the end rather than at the front.
                 plan_order.get((r.workout_id, r.exercise_id), 9999),
                 r.entry_id,
             )

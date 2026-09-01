@@ -226,7 +226,7 @@
 
         <form action="{{ url_for('intuitive_training') }}" method="POST">
           <!-- Adding Exercise -->
-          <input type="hidden" name="action" value="add_exercise_name">
+          <input type="hidden" name="action" value="update_exercise_data">
           <table class="table table-striped text-center mb-5">
             <tbody>
               <tr>
@@ -241,9 +241,25 @@
             </tbody>
           </table>
 
-          <!-- Another form for updating sets/weights/etc. -->
-          <form action="{{ url_for('intuitive_training') }}" method="POST">
-            <input type="hidden" name="action" value="update_exercise_data">
+            <!-- Without table-layout:fixed this table sizes itself from the intrinsic
+                 width of the inputs (~75px per column = 375px), which is wider than the
+                 366px a 390px phone gives it - so it hung off the screen edge. Fixed
+                 layout makes it obey the container, and makes the col-* widths on the
+                 headers below actually count. -->
+            <style>
+              .table-responsive > .table {
+                table-layout: fixed;
+                width: 100%;
+              }
+
+              .table-responsive th { width: 20%; }
+
+              /* the default .form-control side padding eats 24px of a 58px cell */
+              .table-responsive .form-control {
+                padding-left: .25rem;
+                padding-right: .25rem;
+              }
+            </style>
             <div class="table-responsive">
               <table class="table table-striped text-center mb-5">
                 <thead>
@@ -270,8 +286,8 @@
                     <td><input type="number" class="form-control text-center" name="update_rpe_{{ set.entry_id }}"
                         placeholder="{{set.rpe}}" /></td>
 
-                    <td><input type="text" class="form-control text-center" name="update_notes_{{ set.entry_id }}"
-                        placeholder="{{set.notes}}" /></td>
+                    <td><textarea rows="1" class="form-control text-center" data-note
+                        name="update_notes_{{ set.entry_id }}" placeholder="{{set.notes}}"></textarea></td>
 
                     <td class="w-auto">
                       <input class="form-check-input" type="checkbox" name="delete" value="{{ set.entry_id }}" />
@@ -305,8 +321,8 @@
                     </td>
                     <td>
                       <div class="center-container">
-                        <input type="text" name="notes" class="form-control text-center text-warning"
-                          placeholder="{{ placeholders.notes }}" />
+                        <textarea rows="1" name="notes" data-note class="form-control text-center text-warning"
+                          placeholder="{{ placeholders.notes }}"></textarea>
                       </div>
                     </td>
                     <td>.</td>
@@ -336,8 +352,8 @@
                     </td>
                     <td>
                       <div class="col-12 center-container">
-                        <input type="text" name="notes" class="form-control text-center bg-success-subtle text-warning"
-                          placeholder="..." />
+                        <textarea rows="1" name="notes" data-note class="form-control text-center bg-success-subtle text-warning"
+                          placeholder="..."></textarea>
                       </div>
                     </td>
                     <td>.</td>
@@ -349,12 +365,87 @@
                 </tbody>
               </table>
 
+              {% if selected_exercise is not none %}
+              <div class="d-flex justify-content-between align-items-start" style="margin-top: -2em;">
+                <button type="submit" name="previous_day"
+                  class="btn p-0 border rounded-3 shadow-sm d-flex justify-content-center align-items-center"
+                  style="width: 8%; max-width: 55px; aspect-ratio: 1.3; border-color: #bbb; background-color: #fff; transition: all 0.25s ease;">
+                  <img src="{{ url_for('static', filename='pictures/left_arrow.png') }}" alt="Previous Exercise"
+                    style="width: 65%; height: auto;">
+                </button>
 
-              <div class="d-flex justify-content-center mb-2">
+                <button type="submit" name="next_day"
+                  class="btn p-0 border rounded-3 shadow-sm d-flex justify-content-center align-items-center"
+                  style="width: 8%; max-width: 55px; aspect-ratio: 1.3; border-color: #bbb; background-color: #fff; transition: all 0.25s ease;">
+                  <img src="{{ url_for('static', filename='pictures/right_arrow.png') }}" alt="Next Exercise"
+                    style="width: 65%; height: auto;">
+                </button>
+              </div>
+
+              <style>
+                button[name="previous_day"]:hover,
+                button[name="next_day"]:hover {
+                  border-color: #888;
+                  background-color: #f3f3f3;
+                  transform: translateY(-2px);
+                  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+                }
+              </style>
+              {% endif %}
+
+              <div class="d-flex justify-content-center mb-2" style="padding-top: 1.5em;">
                 <button type="submit" class="btn btn-success btn-lg col-8 col-lg-4 col-md-6">Confirm</button>
               </div>
             </div>
           </form>
+
+          {% if exercises_overview %}
+          <div class="container">
+            <div class="row justify-content-center">
+              <div class="col-12 col-md-9 p-4">
+                <h5 class="text-center mb-3">Today's exercises</h5>
+                <form action="{{ url_for('intuitive_training') }}" method="POST">
+                  <input type="hidden" name="action" value="choose_exercise">
+                  <table class="table table-striped text-center mb-1" id="todaysExercises">
+                    <thead>
+                      <tr>
+                        <th>Exercise</th>
+                        <th>Set</th>
+                        <th>RPE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for item in exercises_overview %}
+                      <tr>
+                        <td>
+                          <button type="submit" name="chosen_exercise" value="{{item.exercise}}"
+                            class="btn p-0 border-0 shadow-none w-100 {% if item.exercise == selected_exercise %}text-success-emphasis fw-bold{% endif %}">
+                            {{item.exercise}}
+                          </button>
+                        </td>
+                        <td style="white-space: nowrap;">
+                          {% if item.best %}
+                          {{item.best.weight}} kg x {{item.best.reps}}
+                          {% else %}
+                          -
+                          {% endif %}
+                        </td>
+                        <td>
+                          {% if item.best and item.best.rpe %}
+                          {{item.best.rpe}}
+                          {% else %}
+                          -
+                          {% endif %}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </form>
+              </div>
+            </div>
+          </div>
+          {% endif %}
           {% endif %}
 
           <div class="container">
@@ -362,31 +453,47 @@
               <div class="col-12 col-md-9 p-4">
 
                 {% if preview is not none %}
-                <h5 class="text-center mb-3">Previous sets for <strong>{{current_exercise_name}}</strong></h5>
-                <table class="table table-striped text-center mb-5">
-                  <thead class="table-striped ">
-                    <tr>
-                      <th class="col-1">Weight</th>
-                      <th class="col-1">Reps</th>
-                      <th class="col-1">RPE</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for row in preview %}
-                    <tr class="{% if row.done is not none %}table-info{% endif %}">
-                      <td>
-                        <div class="col-10 center-container "> {{row.weight}} </div>
-                      </td>
-                      <td>
-                        <div class="col-12 center-container "> {{row.reps}} </div>
-                      </td>
-                      <td>
-                        <div class="col-12 center-container "> {{row.rpe}} </div>
-                      </td>
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
+                <div class="d-flex justify-content-center mb-2 gap-2">
+                  <button class="btn btn-secondary btn-sm" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#historyCollapse">
+                    History
+                  </button>
+                </div>
+                <div class="d-flex justify-content-center">
+                  <div class="collapse" id="historyCollapse">
+                    <div class="card card-body">
+                      <h5 class="text-center mb-3">Previous sets for <strong>{{current_exercise_name}}</strong></h5>
+                      <table class="table table-striped text-center mb-1">
+                        <thead class="table-striped ">
+                          <tr>
+                            <th class="col-1">Weight</th>
+                            <th class="col-1">Reps</th>
+                            <th class="col-1">RPE</th>
+                            <th class="col-3">Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for row in preview %}
+                          <tr class="{% if row.done is not none %}table-info{% endif %}">
+                            <td>
+                              <div class="col-10 center-container "> {{row.weight}} </div>
+                            </td>
+                            <td>
+                              <div class="col-12 center-container "> {{row.reps}} </div>
+                            </td>
+                            <td>
+                              <div class="col-12 center-container "> {{row.rpe}} </div>
+                            </td>
+                            <td>
+                              <div class="center-container"> {{row.notes if row.notes else "-"}} </div>
+                            </td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
                 {% endif %}
               </div>
             </div>
@@ -437,6 +544,7 @@
 
           </script>
           <!-- waiting overlay -->
+          <script src="{{ url_for('static', filename='js/notesEdit.js') }}"></script>
           <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
           <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
           <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>

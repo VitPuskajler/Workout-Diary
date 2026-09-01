@@ -224,53 +224,53 @@
 
 
           <div>
-            <h4 class="fst-italic">Super Informations</h4>
+            <h4 class="fst-italic">Best Features</h4>
             <ul class="list-unstyled">
               <li>
                 <a class="d-flex flex-column flex-lg-row gap-3 align-items-center align-items-lg-start py-3 link-body-emphasis text-decoration-none border-top"
-                  href="#">
+                  href="{{ url_for('training_session_redirect') }}">
                   <img src="{{ url_for('static', filename='pictures/notifications/notifications.jpg') }}"
-                    alt="Notification" style="width: 100px; height: 100px; object-fit: cover;" />
+                    alt="Guided Training Session" style="width: 100px; height: 100px; object-fit: cover;" />
                   <div class="col-lg-8 text-center text-lg-start">
-                    <h6 class="mb-0">In profile section you can manage exercises</h6>
-                    <small class="text-body-secondary">14.11.2024</small>
+                    <h6 class="mb-0">Guided Training Session</h6>
+                    <small class="text-body-secondary">Follow your mesocycle plan with History and one-tap Repeat, so you're not retyping last time's numbers.</small>
                   </div>
                 </a>
               </li>
               <li>
                 <a class="d-flex flex-column flex-lg-row gap-3 align-items-center align-items-lg-start py-3 link-body-emphasis text-decoration-none border-top b"
-                  href="#">
+                  href="{{ url_for('intuitive_training') }}">
                   <img src="{{ url_for('static', filename='pictures/notifications/notifications.jpg') }}"
-                    alt="Notification" style="width: 100px; height: 100px; object-fit: cover;" />
+                    alt="Freestyle Training" style="width: 100px; height: 100px; object-fit: cover;" />
                   <div class="col-lg-8">
-                    <h6 class="mb-0">Training session page layout is simplified</h6>
-                    <small class="text-body-secondary">14.11.2024</small>
+                    <h6 class="mb-0">Freestyle Training</h6>
+                    <small class="text-body-secondary">Log any exercise on the fly, jump between today's exercises with arrows, and see your best set from last time inline.</small>
                   </div>
                 </a>
               </li>
               <li>
                 <a class="d-flex flex-column flex-lg-row gap-3 align-items-center align-items-lg-start py-3 link-body-emphasis text-decoration-none border-top c"
-                  href="#">
+                  href="{{ url_for('progress') }}">
                   <img src="{{ url_for('static', filename='pictures/notifications/notifications.jpg') }}"
-                    alt="Notification" style="width: 100px; height: 100px; object-fit: cover;" />
+                    alt="Editable Progress and Graphs" style="width: 100px; height: 100px; object-fit: cover;" />
                   <div class="col-lg-8">
-                    <h6 class="mb-0">Current version strictly focused on phone resolution</h6>
-                    <small class="text-body-secondary">14.11.2024</small>
+                    <h6 class="mb-0">Editable Progress + Graphs</h6>
+                    <small class="text-body-secondary">Track every lift over time with charts, and edit past sets directly from the same page.</small>
                   </div>
                 </a>
               </li>
             </ul>
           </div>
-
+        </div>
+      </div>
+    </div>
   </main>
 
-  <div clas="p-3">
-    <div class="fixed-bottom">
-      <a href="https://www.github.com/vitpuskajler" target="_blank" rel="noopener noreferrer">
-      © {{ year }} | Created by Vít Puskajler 
-      </a>
-    </div>
-  </div>
+  <footer class="text-center p-3">
+    <a href="https://www.github.com/vitpuskajler" target="_blank" rel="noopener noreferrer">
+      © {{ year }} | Created by Vít Puskajler
+    </a>
+  </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
