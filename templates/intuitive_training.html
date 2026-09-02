@@ -264,7 +264,12 @@
               <table class="table table-striped text-center mb-5">
                 <thead>
                   <tr>
-                    <th class="col-2">Kg</th>
+                    <th class="col-2">
+                      <button type="button" id="weightUnitToggle" data-unit="{{ default_unit }}"
+                        class="btn btn-sm btn-link p-0 fw-bold text-decoration-none text-reset"
+                        title="Click to switch the unit new sets are logged in">{% if default_unit == 'lbs'
+                        %}Lbs{% elif default_unit == 'other' %}Other{% else %}Kg{% endif %}</button>
+                    </th>
                     <th class="col-1">Reps</th>
                     <th class="col-1">RPE</th>
                     <th class="col-3">Notes</th>
@@ -278,7 +283,8 @@
 
                   <tr>
                     <td><input type="number" step="any" class="form-control text-center"
-                        name="update_weight_{{ set.entry_id }}" placeholder="{{set.weight}}" /></td>
+                        name="update_weight_{{ set.entry_id }}"
+                        placeholder="{{set.weight}}{% if set.unit and set.unit != 'kg' %} {{ set.unit }}{% endif %}" /></td>
 
                     <td><input type="number" class="form-control text-center" name="update_reps_{{ set.entry_id }}"
                         placeholder="{{set.reps}}" /></td>
@@ -303,8 +309,9 @@
                   <tr class="table-success">
                     <td>
                       <div class="center-container">
-                        <input type="number" min="0" max="501" step="any" name="kg"
+                        <input type="number" min="0" max="501" step="any" name="kg" id="weightInput"
                           class="form-control text-center text-warning" placeholder="{{ placeholders.weight }}" />
+                        <input type="hidden" name="unit" id="weightUnitField" value="{{ default_unit }}" />
                       </div>
                     </td>
                     <td>
@@ -332,8 +339,9 @@
                   <tr>
                     <td>
                       <div class="col-12 center-container">
-                        <input type="number" name="kg" class="form-control text-center bg-success-subtle text-warning"
-                          placeholder="0" />
+                        <input type="number" min="0" max="501" step="any" name="kg" id="weightInput"
+                          class="form-control text-center bg-success-subtle text-warning" placeholder="0" />
+                        <input type="hidden" name="unit" id="weightUnitField" value="{{ default_unit }}" />
                       </div>
                     </td>
 
@@ -425,7 +433,7 @@
                         </td>
                         <td style="white-space: nowrap;">
                           {% if item.best %}
-                          {{item.best.weight}} kg x {{item.best.reps}}
+                          {{item.best.weight}} {{item.best.unit}} x {{item.best.reps}}
                           {% else %}
                           -
                           {% endif %}
@@ -476,7 +484,7 @@
                           {% for row in preview %}
                           <tr class="{% if row.done is not none %}table-info{% endif %}">
                             <td>
-                              <div class="col-10 center-container "> {{row.weight}} </div>
+                              <div class="col-10 center-container "> {{row.weight}}{% if row.unit and row.unit != "kg" %} {{ row.unit }}{% endif %} </div>
                             </td>
                             <td>
                               <div class="col-12 center-container "> {{row.reps}} </div>
@@ -542,6 +550,46 @@
               }
             });
 
+          </script>
+          <!-- Kg -> Lbs -> Other -> Kg toggle for the new-set weight field -->
+          <script>
+            document.addEventListener("DOMContentLoaded", () => {
+              const toggle = document.getElementById("weightUnitToggle");
+              const unitField = document.getElementById("weightUnitField");
+              const weightInput = document.getElementById("weightInput");
+              if (!toggle || !unitField) { return; }
+
+              const KG_PER_LB = 0.45359237;
+              const LABELS = { kg: "Kg", lbs: "Lbs", other: "Other" };
+              const NEXT_UNIT = { kg: "lbs", lbs: "other", other: "kg" };
+              const MAX_BY_UNIT = { kg: 501, lbs: 1100, other: 50 };
+
+              if (weightInput) {
+                weightInput.max = MAX_BY_UNIT[toggle.dataset.unit] || 501;
+              }
+
+              toggle.addEventListener("click", () => {
+                const from = toggle.dataset.unit;
+                const to = NEXT_UNIT[from] || "kg";
+
+                if (weightInput) {
+                  // Only kg <-> lbs have a real conversion factor - "other" is a
+                  // machine's own scale (e.g. 1-10 plate notches), so its placeholder
+                  // is reset rather than converted.
+                  const current = parseFloat(weightInput.placeholder);
+                  if (from === "kg" && to === "lbs" && !isNaN(current)) {
+                    weightInput.placeholder = (current / KG_PER_LB).toFixed(1);
+                  } else {
+                    weightInput.placeholder = "0";
+                  }
+                  weightInput.max = MAX_BY_UNIT[to];
+                }
+
+                toggle.dataset.unit = to;
+                toggle.textContent = LABELS[to];
+                unitField.value = to;
+              });
+            });
           </script>
           <!-- waiting overlay -->
           <script src="{{ url_for('static', filename='js/notesEdit.js') }}"></script>

@@ -116,8 +116,13 @@ class ExerciseEntries(UserMixin, db.Model):
     weight = Column(Float, unique=False, nullable=True)
     rpe = Column(Float, unique=False, nullable=True)
     notes = Column(String(150), unique=False, nullable=True)
+    # "kg" / "lbs" / "other" - "other" is not a real weight unit (e.g. a
+    # machine's 1-10 plate-stack dial), so it is never converted.
+    # server_default matters: the column was added to a table that already
+    # had rows, so existing entries need a value at the SQL level.
+    unit = Column(String(10), nullable=False, default="kg", server_default="kg")
 
-    def __init__(self, session_id, exercise_id, set_number, reps, weight, rpe, notes):
+    def __init__(self, session_id, exercise_id, set_number, reps, weight, rpe, notes, unit="kg"):
         self.session_id = session_id
         self.exercise_id = exercise_id
         self.set_number = set_number
@@ -125,6 +130,7 @@ class ExerciseEntries(UserMixin, db.Model):
         self.weight = weight
         self.rpe = rpe
         self.notes = notes
+        self.unit = unit
 
 # 7. Mesocycles Table
 class Mesocycles(UserMixin, db.Model):

@@ -27,6 +27,11 @@
   var current = null;      // the one open, editable row - see buildViewToolbar()
   var pendingTarget = null; // element to re-click once a dirty edit is resolved
   var unsavedModal = null;
+  var fixUnitModal = null;
+  var fixUnitTargetUnit = null; // unit selected in the fix-unit popup, before submit
+  var deleteModal = null;
+
+  var UNIT_LABELS = { kg: "Kg", lbs: "Lbs", other: "Other" };
 
   function textOf(td) {
     var span = td.querySelector(".wd-view-value");
@@ -112,12 +117,48 @@
       enterEditMode(cur);
     });
 
+    // A "repeat last set" mistake is the realistic case this is for - one
+    // extra logged set with nothing worth editing, just removing. Outline
+    // style (not solid btn-danger) so it doesn't compete with the pencil for
+    // attention; the confirm popup is the actual safety net.
+    var deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "btn btn-outline-danger btn-sm wd-edit-btn";
+    deleteBtn.setAttribute("aria-label", "Delete this set");
+    deleteBtn.textContent = "✕";
+    deleteBtn.addEventListener("click", function () {
+      openDeleteConfirm();
+    });
+
     cur.toolbar.appendChild(editBtn);
+    cur.toolbar.appendChild(deleteBtn);
     cur.editBtn = editBtn;
+    cur.deleteBtn = deleteBtn;
+  }
+
+  // Label for the fix-unit button: the bowed-arrow icon plus this entry's
+  // CURRENT unit, so it doubles as an indicator - /progress always shows the
+  // weight already converted to kg, so this is the only place you can see
+  // what unit a set was actually logged in.
+  function fixUnitBtnHtml(unit) {
+    return (
+      '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" class="me-1" aria-hidden="true">' +
+      '<use href="#arrow-repeat"></use></svg>' + UNIT_LABELS[unit]
+    );
   }
 
   function buildEditToolbarButtons(cur) {
     cur.toolbar.innerHTML = "";
+
+    var fixUnitBtn = document.createElement("button");
+    fixUnitBtn.type = "button";
+    fixUnitBtn.className = "btn btn-outline-secondary btn-sm wd-fixunit-btn";
+    fixUnitBtn.setAttribute("aria-label", "Fix this set's unit");
+    fixUnitBtn.title = "Wrong unit? Fix it here";
+    fixUnitBtn.innerHTML = fixUnitBtnHtml(cur.currentUnit);
+    fixUnitBtn.addEventListener("click", function () {
+      openFixUnitModal();
+    });
 
     var discardBtn = document.createElement("button");
     discardBtn.type = "button";
@@ -136,14 +177,17 @@
       doSave(cur, function () {});
     });
 
+    cur.toolbar.appendChild(fixUnitBtn);
     cur.toolbar.appendChild(discardBtn);
     cur.toolbar.appendChild(saveBtn);
+    cur.fixUnitBtn = fixUnitBtn;
     cur.saveBtn = saveBtn;
   }
 
   function enterEditMode(cur) {
     if (cur.editing) return;
     cur.editing = true;
+    cur.currentUnit = cur.row.dataset.unit || "kg";
 
     var repsTd = cur.row.querySelector('[data-field="reps"]');
     var weightTd = cur.row.querySelector('[data-field="weight"]');
@@ -237,6 +281,10 @@
     };
     var previewDiv = cur.row.querySelector(".wd-notes > div");
     if (previewDiv) previewDiv.textContent = entry.notes || "";
+
+    // Keeps the phone-only chevron's has-note darkening (see progress.html)
+    // correct after an inline edit, without a full page reload.
+    cur.row.classList.toggle("wd-has-note", !!(entry.notes || "").trim());
   }
 
   function doSave(cur, done) {
@@ -348,8 +396,186 @@
     }
   }
 
+  // ---- "fix unit" popup ---------------------------------------------------
+
+  // Push one freshly-repaired unit/weight into its row on the page. A
+  // session-wide fix returns several entries, so this runs once per entry.
+  function applyUnitFixToRow(entryId, unit, weightKg) {
+    var rows = document.querySelectorAll('tr[data-entry-id="' + entryId + '"]');
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].dataset.unit = unit;
+
+      if (current && current.row === rows[i] && current.editing) {
+        // The row you fixed from is still open - update its live input and
+        // snapshot together so this does not register as an unsaved edit.
+        if (current.fields && current.fields.weight) {
+          current.fields.weight.value = weightKg;
+        }
+        current.snapshot.weight = String(weightKg);
+        current.currentUnit = unit;
+        if (current.fixUnitBtn) {
+          current.fixUnitBtn.innerHTML = fixUnitBtnHtml(unit);
+        }
+        continue;
+      }
+
+      var span = rows[i].querySelector('[data-field="weight"] .wd-view-value');
+      if (span) span.textContent = weightKg;
+    }
+  }
+
+  function setFixUnitTarget(unit, targetBtns, sessionBtn, entryBtn) {
+    fixUnitTargetUnit = unit;
+    for (var i = 0; i < targetBtns.length; i++) {
+      var btn = targetBtns[i];
+      var isTarget = btn.dataset.targetUnit === unit;
+      var isCurrent = current && btn.dataset.targetUnit === current.currentUnit;
+      btn.classList.toggle("btn-secondary", isTarget);
+      btn.classList.toggle("btn-outline-secondary", !isTarget);
+      btn.disabled = !!isCurrent; // converting a unit to itself is a no-op
+    }
+    var label = UNIT_LABELS[unit];
+    sessionBtn.textContent = "Whole session → " + label;
+    entryBtn.textContent = "This set → " + label;
+  }
+
+  function openFixUnitModal() {
+    if (!fixUnitModal || !current) return;
+
+    var currentEl = document.getElementById("progress_fix_unit_current");
+    var errorEl = document.getElementById("progress_fix_unit_error");
+    var targetBtns = document.querySelectorAll("#progress_fix_unit_targets [data-target-unit]");
+    var sessionBtn = document.getElementById("progress_fix_unit_session");
+    var entryBtn = document.getElementById("progress_fix_unit_entry");
+
+    currentEl.textContent = UNIT_LABELS[current.currentUnit];
+    errorEl.classList.add("d-none");
+
+    // Default guess: the realistic mistake is the toggle sitting one click
+    // off, i.e. Kg meant to be Lbs or vice versa. "Other" has no natural
+    // opposite, so it defaults to Kg, the most common intended unit.
+    var defaultTarget = current.currentUnit === "kg" ? "lbs" : "kg";
+    setFixUnitTarget(defaultTarget, targetBtns, sessionBtn, entryBtn);
+
+    fixUnitModal.show();
+  }
+
+  function submitFixUnit(scope) {
+    if (!current || !fixUnitTargetUnit) return;
+    var errorEl = document.getElementById("progress_fix_unit_error");
+    errorEl.classList.add("d-none");
+
+    fetch("/progress/fix_unit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        entry_id: current.entryId,
+        unit: fixUnitTargetUnit,
+        scope: scope,
+      }),
+    })
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) {
+        if (!data || !data.ok) {
+          errorEl.textContent = (data && data.error) || "Could not save, try again.";
+          errorEl.classList.remove("d-none");
+          return;
+        }
+        for (var i = 0; i < data.updated.length; i++) {
+          applyUnitFixToRow(data.updated[i].entry_id, data.updated[i].unit, data.updated[i].weight_kg);
+        }
+        fixUnitModal.hide();
+      })
+      .catch(function () {
+        errorEl.textContent = "Could not save, try again.";
+        errorEl.classList.remove("d-none");
+      });
+  }
+
+  function initFixUnitModal() {
+    var modalEl = document.getElementById("progress_fix_unit");
+    if (!modalEl || typeof bootstrap === "undefined") return;
+    fixUnitModal = new bootstrap.Modal(modalEl);
+
+    var targetBtns = modalEl.querySelectorAll("#progress_fix_unit_targets [data-target-unit]");
+    var sessionBtn = document.getElementById("progress_fix_unit_session");
+    var entryBtn = document.getElementById("progress_fix_unit_entry");
+    var cancelBtn = document.getElementById("progress_fix_unit_cancel");
+
+    targetBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setFixUnitTarget(btn.dataset.targetUnit, targetBtns, sessionBtn, entryBtn);
+      });
+    });
+
+    sessionBtn.addEventListener("click", function () { submitFixUnit("session"); });
+    entryBtn.addEventListener("click", function () { submitFixUnit("entry"); });
+    cancelBtn.addEventListener("click", function () { fixUnitModal.hide(); });
+  }
+
+  // ---- "delete set" confirm popup -----------------------------------------
+
+  function openDeleteConfirm() {
+    if (!deleteModal || !current) return;
+    var errorEl = document.getElementById("progress_delete_confirm_error");
+    errorEl.classList.add("d-none");
+    deleteModal.show();
+  }
+
+  function submitDelete() {
+    if (!current) return;
+    var errorEl = document.getElementById("progress_delete_confirm_error");
+    errorEl.classList.add("d-none");
+
+    var entryId = current.entryId;
+    var row = current.row;
+    // Wide-note mode (phones) opens a separate row for the note - in-place
+    // mode (see rowExpand.js) reuses the row itself, so there is nothing
+    // extra to remove there.
+    var noteRow = current.noteRow !== row ? current.noteRow : null;
+    var deleteBtn = document.getElementById("progress_delete_confirm_delete");
+    if (deleteBtn) deleteBtn.disabled = true;
+
+    fetch("/progress/delete_entry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entry_id: entryId }),
+    })
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) {
+        if (deleteBtn) deleteBtn.disabled = false;
+        if (!data || !data.ok) {
+          errorEl.textContent = (data && data.error) || "Could not delete, try again.";
+          errorEl.classList.remove("d-none");
+          return;
+        }
+        deleteModal.hide();
+        if (noteRow && noteRow.parentNode) { noteRow.parentNode.removeChild(noteRow); }
+        if (row && row.parentNode) { row.parentNode.removeChild(row); }
+        if (current && current.row === row) { current = null; }
+      })
+      .catch(function () {
+        if (deleteBtn) deleteBtn.disabled = false;
+        errorEl.textContent = "Could not delete, try again.";
+        errorEl.classList.remove("d-none");
+      });
+  }
+
+  function initDeleteConfirmModal() {
+    var modalEl = document.getElementById("progress_delete_confirm");
+    if (!modalEl || typeof bootstrap === "undefined") return;
+    deleteModal = new bootstrap.Modal(modalEl);
+
+    var cancelBtn = document.getElementById("progress_delete_confirm_cancel");
+    var deleteBtn = document.getElementById("progress_delete_confirm_delete");
+    if (cancelBtn) cancelBtn.addEventListener("click", function () { deleteModal.hide(); });
+    if (deleteBtn) deleteBtn.addEventListener("click", submitDelete);
+  }
+
   function start() {
     initUnsavedModal();
+    initFixUnitModal();
+    initDeleteConfirmModal();
 
     document.addEventListener("wd:row-opened", function (e) {
       if (e.detail && e.detail.entryId) buildViewToolbar(e.detail);
@@ -358,6 +584,14 @@
     document.addEventListener("wd:row-closing", function (e) {
       if (current && e.detail && e.detail.row === current.row) {
         if (current.editing) discardEdit(current);
+        // In wide-note mode the whole note row (toolbar included) gets torn
+        // down by rowExpand.js right after this fires. In in-place mode the
+        // Notes cell is the row's own permanent cell, not a disposable one -
+        // nothing else ever removes the toolbar we appended into it, so a
+        // repeated open/close would otherwise stack up one per open.
+        if (current.toolbar && current.toolbar.parentNode) {
+          current.toolbar.parentNode.removeChild(current.toolbar);
+        }
         current = null;
       }
     });

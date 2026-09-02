@@ -134,6 +134,7 @@ add_session_to_db = db_operations.add_session_to_db
 find_exercise_id_db = db_operations.find_exercise_id_db
 find_exercise_name_db = db_operations.find_exercise_name_db
 add_set_to_db = db_operations.add_set_to_db
+last_used_unit_for_exercise = db_operations.last_used_unit_for_exercise
 repeat_set = db_operations.repeat_set
 jinja_sets_function = db_operations.jinja_sets_function
 delete_set = db_operations.delete_set
@@ -147,6 +148,8 @@ workout_day_information = db_operations.workout_day_information
 exercise_progress_data = db_operations.exercise_progress_data
 progress_as_markdown = db_operations.progress_as_markdown
 update_progress_entry = db_operations.update_progress_entry
+fix_entry_unit = db_operations.fix_entry_unit
+delete_progress_entry = db_operations.delete_progress_entry
 fetch_exercise_suggestions = db_operations.fetch_exercise_suggestions
 get_today_intuitive_traing = db_operations.get_today_intuitive_traing
 create_custom_workout_exercise = db_operations.create_custom_workout_exercise
@@ -608,7 +611,9 @@ def training_session():
             add_session_to_db(workout_key, workout_id)
             submitted_data = request.form.to_dict()
             add_set_to_db(submitted_data, chosen_exercise, chosen_day)
-            delete_set(submitted_data)
+            # request.form (not submitted_data) - delete_set needs every
+            # checked "delete" checkbox, and .to_dict() only kept the first.
+            delete_set(request.form)
             # Get access to sets / exercises user want to change
             modify_set(submitted_data)
         elif 'previous_day' in request.form:
@@ -639,9 +644,13 @@ def training_session():
 
     preview = exercise_preview(workout_id, workout_key, chosen_exercise, workout_key, workout_id)
     sets_to_do_jinja = sets_to_do(chosen_exercise, chosen_day)
-    
+
     # Data for preview
     last_exercise = last_exercise_preview(chosen_exercise, workout_id, chosen_day)
+
+    # Kg/Lbs/Other toggle above the weight column - defaults to whatever unit
+    # this exercise was last logged in.
+    default_unit = last_used_unit_for_exercise(chosen_exercise)
 
     return render_template(
         "training_session.html",
@@ -655,7 +664,8 @@ def training_session():
         sets_for_jinja=sets_for_jinja,
         preview=preview,
         placeholders=exercise_placeholders,
-        last_exercise =last_exercise
+        last_exercise =last_exercise,
+        default_unit=default_unit,
     )
 
 # --------------------------------------------------------------------------
@@ -1015,6 +1025,32 @@ def progress_update_entry():
     )
     return jsonify(result), (200 if result.get("ok") else 400)
 
+@app.route("/progress/fix_unit", methods=["POST"])
+@login_required
+def progress_fix_unit():
+    payload = request.get_json(silent=True) or {}
+    entry_id = payload.get("entry_id")
+    if not entry_id:
+        return jsonify({"ok": False, "error": "Missing entry_id."}), 400
+
+    result = fix_entry_unit(
+        entry_id=entry_id,
+        target_unit=payload.get("unit"),
+        scope=payload.get("scope"),
+    )
+    return jsonify(result), (200 if result.get("ok") else 400)
+
+@app.route("/progress/delete_entry", methods=["POST"])
+@login_required
+def progress_delete_entry():
+    payload = request.get_json(silent=True) or {}
+    entry_id = payload.get("entry_id")
+    if not entry_id:
+        return jsonify({"ok": False, "error": "Missing entry_id."}), 400
+
+    result = delete_progress_entry(entry_id=entry_id)
+    return jsonify(result), (200 if result.get("ok") else 400)
+
 @app.route("/statistics", methods=["GET", "POST"])
 @login_required
 def statistics():
@@ -1096,7 +1132,9 @@ def intuitive_training():
         
     else:  # POST
         submitted_data = request.form.to_dict()
-        delete_set(submitted_data)
+        # request.form (not submitted_data) - delete_set needs every checked
+        # "delete" checkbox, and .to_dict() only kept the first.
+        delete_set(request.form)
 
         if "previous_day" in submitted_data or "next_day" in submitted_data:
             move = "previous_day" if "previous_day" in submitted_data else "next_day"
@@ -1154,6 +1192,10 @@ def intuitive_training():
 
     exercises_overview = custom_session_exercises_overview() if today_session else []
 
+    # Kg/Lbs/Other toggle above the weight column - defaults to whatever unit
+    # this exercise was last logged in.
+    default_unit = last_used_unit_for_exercise(selected_exercise)
+
     return render_template(
         "intuitive_training.html",
         today=DATE,
@@ -1165,7 +1207,8 @@ def intuitive_training():
         placeholders= exercise_placeholders,
         preview = last_day,
         current_exercise_name = exercise_name_for_last_sets,
-        exercises_overview = exercises_overview
+        exercises_overview = exercises_overview,
+        default_unit = default_unit,
     )
 
 @app.errorhandler(404)

@@ -21,6 +21,7 @@ from models.models import (
 from sqlalchemy import (
     MetaData,
     and_,
+    case,
     func,
     create_engine,
     desc,
@@ -31,11 +32,37 @@ from flask import request
 from datetime import datetime, date, timedelta
 from matplotlib.figure import Figure
 from io import BytesIO
+from workout_management.units import lbs_to_kg
+
+# Entries may carry "kg", "lbs" or "other" (a machine's own scale, e.g. 1-10
+# plate-stack notches, not a real weight - never converted).
+WEIGHT_UNITS = ("kg", "lbs", "other")
 
 
 class WorkoutManagement:
     def __init__(self):
         pass
+
+    @staticmethod
+    def _weight_in_kg(weight, unit):
+        """A stored weight, converted to kilograms for display.
+
+        "other" values are not a real weight unit - there is no fixed factor
+        to convert a machine's own scale, so they pass through unchanged.
+        """
+        if weight is None or unit != "lbs":
+            return weight
+        return round(lbs_to_kg(weight), 2)
+
+    @staticmethod
+    def _weight_in_kg_sql():
+        """Same conversion as `_weight_in_kg`, as a SQL expression - for
+        aggregates like func.max() that must convert before comparing, not
+        after (a set of 300 lbs must out-rank one of 100 kg)."""
+        return case(
+            (ExerciseEntries.unit == "lbs", lbs_to_kg(ExerciseEntries.weight)),
+            else_=ExerciseEntries.weight,
+        )
 
     def current_user_id_db(self):
         user = Users.query.filter_by(username=current_user.username).first()
@@ -961,6 +988,21 @@ class WorkoutManagement:
         if exercise is None:
             return None
 
+        # training_session.html's Confirm button is also how you save edits
+        # to already-logged sets and apply checked deletions - the "current
+        # exercise" inputs at the bottom are blank placeholders until you
+        # actually type a new set into them. Without this check, every
+        # Confirm press (including ones only meant to edit/delete) logged
+        # another phantom 0/0/0 set.
+        new_set_fields = (
+            submitted_data.get("kg"),
+            submitted_data.get("reps"),
+            submitted_data.get("rpe"),
+            submitted_data.get("notes"),
+        )
+        if all(value is None or str(value).strip() == "" for value in new_set_fields):
+            return None
+
         user_id_db = self.current_user_id_db()
 
         exe_id = self.find_exercise_id_db(exercise)
@@ -1005,6 +1047,10 @@ class WorkoutManagement:
             except (TypeError, ValueError):
                 return default
 
+        unit = submitted_data.get("unit")
+        if unit not in WEIGHT_UNITS:
+            unit = "kg"
+
         try:
             exercise_entry_add = ExerciseEntries(
                 session_id=session_id,
@@ -1014,6 +1060,7 @@ class WorkoutManagement:
                 weight=_optional_number(submitted_data.get("kg"), float, 0.0),
                 rpe=_optional_number(submitted_data.get("rpe"), float, 0.0),
                 notes=submitted_data.get("notes", ""),
+                unit=unit,
             )
             db.session.add(exercise_entry_add)
             db.session.commit()
@@ -1022,6 +1069,30 @@ class WorkoutManagement:
             db.session.rollback()
             print(f"add_set_to_db: rolling back, {e} (line {inspect.currentframe().f_lineno})")
             return None
+
+    def last_used_unit_for_exercise(self, chosen_exercise):
+        """The unit this user last logged `chosen_exercise` in, across all
+        history - so the Kg/Lbs/Other toggle on /training_session defaults to
+        whatever they used last time, instead of always starting on Kg."""
+        if not chosen_exercise:
+            return "kg"
+
+        exercise_row = self.find_exercise_id_db(chosen_exercise)
+        if not exercise_row:
+            return "kg"
+
+        current_user_id = self.current_user_id_db()
+        last_entry = (
+            db.session.query(ExerciseEntries.unit)
+            .join(Sessions, ExerciseEntries.session_id == Sessions.session_id)
+            .filter(
+                ExerciseEntries.exercise_id == exercise_row[0],
+                Sessions.user_id == current_user_id,
+            )
+            .order_by(desc(ExerciseEntries.entry_id))
+            .first()
+        )
+        return last_entry[0] if last_entry and last_entry[0] in WEIGHT_UNITS else "kg"
 
     def repeat_set(self, chosen_exercise, workout_id, chosen_day):
         """Append a copy of a previous set for `chosen_exercise` to today's session.
@@ -1093,6 +1164,7 @@ class WorkoutManagement:
                 weight=source_entry.weight,
                 rpe=source_entry.rpe,
                 notes="",
+                unit=source_entry.unit,
             )
             db.session.add(new_entry)
             db.session.commit()
@@ -1182,10 +1254,18 @@ class WorkoutManagement:
         try:
             # Check if 'delete' key exists and if it contains values
             if "delete" in submitted_data:
-                # Retrieve the IDs to delete (assuming it's a list of entry IDs)
+                # request.form is a MultiDict - one "delete" checkbox per
+                # row, all sharing that name, so getlist() is what actually
+                # returns every value checked. Indexing it (submitted_data[
+                # "delete"]) only ever returns the first one as a plain str,
+                # never a list, so the old isinstance(..., list) check here
+                # could never take that branch - it silently dropped every
+                # checked box past the first. Callers that already flattened
+                # the form into a plain dict (no getlist) still fall back to
+                # that single value.
                 entry_ids_to_delete = (
                     submitted_data.getlist("delete")
-                    if isinstance(submitted_data["delete"], list)
+                    if hasattr(submitted_data, "getlist")
                     else [submitted_data["delete"]]
                 )
 
@@ -1405,6 +1485,13 @@ class WorkoutManagement:
         if len(notes_val) > 150:
             return {"ok": False, "error": "Notes can be at most 150 characters."}
 
+        # /progress always shows weight already converted to kg (see
+        # exercise_progress_data / custom_session_progress), so a value typed
+        # in here is a kg value - re-tag the entry as kg unless it was logged
+        # as "other" (a machine's own scale, never convertible).
+        if weight_val is not None and entry.unit != "other":
+            entry.unit = "kg"
+
         entry.reps = reps_val
         entry.weight = weight_val
         entry.rpe = rpe_val
@@ -1426,6 +1513,96 @@ class WorkoutManagement:
                 "rpe": entry.rpe or 0,
                 "notes": entry.notes or "",
             },
+        }
+
+    # Ownership-checked delete for the /progress inline editor's red "x" -
+    # mainly for a set the "repeat last set" button duplicated by accident.
+    def delete_progress_entry(self, entry_id):
+        current_user_id = self.current_user_id_db()
+
+        entry = (
+            db.session.query(ExerciseEntries)
+            .join(Sessions, ExerciseEntries.session_id == Sessions.session_id)
+            .filter(
+                ExerciseEntries.entry_id == entry_id,
+                Sessions.user_id == current_user_id,
+            )
+            .first()
+        )
+        if not entry:
+            return {"ok": False, "error": "Set not found."}
+
+        db.session.delete(entry)
+        try:
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f"delete_progress_entry: rolling back, {e}")
+            return {"ok": False, "error": "Could not delete, try again."}
+
+        return {"ok": True, "entry_id": entry_id}
+
+    # Ownership-checked unit repair for the /progress inline editor's "fix
+    # unit" button. Unlike update_progress_entry, this never touches the
+    # stored `weight` number - it only re-tags which unit it means, which is
+    # the actual mistake (toggle left on the wrong setting), and changes what
+    # /progress's kg-converted display shows.
+    def fix_entry_unit(self, entry_id, target_unit, scope):
+        if target_unit not in WEIGHT_UNITS:
+            return {"ok": False, "error": "Unknown unit."}
+        if scope not in ("entry", "session"):
+            return {"ok": False, "error": "Unknown scope."}
+
+        current_user_id = self.current_user_id_db()
+
+        entry = (
+            db.session.query(ExerciseEntries)
+            .join(Sessions, ExerciseEntries.session_id == Sessions.session_id)
+            .filter(
+                ExerciseEntries.entry_id == entry_id,
+                Sessions.user_id == current_user_id,
+            )
+            .first()
+        )
+        if not entry:
+            return {"ok": False, "error": "Set not found."}
+
+        if scope == "entry":
+            targets = [entry]
+        else:
+            # Every set logged in the same session, any exercise - the
+            # realistic mistake is forgetting to flip the toggle before the
+            # whole workout, not just for one exercise.
+            targets = (
+                db.session.query(ExerciseEntries)
+                .join(Sessions, ExerciseEntries.session_id == Sessions.session_id)
+                .filter(
+                    ExerciseEntries.session_id == entry.session_id,
+                    Sessions.user_id == current_user_id,
+                )
+                .all()
+            )
+
+        for row in targets:
+            row.unit = target_unit
+
+        try:
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f"fix_entry_unit: rolling back, {e} (line {inspect.currentframe().f_lineno})")
+            return {"ok": False, "error": "Could not save, try again."}
+
+        return {
+            "ok": True,
+            "updated": [
+                {
+                    "entry_id": row.entry_id,
+                    "unit": row.unit,
+                    "weight_kg": self._weight_in_kg(row.weight, row.unit) or 0,
+                }
+                for row in targets
+            ],
         }
 
     def sets_to_do(self, chosen_exercise, chosen_day):
@@ -1761,9 +1938,10 @@ class WorkoutManagement:
                                             "entry_id": som.entry_id,
                                             "date": f"{sess.session_date.day}.{sess.session_date.month}.{sess.session_date.year}",
                                             "reps": som.reps or 0,
-                                            "weight": som.weight or 0,
+                                            "weight": self._weight_in_kg(som.weight, som.unit) or 0,
                                             "rpe": som.rpe or 0,
                                             "notes": som.notes or "",
+                                            "unit": som.unit or "kg",
                                         }
                                         small_data_list.append(small_data_set)
 
@@ -1858,9 +2036,10 @@ class WorkoutManagement:
                     "entry_id": entry.entry_id,
                     "date": date_label,
                     "reps": entry.reps or 0,
-                    "weight": entry.weight or 0,
+                    "weight": self._weight_in_kg(entry.weight, entry.unit) or 0,
                     "rpe": entry.rpe or 0,
                     "notes": entry.notes or "",
+                    "unit": entry.unit or "kg",
                 }
             )
         return result
@@ -2411,7 +2590,7 @@ class WorkoutManagement:
                 db.session.query(
                     ExerciseEntries.exercise_id,
                     Sessions.session_date,  # <-- ADD THIS LINE
-                    func.max(ExerciseEntries.weight).label("max_weight"),
+                    func.max(self._weight_in_kg_sql()).label("max_weight"),
                     func.max(ExerciseEntries.reps).label("max_reps"),
                 )
                 .join(
@@ -2491,7 +2670,7 @@ class WorkoutManagement:
             db.session.query(
                 ExerciseEntries.exercise_id,
                 Sessions.session_date,
-                func.max(ExerciseEntries.weight).label("max_weight"),
+                func.max(self._weight_in_kg_sql()).label("max_weight"),
                 func.max(ExerciseEntries.reps).label("max_reps"),
             )
             .join(Sessions, ExerciseEntries.session_id == Sessions.session_id)
@@ -2905,6 +3084,7 @@ class WorkoutManagement:
                     ExerciseEntries.reps,
                     ExerciseEntries.rpe,
                     ExerciseEntries.notes,
+                    ExerciseEntries.unit,
                 )
                 .join(ExerciseEntries, ExerciseEntries.session_id == Sessions.session_id)
                 .join(Exercise, Exercise.exercise_id == ExerciseEntries.exercise_id)
@@ -2950,6 +3130,7 @@ class WorkoutManagement:
                         ExerciseEntries.reps,
                         ExerciseEntries.rpe,
                         ExerciseEntries.notes,
+                        ExerciseEntries.unit,
                     )
                     .join(ExerciseEntries, ExerciseEntries.session_id == Sessions.session_id)
                     .join(Exercise, Exercise.exercise_id == ExerciseEntries.exercise_id)
@@ -2970,6 +3151,7 @@ class WorkoutManagement:
                         reps=row.reps,
                         rpe=row.rpe,
                         notes=row.notes,
+                        unit=row.unit,
                     )
                     for row in custom_rows
                 )
@@ -3017,7 +3199,7 @@ class WorkoutManagement:
         rows = []
         for r in records:
             day = r.session_date.date() if r.session_date else None
-            weight, reps = r.weight, r.reps
+            weight, reps = self._weight_in_kg(r.weight, r.unit), r.reps
             usable = bool(weight and reps and weight > 0 and reps > 0)
 
             rows.append(

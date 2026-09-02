@@ -37,6 +37,15 @@
         d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z">
       </path>
     </symbol>
+    <!-- Bowed double-arrow used by the "fix unit" button in edit mode -->
+    <symbol id="arrow-repeat" viewBox="0 0 16 16">
+      <path
+        d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z">
+      </path>
+      <path fill-rule="evenodd"
+        d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z">
+      </path>
+    </symbol>
   </svg>
 
   <div class="p-3 mb-5">
@@ -181,7 +190,12 @@
              one. A chevron on the last visible cell marks them, and flips when
              the note is open - so it answers "can I open this?" and "is this
              the open one?" with the same mark. Drawn from two borders rather
-             than a text glyph so it stays sharp and does not depend on a font. */
+             than a text glyph so it stays sharp and does not depend on a font.
+             Its darkness is a second signal, independent of open/closed: pale
+             for an empty note, solid (near-black via currentColor) for a set
+             that actually has one - so a note is spottable without opening
+             anything. wd-has-note is set server-side from data.notes, and
+             kept in sync by progressEdit.js after an inline save. */
           .wd-wide-note > tbody > tr.wd-can-open > td:nth-child(4) {
             position: relative;
           }
@@ -195,12 +209,14 @@
             border-right: 2px solid currentColor;
             border-bottom: 2px solid currentColor;
             transform: translateY(-75%) rotate(45deg);
-            opacity: .4;
+            opacity: .3;
             transition: transform .15s ease, opacity .15s ease;
+          }
+          .wd-wide-note > tbody > tr.wd-can-open.wd-has-note > td:nth-child(4)::after {
+            opacity: .9;
           }
           .wd-wide-note > tbody > tr.wd-open > td:nth-child(4)::after {
             transform: translateY(-25%) rotate(-135deg);
-            opacity: .75;
           }
         }
 
@@ -271,7 +287,7 @@
               <tbody>
                 {% if value %}
                   {% for data in value %}
-                    <tr data-entry-id="{{ data.entry_id }}">
+                    <tr class="{{ 'wd-has-note' if data.notes else '' }}" data-entry-id="{{ data.entry_id }}" data-unit="{{ data.unit or 'kg' }}">
                       <td class="col-2">{{ data.date }}</td>
                       <td class="col-2" data-field="reps"><span class="wd-view-value">{{ data.reps }}</span></td>
                       <td class="col-2" data-field="weight"><span class="wd-view-value">{{ data.weight }}</span></td>
@@ -325,6 +341,53 @@
                 Discard
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Retag a set logged in the wrong unit - see progressEdit.js. -->
+    <div class="modal fade" id="progress_fix_unit" tabindex="-1" aria-hidden="true"
+      aria-labelledby="progress_fix_unit_title">
+      <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+          <div class="modal-body text-center p-4">
+            <p class="mb-1" id="progress_fix_unit_title">
+              This set is logged in <strong id="progress_fix_unit_current">Kg</strong>.
+            </p>
+            <p class="mb-2 text-secondary" style="font-size: .85rem;">Convert to:</p>
+            <div class="btn-group mb-3" role="group" aria-label="Target unit" id="progress_fix_unit_targets">
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-target-unit="kg">Kg</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-target-unit="lbs">Lbs</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-target-unit="other">Other</button>
+            </div>
+            <div class="d-flex flex-column gap-2">
+              <button type="button" class="btn btn-success" id="progress_fix_unit_session"></button>
+              <button type="button" class="btn btn-outline-success" id="progress_fix_unit_entry"></button>
+              <button type="button" class="btn btn-link text-secondary" id="progress_fix_unit_cancel">Cancel</button>
+            </div>
+            <div class="text-danger wd-edit-error d-none mt-2" id="progress_fix_unit_error"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm before deleting a logged set - see progressEdit.js. -->
+    <div class="modal fade" id="progress_delete_confirm" tabindex="-1" aria-hidden="true"
+      aria-labelledby="progress_delete_confirm_title">
+      <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+          <div class="modal-body text-center p-4">
+            <p class="mb-4" id="progress_delete_confirm_title">Delete this set? This can't be undone.</p>
+            <div class="d-flex justify-content-between gap-3">
+              <button type="button" class="btn btn-outline-secondary flex-fill" id="progress_delete_confirm_cancel">
+                Cancel
+              </button>
+              <button type="button" class="btn btn-danger flex-fill" id="progress_delete_confirm_delete">
+                Delete
+              </button>
+            </div>
+            <div class="text-danger wd-edit-error d-none mt-2" id="progress_delete_confirm_error"></div>
           </div>
         </div>
       </div>

@@ -16,11 +16,15 @@
    and make sure the note text sits in a div so it can be clamped:
      <td class="wd-notes"><div>{{ data.notes }}</div></td>
 
-   Two ways to open, chosen per table:
-     wd-rows                 the notes cell itself unclamps in place. Fine when
-                             the column is wide enough to read in.
-     wd-rows wd-wide-note    the note opens into its own full-width row below,
-                             left aligned with reading line-height. On a 390px
+   Two ways to open:
+     wd-rows                 the notes cell itself unclamps in place, right
+                             where it sits. Used whenever the Notes column is
+                             actually visible and wide enough to read in.
+     wd-rows wd-wide-note    same in-place behaviour above the md breakpoint;
+                             below it (phones, where progress.html hides the
+                             Notes column entirely) it instead opens the note
+                             into its own full-width row underneath, left
+                             aligned with reading line-height. On a 390px
                              phone that is ~44 characters per line instead of
                              ~12, and 4 lines instead of 12.
 
@@ -39,6 +43,12 @@
   var PLACEHOLDERS = ["", "-", "--", "–", "—", "None"];
   var EDGE = "2px solid rgba(13,110,253,.55)";   // the highlight around an open note
 
+  // wd-wide-note exists for phones, where the Notes column itself is hidden
+  // (see progress.html) so there is no cell left to expand in place. Above
+  // that breakpoint the column is visible and roomy enough to just grow -
+  // matches the same max-width progress.html uses to hide/show that column.
+  var WIDE_NOTE_MQ = window.matchMedia("(max-width: 767.98px)");
+
   function injectCss() {
     var css = document.createElement("style");
     css.textContent =
@@ -52,16 +62,24 @@
         // notes can contain real newlines - honour them when opened
         "white-space:pre-line}" +
 
-      // --- in-place mode: the cell unclamps where it sits
+      // --- in-place mode: the cell unclamps where it sits. Plain wd-rows
+      //     tables always work this way; wd-wide-note tables only do above
+      //     the phone breakpoint, where openRow() stops creating the extra
+      //     row and lets this cell grow instead (below it, the column is
+      //     display:none anyway - see progress.html - so leaving it clamped
+      //     there costs nothing).
       TABLE + ":not(.wd-wide-note) > tbody > tr.wd-open .wd-notes > div{" +
         "-webkit-line-clamp:unset;line-clamp:unset;overflow:visible}" +
+      "@media (min-width:768px){" + TABLE + ".wd-wide-note > tbody > tr.wd-open .wd-notes > div{" +
+        "-webkit-line-clamp:unset;line-clamp:unset;overflow:visible}}" +
 
-      // --- wide mode: the cell stays clamped (so the table keeps its shape) and
-      //     the note opens into a full width row underneath, set for reading:
-      //     left aligned, roomy line-height, capped line length.
-      TABLE + " > tbody > tr.wd-note-row > td{text-align:left;padding:.6rem .85rem}" +
+      // --- wide mode (phones only): the cell stays clamped (so the table keeps
+      //     its shape) and the note opens into a full width row underneath, set
+      //     for reading: centered (matches the table's own text-center), roomy
+      //     line-height, capped line length.
+      TABLE + " > tbody > tr.wd-note-row > td{text-align:center;padding:.6rem .85rem}" +
       TABLE + " .wd-note-text{line-height:1.6;max-width:70ch;white-space:pre-line;" +
-        "word-break:break-word;cursor:text}" +
+        "word-break:break-word;cursor:text;text-align:center}" +
 
       // --- only rows that actually hold a hidden note look and behave tappable
       TABLE + " > tbody > tr.wd-can-open{cursor:pointer}" +
@@ -72,11 +90,15 @@
       // so that in wide mode the open row and the note underneath it close into a
       // single box - top and sides on the row, sides and bottom on the note, and
       // no line between them. An outline per row would draw that dividing line.
-      // In-place mode has no second row, so the row closes the box itself.
+      // In-place mode (including wd-wide-note above the phone breakpoint, where
+      // openRow() keeps everything in one row) has no second row, so the row
+      // closes the box itself.
       TABLE + ":not(.wd-wide-note) > tbody > tr.wd-open > td{border-top:" + EDGE +
         ";border-bottom:" + EDGE + "}" +
-      TABLE + ".wd-wide-note > tbody > tr.wd-open > td{border-top:" + EDGE +
-        ";border-bottom:0}" +
+      "@media (min-width:768px){" + TABLE + ".wd-wide-note > tbody > tr.wd-open > td{border-top:" + EDGE +
+        ";border-bottom:" + EDGE + "}}" +
+      "@media (max-width:767.98px){" + TABLE + ".wd-wide-note > tbody > tr.wd-open > td{border-top:" + EDGE +
+        ";border-bottom:0}}" +
       TABLE + " > tbody > tr.wd-open > td:first-child{border-left:" + EDGE + "}" +
       TABLE + " > tbody > tr.wd-open > td:last-child{border-right:" + EDGE + "}" +
       TABLE + " > tbody > tr.wd-note-row > td{border:" + EDGE + ";border-top:0}";
@@ -120,7 +142,24 @@
     row.classList.add("wd-open");
 
     var table = row.closest("table");
-    if (!table || !table.classList.contains("wd-wide-note")) { return; }
+    if (!table) { return; }
+
+    // Above the phone breakpoint a wd-wide-note table behaves just like a
+    // plain in-place one - the CSS above already unclamps the cell, so all
+    // that is left is to let progressEdit.js know (same event, but pointed
+    // at the note's own cell instead of a freshly built row underneath).
+    if (!table.classList.contains("wd-wide-note") || !WIDE_NOTE_MQ.matches) {
+      if (table.classList.contains("wd-editable")) {
+        var inPlaceCell = row.querySelector(".wd-notes");
+        var inPlaceDiv = inPlaceCell && inPlaceCell.querySelector("div");
+        if (inPlaceDiv) { inPlaceDiv.classList.add("wd-note-text"); }
+        row.dispatchEvent(new CustomEvent("wd:row-opened", {
+          bubbles: true,
+          detail: { row: row, noteRow: row, noteCell: inPlaceCell, entryId: row.dataset.entryId }
+        }));
+      }
+      return;
+    }
 
     var note = row.querySelector(".wd-notes > div");
     if (!note) { return; }
@@ -171,6 +210,13 @@
     if (next && next.classList.contains("wd-note-row")) {
       next.parentNode.removeChild(next);
     }
+
+    // Undo the in-place opt-in marker openRow() added, so a closed row's
+    // clamp/line-height reverts fully instead of carrying leftover reading
+    // styles into its collapsed state.
+    var inPlaceCell = row.querySelector(".wd-notes");
+    var inPlaceDiv = inPlaceCell && inPlaceCell.querySelector("div.wd-note-text");
+    if (inPlaceDiv) { inPlaceDiv.classList.remove("wd-note-text"); }
   }
 
   function closeOpen(except) {
