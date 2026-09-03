@@ -1,8 +1,6 @@
 import inspect
 import json
 import os
-import matplotlib.dates
-import base64
 import io
 from types import SimpleNamespace
 import pandas as pd
@@ -30,8 +28,6 @@ from sqlalchemy import (
 from sqlalchemy.exc import SQLAlchemyError
 from flask import request
 from datetime import datetime, date, timedelta
-from matplotlib.figure import Figure
-from io import BytesIO
 from workout_management.units import lbs_to_kg
 
 # Entries may carry "kg", "lbs" or "other" (a machine's own scale, e.g. 1-10
@@ -1837,6 +1833,35 @@ class WorkoutManagement:
 
         return workouts_from_db
 
+    # One exercise's logged sets across a set of sessions, in progress.html's
+    # {date, reps, weight, rpe, notes, entry_id, unit} row shape - shared by
+    # exercise_progress_data() for both the exercises still on the plan and
+    # the ones since removed from it.
+    def _entries_for_exercise(self, sessions, exercise_id):
+        small_data_list = []
+        for sess in sessions:
+            find_exe = (
+                db.session.query(ExerciseEntries)
+                .filter(
+                    ExerciseEntries.session_id == sess.session_id,
+                    ExerciseEntries.exercise_id == exercise_id,
+                )
+                .all()
+            )
+            for som in find_exe:
+                small_data_list.append(
+                    {
+                        "entry_id": som.entry_id,
+                        "date": f"{sess.session_date.day}.{sess.session_date.month}.{sess.session_date.year}",
+                        "reps": som.reps or 0,
+                        "weight": self._weight_in_kg(som.weight, som.unit) or 0,
+                        "rpe": som.rpe or 0,
+                        "notes": som.notes or "",
+                        "unit": som.unit or "kg",
+                    }
+                )
+        return small_data_list
+
     # Information about progress prepared for jinja2
     def exercise_progress_data(self, workout_info, chosen_day, mesocycle_name):
         current_user_id = self.current_user_id_db()
@@ -1916,39 +1941,41 @@ class WorkoutManagement:
                         )
 
                         if exercises_in_workout:
+                            active_exercise_ids = set()
                             for exrs in exercises_in_workout:
+                                active_exercise_ids.add(exrs.exercise_id)
                                 exercise_name = self.find_exercise_name_db(
                                     exrs.exercise_id
                                 )[0]
-                                small_data_list = []
+                                result_set[exercise_name] = self._entries_for_exercise(
+                                    all_sessions, exrs.exercise_id
+                                )
 
-                                for sess in all_sessions:
-                                    find_exe = (
-                                        db.session.query(ExerciseEntries)
-                                        .filter(
-                                            ExerciseEntries.session_id
-                                            == sess.session_id,
-                                            ExerciseEntries.exercise_id
-                                            == exrs.exercise_id,
-                                        )
-                                        .all()
-                                    )
+                            # An exercise removed from the plan mid-mesocycle
+                            # no longer shows up in exercises_in_workout, but
+                            # its already-logged sets are still sitting in
+                            # these same sessions - find those by exercise_id
+                            # directly instead of walking the (now missing)
+                            # workout_exercises row, and label them so they
+                            # read as history, not as something still active.
+                            session_ids = [sess.session_id for sess in all_sessions]
+                            removed_exercise_ids = (
+                                db.session.query(ExerciseEntries.exercise_id)
+                                .filter(
+                                    ExerciseEntries.session_id.in_(session_ids),
+                                    ExerciseEntries.exercise_id.notin_(active_exercise_ids),
+                                )
+                                .distinct()
+                                .all()
+                            )
+                            for (removed_exercise_id,) in removed_exercise_ids:
+                                exercise_name = self.find_exercise_name_db(
+                                    removed_exercise_id
+                                )[0]
+                                result_set[f"{exercise_name} (removed from plan)"] = (
+                                    self._entries_for_exercise(all_sessions, removed_exercise_id)
+                                )
 
-                                    for som in find_exe:
-                                        # Create a new small_data_set dictionary for each entry
-                                        small_data_set = {
-                                            "entry_id": som.entry_id,
-                                            "date": f"{sess.session_date.day}.{sess.session_date.month}.{sess.session_date.year}",
-                                            "reps": som.reps or 0,
-                                            "weight": self._weight_in_kg(som.weight, som.unit) or 0,
-                                            "rpe": som.rpe or 0,
-                                            "notes": som.notes or "",
-                                            "unit": som.unit or "kg",
-                                        }
-                                        small_data_list.append(small_data_set)
-
-                                # Add the list of exercise data to the result_set
-                                result_set[exercise_name] = small_data_list
                             # print(f"result_set : {result_set}")
                             return result_set
         else:
@@ -2508,71 +2535,22 @@ class WorkoutManagement:
 
         return overview
 
-    # Load data for each user's exercise - first and last entry
-    def exercises_progress(self, exercises_data, period_label=None):
-        # Example data set
-        dates = []
-        weights = []
-        reps = []
-
-        # Data for relevant exercise
-        for exe in exercises_data:
-            dates.append(exe[1])
-            weights.append(exe[2])
-            reps.append(exe[3])
-
-        # Makeing x axis
-        x = dates
-
-        # Figure ple axis
-        fig = Figure()
-        ax = fig.subplots()
-        # Plot the weights
-        ax.plot(x, weights, marker="o", linestyle="-", color="blue", label="Reps")
-
-        # Add annotations for reps on each data point
-        for i, txt in enumerate(reps):
-            if i % 2 == 0:
-                ax.annotate(
-                    f"{txt}",  # The text to display (e.g., "10 reps")
-                    (
-                        x[i],
-                        weights[i],
-                    ),  # The (x, y) coordinates of the point to annotate
-                    textcoords="offset points",  # How to interpret xytext
-                    xytext=(0, 10),  # Offset text 10 points vertically from the point
-                    ha="center",  # Horizontal alignment of the text (center it above the point)
-                    fontsize=9,  # Adjust font size if needed
-                    color="darkgreen",  # Optional: set a color for the annotation text
-                )
-
-        # Customize the plot appearance
-        # Read the id off the data, not off the leaked loop variable.
+    # JSON-ready series for the client-side Chart.js graph on /statistics.
+    # Used to be a server-rendered matplotlib PNG - a static image can't
+    # offer hover/tap tooltips, which is the whole point of the rebuild, so
+    # this now just hands the raw points to the browser and lets Chart.js
+    # (statistics.html) do the drawing and label-collision logic.
+    def exercise_progress_chart_data(self, exercises_data, period_label=None):
+        # Read the id off the data, not off a leaked loop variable.
         exercise_name = self.find_exercise_name_db(exercises_data[0][0])[0]
-        ax.set_title(
-            f"{exercise_name} - {period_label}" if period_label else f"{exercise_name}"
-        )
-        ax.set_ylabel("Weight (kg)")
-        ax.grid(True)
 
-        # Format the x-axis to show dates nicely
-        ax.xaxis.set_major_formatter(matplotlib.dates.DateFormatter("%d.%m.%y"))
-        fig.autofmt_xdate()  # Automatically format x-axis labels to prevent overlap
-
-        # Add a legend
-        ax.legend()
-
-        # Save the figure to a BytesIO buffer
-        buf = BytesIO()
-        fig.savefig(
-            buf, format="png", bbox_inches="tight"
-        )  # bbox_inches='tight' prevents labels from being cut off
-        buf.seek(0)  # Rewind the buffer to the beginning
-
-        # Encode the image data to base64 for embedding in HTML
-        data = base64.b64encode(buf.read()).decode("ascii")
-
-        return data
+        return {
+            "exercise_name": exercise_name,
+            "period_label": period_label,
+            "dates": [exe[1].strftime("%d.%m.%y") for exe in exercises_data],
+            "weights": [exe[2] for exe in exercises_data],
+            "reps": [exe[3] for exe in exercises_data],
+        }
 
     # Filter data for graph to create
     def data_for_graph(self):
@@ -2647,10 +2625,14 @@ class WorkoutManagement:
                 return label
         return "All time"
 
-    def statistics_for_exercise(self, chosen_exercise, period=None):
+    def statistics_for_exercise(self, chosen_exercise, period=None, mesocycle_id=None):
         """Best set per session for one exercise, oldest first.
 
-        `period` is one of STATISTICS_RANGES; anything unrecognised means all time.
+        Scoped either by `period` (one of STATISTICS_RANGES; anything
+        unrecognised means all time) or, if given, by `mesocycle_id` instead -
+        the two are mutually exclusive, matching the /statistics picker where
+        choosing a mesocycle replaces the time-range dropdown rather than
+        combining with it.
         """
         if (
             not chosen_exercise
@@ -2682,9 +2664,15 @@ class WorkoutManagement:
             )
         )
 
-        range_start = self.statistics_range_start(period)
-        if range_start is not None:
-            query = query.filter(Sessions.session_date >= range_start)
+        if mesocycle_id:
+            query = query.join(
+                SessionMesocycles,
+                SessionMesocycles.session_id == Sessions.session_id,
+            ).filter(SessionMesocycles.mesocycle_id == mesocycle_id)
+        else:
+            range_start = self.statistics_range_start(period)
+            if range_start is not None:
+                query = query.filter(Sessions.session_date >= range_start)
 
         best_sets_per_session_and_exercise = (
             query.group_by(ExerciseEntries.exercise_id, Sessions.session_date)
@@ -2695,6 +2683,82 @@ class WorkoutManagement:
         )
 
         return best_sets_per_session_and_exercise or None
+
+    # [{mesocycle_id, name, summary}] for the /statistics mesocycle picker,
+    # newest first. "summary" is the one-line human-readable blurb - name,
+    # weekly frequency, and the actual calendar span of logged sessions
+    # (not the planned duration_weeks, which would lie about a mesocycle you
+    # cut short or never really started).
+    def mesocycles_for_statistics(self):
+        user_id = self.current_user_id_db()
+
+        mesocycles = (
+            db.session.query(Mesocycles)
+            .filter(Mesocycles.user_id == user_id)
+            .order_by(desc(Mesocycles.mesocycle_id))
+            .all()
+        )
+
+        result = []
+        for m in mesocycles:
+            first_date, last_date = (
+                db.session.query(
+                    func.min(Sessions.session_date),
+                    func.max(Sessions.session_date),
+                )
+                .join(
+                    SessionMesocycles,
+                    SessionMesocycles.session_id == Sessions.session_id,
+                )
+                .filter(SessionMesocycles.mesocycle_id == m.mesocycle_id)
+                .first()
+            )
+
+            if first_date and last_date:
+                weeks = (last_date - first_date).days // 7 + 1
+                weeks_label = f"{weeks} week" + ("s" if weeks != 1 else "")
+            else:
+                weeks_label = "no sessions logged yet"
+
+            result.append(
+                {
+                    "mesocycle_id": m.mesocycle_id,
+                    "name": m.name,
+                    "weeks_label": weeks_label,
+                }
+            )
+
+        return result
+
+    # Exercise names with at least one logged set under this mesocycle
+    # (via session_mesocycles, so this also surfaces an exercise later
+    # removed from the plan - anything actually trained counts), most-used
+    # first. Feeds the exercise dropdown on /mesocycle_statistics once a
+    # mesocycle has been picked.
+    def exercises_for_mesocycle(self, mesocycle_id):
+        user_id = self.current_user_id_db()
+
+        rows = (
+            db.session.query(
+                Exercise.exercise_name,
+                func.count(ExerciseEntries.entry_id).label("sets"),
+            )
+            .join(ExerciseEntries, ExerciseEntries.exercise_id == Exercise.exercise_id)
+            .join(Sessions, Sessions.session_id == ExerciseEntries.session_id)
+            .join(
+                SessionMesocycles,
+                SessionMesocycles.session_id == Sessions.session_id,
+            )
+            .filter(
+                Sessions.user_id == user_id,
+                SessionMesocycles.mesocycle_id == mesocycle_id,
+            )
+            .group_by(Exercise.exercise_name)
+            .order_by(desc("sets"), Exercise.exercise_name.asc())
+            .all()
+        )
+
+        return [row.exercise_name for row in rows]
 
     # All exercises with at least one entry
     def exercises_ranked_by_use(self):

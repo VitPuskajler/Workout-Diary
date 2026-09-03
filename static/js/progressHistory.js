@@ -24,7 +24,7 @@
     if (!table) return;
 
     var expanded = table.classList.toggle("wd-history-expanded");
-    el.textContent = expanded ? "Hide" : "Show all";
+    el.textContent = expanded ? "Hide ▴" : "Show all ▾";
     el.setAttribute("aria-expanded", expanded ? "true" : "false");
   }
 

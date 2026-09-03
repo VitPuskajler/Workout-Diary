@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Periodization</title>
+  <link rel="icon" href="/static/title/barbell_title.jpg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@3">
+</head>
+
+<body>
+
+  <div class="p-3 mb-5">
+    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
+      <div class="container-fluid">
+        <a href="{{ url_for('statistics') }}" class="text-light me-2 d-flex align-items-center"
+          aria-label="Back to Statistics" title="Back to Statistics" style="text-decoration: none;">
+          <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd"
+              d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z">
+            </path>
+          </svg>
+        </a>
+        <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
+        <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
+          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarCollapse">
+          <ul class="navbar-nav me-auto mb-2 mb-md-0">
+            <li class="nav-item">
+              <a class="nav-link" aria-current="page" href="{{ url_for('training_session')}}">Training Session</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('workout_plan_page')}}">Workout Plan</a>
+            </li>
+
+          </ul>
+          <!-- Login and register buttons on the right -->
+          <ul class="navbar-nav ms-auto">
+            {% if current_user.is_authenticated %}
+            <li class="nav-item">
+              <a class="nav-link active" href="{{ url_for('profile')}}">{{ current_user.username }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+            </li>
+            {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+            </li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </nav>
+  </div>
+  {% include "partials/_impersonation_banner.html" %}
+  {% include "partials/_flashes.html" %}
+
+  <div class="p-4 mb-3">
+    <div class="container">
+      <div class="row justify-content-center">
+
+        {% if not chosen_mesocycle %}
+        <!-- Nothing picked yet - just the one button. It opens a popup, not
+             a dropdown: the mesocycle list is short and never needs
+             searching/filtering the way the exercise picker does. -->
+        <div class="col-12 d-flex justify-content-center">
+          <button type="button" class="btn btn-success btn-lg" style="min-height: 56px; min-width: 240px;"
+            data-bs-toggle="modal" data-bs-target="#mesocyclePicker">
+            Choose mesocycle
+          </button>
+        </div>
+
+        {% else %}
+        <!-- A mesocycle is chosen - show which one, a way out of it, and
+             (once it has any logged exercises) the plain dropdown to pick
+             one and see its chart. -->
+        <div class="col-12 col-md-6 mb-1 p-1">
+          <div class="d-flex align-items-center justify-content-center gap-2 mb-3 flex-wrap">
+            <span class="fs-5 fw-bold text-center">{{ chosen_mesocycle.name }}</span>
+            <span class="badge bg-secondary">{{ chosen_mesocycle.weeks_label }}</span>
+            <form action="{{ url_for('mesocycle_statistics') }}" method="post" class="d-inline">
+              <input type="hidden" name="action" value="change_mesocycle">
+              <button type="submit" class="btn btn-link btn-sm text-decoration-none">Change mesocycle</button>
+            </form>
+          </div>
+
+          {% if exercises_in_mesocycle %}
+          <form action="{{ url_for('mesocycle_statistics') }}" method="post" id="exerciseForm">
+            <input type="hidden" name="action" value="choose_exercise">
+            <select class="form-select text-center" id="exerciseSelect" name="chosen_exercise"
+              aria-label="Exercise" onchange="this.form.submit()"
+              style="font-size: 16px; min-height: 44px;">
+              <option value="" {% if not chosen_exercise %}selected{% endif %}>Choose exercise</option>
+              {% for x in exercises_in_mesocycle %}
+              <option value="{{ x }}" {% if x==chosen_exercise %}selected{% endif %}>{{ x }}</option>
+              {% endfor %}
+            </select>
+          </form>
+          {% else %}
+          <p class="text-center text-muted mb-1">No sets logged in this mesocycle yet.</p>
+          {% endif %}
+        </div>
+
+        {% if graph_data %}
+        <div class="col-12 col-lg-10">
+          <div style="position: relative; height: 55vh; min-height: 320px; max-height: 520px;">
+            <canvas id="progressChart" aria-label="Progress chart" role="img"></canvas>
+          </div>
+          <script type="application/json" id="chartData">{{ graph_data | tojson }}</script>
+        </div>
+        {% elif no_data_in_period %}
+        <div class="col-12">
+          <p class="text-center text-muted mt-3">
+            No sets logged for <strong>{{ chosen_exercise }}</strong> in this mesocycle.
+          </p>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        <div class="p-3">
+          <div class="fixed-bottom text-center py-2">
+            © {{ year }} | Created by Vít Puskajler
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- The mesocycle popup itself - a plain modal list, not a dropdown.
+       Each row is its own tiny submit button so picking one is a single
+       tap, no separate "confirm" step. -->
+  <div class="modal fade" id="mesocyclePicker" tabindex="-1" aria-labelledby="mesocyclePickerTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="mesocyclePickerTitle">Choose a mesocycle</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-0">
+          {% if mesocycles %}
+          <form action="{{ url_for('mesocycle_statistics') }}" method="post">
+            <input type="hidden" name="action" value="choose_mesocycle">
+            <div class="list-group list-group-flush">
+              {% for m in mesocycles %}
+              <button type="submit" name="mesocycle_id" value="{{ m.mesocycle_id }}"
+                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                style="min-height: 56px;">
+                <span>{{ m.name }}</span>
+                <span class="badge bg-secondary rounded-pill">{{ m.weeks_label }}</span>
+              </button>
+              {% endfor %}
+            </div>
+          </form>
+          {% else %}
+          <p class="text-center text-muted p-4 mb-0">You have no mesocycles yet.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+    crossorigin="anonymous"></script>
+
+  <!-- Interactive progress chart - see static/js/statisticsChart.js. -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="{{ url_for('static', filename='js/statisticsChart.js') }}"></script>
+
+  <!-- waiting overlay -->
+  <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
+</body>
+
+</html>

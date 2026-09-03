@@ -158,13 +158,15 @@ check_c_session = db_operations.check_c_session
 create_custom_workout_plan = db_operations.create_custom_workout_plan
 load_custom_exercises_for_day = db_operations.load_custom_exercises_for_day
 custom_session_exercises_overview = db_operations.custom_session_exercises_overview
-exercises_progress = db_operations.exercises_progress
+exercise_progress_chart_data = db_operations.exercise_progress_chart_data
 data_for_graph= db_operations.data_for_graph
 statistics_for_exercise = db_operations.statistics_for_exercise
 all_exercises_list = db_operations.all_exercises_list
 exercises_ranked_by_use = db_operations.exercises_ranked_by_use
 statistics_range_options = db_operations.statistics_range_options
 statistics_range_label = db_operations.statistics_range_label
+mesocycles_for_statistics = db_operations.mesocycles_for_statistics
+exercises_for_mesocycle = db_operations.exercises_for_mesocycle
 last_custom_day = db_operations.last_custom_day
 workout_to_excel = db_operations.workout_to_excel
 mesocycle_report_to_excel = db_operations.mesocycle_report_to_excel
@@ -1051,14 +1053,28 @@ def progress_delete_entry():
     result = delete_progress_entry(entry_id=entry_id)
     return jsonify(result), (200 if result.get("ok") else 400)
 
-@app.route("/statistics", methods=["GET", "POST"])
+@app.route("/statistics", methods=["GET"])
 @login_required
 def statistics():
-    #graph_data = data_for_graph()
+    # Bare landing page - just "Mesocycle period" / "Time period", no
+    # picker, no chart. The data is a mess across a year-plus of logging, so
+    # this exists purely to make you commit to one lens before anything
+    # else renders, rather than presenting both scopes tangled together.
+    YEAR = datetime.now().strftime("%Y")
+    return render_template("statistics.html", year=YEAR)
+
+@app.route("/period_statistics", methods=["GET", "POST"])
+@login_required
+def period_statistics():
+    """"Time period" lens: the original /statistics picker - search an
+    exercise, pick a preset time window, see the chart. No mesocycle
+    scoping here at all; that lives entirely on /mesocycle_statistics now.
+    """
+    YEAR = datetime.now().strftime("%Y")
     # Most-used first; the picker shows the top 10 and hides the rest behind
     # "show more", but searches the whole list as soon as you type.
     used_exercises = exercises_ranked_by_use()
-    graph = None
+    graph_data = None
     selected_value = None
     chosen_period = db_operations.DEFAULT_STATISTICS_RANGE
     no_data_in_period = False
@@ -1068,7 +1084,7 @@ def statistics():
         chosen_period = request.form.get('period') or db_operations.DEFAULT_STATISTICS_RANGE
         exercise_data = statistics_for_exercise(selected_value, chosen_period)
         if exercise_data:
-            graph = exercises_progress(
+            graph_data = exercise_progress_chart_data(
                 exercise_data, statistics_range_label(chosen_period)
             )
         elif selected_value:
@@ -1076,12 +1092,80 @@ def statistics():
             # so, rather than rendering a blank space.
             no_data_in_period = True
 
-    return render_template("statistics.html",
-                           graph = graph,
+    return render_template("period_statistics.html",
+                           year = YEAR,
+                           graph_data = graph_data,
                            exercises = used_exercises,
                            chosen_exercise = selected_value,
                            periods = statistics_range_options(),
                            chosen_period = chosen_period,
+                           no_data_in_period = no_data_in_period
+                           )
+
+@app.route("/mesocycle_statistics", methods=["GET", "POST"])
+@login_required
+def mesocycle_statistics():
+    """"Mesocycle period" lens: pick a mesocycle from a popup (not a
+    dropdown - the mesocycle list itself never changes mid-session, so there
+    is nothing to search/filter, just a short list to tap), then an exercise
+    from a plain dropdown of what was actually logged in it, then the chart.
+
+    The two picks are remembered in the session so paging around (or
+    picking a different exercise in the same mesocycle) does not force you
+    back through the popup every time - "change_mesocycle" is the explicit
+    way out of that.
+    """
+    YEAR = datetime.now().strftime("%Y")
+    mesocycles = mesocycles_for_statistics()
+
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "choose_mesocycle":
+            session["stats_mesocycle_id"] = request.form.get("mesocycle_id")
+            session.pop("stats_mesocycle_exercise", None)
+        elif action == "change_mesocycle":
+            session.pop("stats_mesocycle_id", None)
+            session.pop("stats_mesocycle_exercise", None)
+        elif action == "choose_exercise":
+            session["stats_mesocycle_exercise"] = request.form.get("chosen_exercise")
+        return redirect(url_for("mesocycle_statistics"))
+
+    chosen_mesocycle_id = session.get("stats_mesocycle_id")
+    chosen_mesocycle = next(
+        (m for m in mesocycles if str(m["mesocycle_id"]) == str(chosen_mesocycle_id)),
+        None,
+    )
+
+    exercises_in_mesocycle = []
+    chosen_exercise = None
+    graph_data = None
+    no_data_in_period = False
+
+    if chosen_mesocycle:
+        exercises_in_mesocycle = exercises_for_mesocycle(chosen_mesocycle["mesocycle_id"])
+        chosen_exercise = session.get("stats_mesocycle_exercise")
+
+        if chosen_exercise and chosen_exercise in exercises_in_mesocycle:
+            exercise_data = statistics_for_exercise(
+                chosen_exercise, mesocycle_id=chosen_mesocycle["mesocycle_id"]
+            )
+            if exercise_data:
+                graph_data = exercise_progress_chart_data(exercise_data, chosen_mesocycle["name"])
+            else:
+                no_data_in_period = True
+        else:
+            # Stale/invalid pick (e.g. from before a different mesocycle was
+            # chosen) - drop it rather than rendering a mismatched chart.
+            chosen_exercise = None
+            session.pop("stats_mesocycle_exercise", None)
+
+    return render_template("mesocycle_statistics.html",
+                           year = YEAR,
+                           mesocycles = mesocycles,
+                           chosen_mesocycle = chosen_mesocycle,
+                           exercises_in_mesocycle = exercises_in_mesocycle,
+                           chosen_exercise = chosen_exercise,
+                           graph_data = graph_data,
                            no_data_in_period = no_data_in_period
                            )
 
@@ -1104,10 +1188,23 @@ def intuitive_training():
     selected_exercise = new_exercise or chosen_exercise_dropdown_i
     exercise_name_for_last_sets = selected_exercise
 
-    # Read data for current exercise 
+    # Read data for current exercise
     today_session = check_c_session() # Return true / false
     session.permanent = True  # Mark session as permanent (uses configured timeout - 24 hours in my case)
     saved_exercises = load_custom_exercises_for_day()
+
+    # The exercise-selection cookie has no idea what day it is - it happily
+    # carries "Barbell Bench Press" over from three days ago into a brand
+    # new freestyle session. saved_exercises, by contrast, is read fresh
+    # from the DB every request and is already scoped to TODAY's plan (see
+    # load_custom_exercises_for_day). So trust the DB, not the cookie: a
+    # selection that isn't actually part of today's plan is stale and gets
+    # dropped, rather than displayed as if it were today's choice.
+    if selected_exercise and selected_exercise not in saved_exercises:
+        selected_exercise = None
+        exercise_name_for_last_sets = None
+        session.pop("chosen_exercise_by_user", None)
+        session.pop("new_exercise", None)
 
     if request.method == "GET":
         # Check existance of the today's custom workout 
