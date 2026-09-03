@@ -111,6 +111,7 @@
     editBtn.type = "button";
     editBtn.className = "btn btn-success btn-sm wd-edit-btn";
     editBtn.setAttribute("aria-label", "Edit this set");
+    editBtn.title = "Edit your entry";
     editBtn.textContent = "✎"; // pencil glyph - a plain character, not an
                                      // icon font/SVG, so it never fails to render
     editBtn.addEventListener("click", function () {
@@ -125,7 +126,12 @@
     deleteBtn.type = "button";
     deleteBtn.className = "btn btn-outline-danger btn-sm wd-edit-btn";
     deleteBtn.setAttribute("aria-label", "Delete this set");
-    deleteBtn.textContent = "✕";
+    deleteBtn.title = "Delete this set";
+    // Minus-in-a-circle rather than a plain X - keeps it visually distinct
+    // from the X used to discard an in-progress edit (see buildEditToolbarButtons).
+    deleteBtn.innerHTML =
+      '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">' +
+      '<use href="#dash-circle"></use></svg>';
     deleteBtn.addEventListener("click", function () {
       openDeleteConfirm();
     });
@@ -162,8 +168,10 @@
 
     var discardBtn = document.createElement("button");
     discardBtn.type = "button";
-    discardBtn.className = "btn btn-link btn-sm p-0 text-secondary wd-discard-link";
-    discardBtn.textContent = "Discard";
+    discardBtn.className = "btn btn-outline-danger btn-sm wd-edit-btn";
+    discardBtn.setAttribute("aria-label", "Discard changes");
+    discardBtn.title = "Discard";
+    discardBtn.textContent = "✕";
     discardBtn.addEventListener("click", function () {
       discardEdit(cur);
     });
@@ -172,6 +180,7 @@
     saveBtn.type = "button";
     saveBtn.className = "btn btn-success btn-sm wd-edit-btn";
     saveBtn.setAttribute("aria-label", "Save changes");
+    saveBtn.title = "Confirm changes";
     saveBtn.textContent = "✓";
     saveBtn.addEventListener("click", function () {
       doSave(cur, function () {});
@@ -435,7 +444,7 @@
       btn.disabled = !!isCurrent; // converting a unit to itself is a no-op
     }
     var label = UNIT_LABELS[unit];
-    sessionBtn.textContent = "Whole session → " + label;
+    sessionBtn.textContent = "This exercise today → " + label;
     entryBtn.textContent = "This set → " + label;
   }
 

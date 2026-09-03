@@ -46,6 +46,15 @@
         d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z">
       </path>
     </symbol>
+    <!-- Minus-in-a-circle used by the "delete this set" button - reads as
+         "remove" at a glance, distinct from the plain X used to discard an
+         in-progress edit. -->
+    <symbol id="dash-circle" viewBox="0 0 16 16">
+      <path
+        d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z">
+      </path>
+      <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8z"></path>
+    </symbol>
   </svg>
 
   <div class="p-3 mb-5">
@@ -227,8 +236,17 @@
           display: flex;
           justify-content: flex-end;
           align-items: center;
-          gap: .5rem;
+          gap: 15px;
           margin-top: .35rem;
+        }
+        /* On desktop (in-place mode) this toolbar is a direct child of
+           td.wd-notes - which also matches rowExpand.js's own injected
+           ".wd-notes > div" line-clamp rule. That rule outranks the plain
+           class selector above and forces display:-webkit-box, which drops
+           the flex gap and centers the buttons instead of packing them
+           right. Re-declare display here, scoped specifically enough to win. */
+        table.wd-editable td.wd-notes > .wd-edit-toolbar {
+          display: flex;
         }
         .wd-edit-btn {
           width: 1.75rem;
@@ -237,9 +255,11 @@
           line-height: 1;
           font-size: .85rem;
         }
-        .wd-discard-link {
-          font-size: .85rem;
-          cursor: pointer;
+        /* Keep Date/Reps/Weight/RPE aligned with the top of the Notes cell
+           while editing, instead of rowExpand.js's default vertical-align:
+           middle sinking them to the middle of a note-tall row. */
+        table.wd-editable > tbody > tr.wd-open > td {
+          vertical-align: top;
         }
         .wd-field-input {
           width: 100%;
@@ -264,17 +284,55 @@
         .wd-unsaved-card {
           box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.25);
         }
+
+        /* A months-old mesocycle can pile up dozens of rows per exercise -
+           collapse to the last two logged sessions by default (see the
+           "recent_dates" computation below) and let "Show all" reveal the
+           rest. This never touches the "progress" dict itself, so Copy all's
+           markdown (built server-side from the full history) is unaffected
+           either way. */
+        .wd-hist-older {
+          display: none;
+        }
+        table.wd-history-expanded .wd-hist-older {
+          display: table-row;
+        }
+        .wd-history-toggle {
+          display: inline-block;
+          font-size: .78rem;
+          margin-top: -.15rem;
+          margin-bottom: .35rem;
+        }
+        .wd-history-toggle.wd-history-has-more {
+          color: #6c757d;
+          cursor: pointer;
+        }
+        .wd-history-toggle.wd-history-has-more:hover {
+          text-decoration: underline;
+        }
+        .wd-history-toggle.wd-history-none {
+          color: #ced4da;
+        }
       </style>
 
       {% for key, value in progress.items() %}
-        <div class="row mb-4">
-          <div class="col-12">
-            <h5 class="text-center text-success">{{ key }}</h5>
+        {% set session_dates = value | map(attribute='date') | unique | list %}
+        {% set recent_dates = session_dates[-2:] %}
+        {% set has_more_sessions = session_dates | length > 2 %}
+        <div class="row mb-2">
+          <div class="col-12 text-center">
+            <h5 class="text-success mb-1">{{ key }}</h5>
+            {% if value %}
+            <span
+              class="wd-history-toggle {{ 'wd-history-has-more' if has_more_sessions else 'wd-history-none' }}"
+              {% if has_more_sessions %}role="button" tabindex="0" aria-expanded="false"{% endif %}
+              data-target="wd-hist-table-{{ loop.index }}">Show all</span>
+            {% endif %}
           </div>
         </div>
         <div class="row">
           <div class="col-12">
-            <table class="table table-striped text-center wd-rows wd-wide-note wd-editable">
+            <table id="wd-hist-table-{{ loop.index }}" class="table table-striped text-center wd-rows wd-wide-note wd-editable">
               <thead class="thead-dark">
                 <tr>
                   <th>Date</th>
@@ -287,7 +345,7 @@
               <tbody>
                 {% if value %}
                   {% for data in value %}
-                    <tr class="{{ 'wd-has-note' if data.notes else '' }}" data-entry-id="{{ data.entry_id }}" data-unit="{{ data.unit or 'kg' }}">
+                    <tr class="{{ 'wd-has-note' if data.notes else '' }} {{ '' if data.date in recent_dates else 'wd-hist-older' }}" data-entry-id="{{ data.entry_id }}" data-unit="{{ data.unit or 'kg' }}">
                       <td class="col-2">{{ data.date }}</td>
                       <td class="col-2" data-field="reps"><span class="wd-view-value">{{ data.reps }}</span></td>
                       <td class="col-2" data-field="weight"><span class="wd-view-value">{{ data.weight }}</span></td>
@@ -462,6 +520,7 @@
 
   <script src="{{ url_for('static', filename='js/rowExpand.js') }}"></script>
   <script src="{{ url_for('static', filename='js/progressEdit.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/progressHistory.js') }}"></script>
   <!-- waiting overlay -->
   <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
 </body>

@@ -1570,14 +1570,16 @@ class WorkoutManagement:
         if scope == "entry":
             targets = [entry]
         else:
-            # Every set logged in the same session, any exercise - the
-            # realistic mistake is forgetting to flip the toggle before the
-            # whole workout, not just for one exercise.
+            # Every set of THIS exercise logged in the same session - the
+            # realistic mistake is forgetting to flip the toggle before doing
+            # all the sets of one exercise, not the whole day's workout (that
+            # would also retag unrelated exercises logged in kg on purpose).
             targets = (
                 db.session.query(ExerciseEntries)
                 .join(Sessions, ExerciseEntries.session_id == Sessions.session_id)
                 .filter(
                     ExerciseEntries.session_id == entry.session_id,
+                    ExerciseEntries.exercise_id == entry.exercise_id,
                     Sessions.user_id == current_user_id,
                 )
                 .all()
