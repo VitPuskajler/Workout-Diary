@@ -174,6 +174,7 @@ custom_session_exercises_overview = db_operations.custom_session_exercises_overv
 exercise_progress_chart_data = db_operations.exercise_progress_chart_data
 data_for_graph= db_operations.data_for_graph
 statistics_for_exercise = db_operations.statistics_for_exercise
+is_bodyweight_exercise = db_operations.is_bodyweight_exercise
 all_exercises_list = db_operations.all_exercises_list
 exercises_ranked_by_use = db_operations.exercises_ranked_by_use
 statistics_range_options = db_operations.statistics_range_options
@@ -1159,7 +1160,8 @@ def period_statistics():
         exercise_data = statistics_for_exercise(selected_value, chosen_period)
         if exercise_data:
             graph_data = exercise_progress_chart_data(
-                exercise_data, statistics_range_label(chosen_period)
+                exercise_data, statistics_range_label(chosen_period),
+                is_bodyweight=is_bodyweight_exercise(selected_value, chosen_period),
             )
         elif selected_value:
             # Exercise is valid but has nothing inside the chosen window - say
@@ -1227,7 +1229,12 @@ def mesocycle_statistics():
                 chosen_exercise, mesocycle_id=chosen_mesocycle["mesocycle_id"]
             )
             if exercise_data:
-                graph_data = exercise_progress_chart_data(exercise_data, chosen_mesocycle["name"])
+                is_bodyweight = is_bodyweight_exercise(
+                    chosen_exercise, mesocycle_id=chosen_mesocycle["mesocycle_id"]
+                )
+                graph_data = exercise_progress_chart_data(
+                    exercise_data, chosen_mesocycle["name"], is_bodyweight=is_bodyweight
+                )
             else:
                 no_data_in_period = True
         else:

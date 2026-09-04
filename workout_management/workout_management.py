@@ -24,6 +24,7 @@ from sqlalchemy import (
     create_engine,
     desc,
     delete,
+    or_,
 )
 from sqlalchemy.exc import SQLAlchemyError
 from flask import request
@@ -2540,7 +2541,7 @@ class WorkoutManagement:
     # offer hover/tap tooltips, which is the whole point of the rebuild, so
     # this now just hands the raw points to the browser and lets Chart.js
     # (statistics.html) do the drawing and label-collision logic.
-    def exercise_progress_chart_data(self, exercises_data, period_label=None):
+    def exercise_progress_chart_data(self, exercises_data, period_label=None, is_bodyweight=False):
         # Read the id off the data, not off a leaked loop variable.
         exercise_name = self.find_exercise_name_db(exercises_data[0][0])[0]
 
@@ -2553,6 +2554,9 @@ class WorkoutManagement:
             # place is plenty and keeps the axis/tooltips readable.
             "weights": [round(exe[2], 1) if exe[2] is not None else None for exe in exercises_data],
             "reps": [exe[3] for exe in exercises_data],
+            # Tells statisticsChart.js to plot reps as the progress line
+            # instead of weight - see is_bodyweight_exercise().
+            "is_bodyweight": is_bodyweight,
         }
 
     # Filter data for graph to create
@@ -2667,15 +2671,7 @@ class WorkoutManagement:
             )
         )
 
-        if mesocycle_id:
-            query = query.join(
-                SessionMesocycles,
-                SessionMesocycles.session_id == Sessions.session_id,
-            ).filter(SessionMesocycles.mesocycle_id == mesocycle_id)
-        else:
-            range_start = self.statistics_range_start(period)
-            if range_start is not None:
-                query = query.filter(Sessions.session_date >= range_start)
+        query = self._scope_by_period_or_mesocycle(query, period, mesocycle_id)
 
         best_sets_per_session_and_exercise = (
             query.group_by(ExerciseEntries.exercise_id, Sessions.session_date)
@@ -2686,6 +2682,59 @@ class WorkoutManagement:
         )
 
         return best_sets_per_session_and_exercise or None
+
+    def _scope_by_period_or_mesocycle(self, query, period, mesocycle_id):
+        """The period/mesocycle_id scoping shared by statistics_for_exercise
+        and is_bodyweight_exercise - the two are mutually exclusive, matching
+        the /statistics picker. `query` must already be joined on Sessions.
+        """
+        if mesocycle_id:
+            return query.join(
+                SessionMesocycles,
+                SessionMesocycles.session_id == Sessions.session_id,
+            ).filter(SessionMesocycles.mesocycle_id == mesocycle_id)
+
+        range_start = self.statistics_range_start(period)
+        if range_start is not None:
+            return query.filter(Sessions.session_date >= range_start)
+        return query
+
+    def is_bodyweight_exercise(self, chosen_exercise, period=None, mesocycle_id=None):
+        """True when nothing logged for this exercise, in this scope, carries
+        a real, comparable weight - every set is 0/None. Weight then carries
+        no progress signal, so the chart should track reps instead: "3
+        pull-ups" to "12 pull-ups" IS the progress, even though the weight
+        column never moves off zero.
+
+        unit="other" (a machine's own notch scale - see WEIGHT_UNITS) counts
+        as real here too, despite never being real kg/lbs: "10 bricks" to "12
+        bricks" on the same machine is just as measurable a difference as a
+        kg increase, as long as there is an actual (non-null) reading - only
+        a genuinely unmeasured/bodyweight set is 0 or None.
+        """
+        exercise_row = self.find_exercise_id_db(chosen_exercise)
+        if not exercise_row:
+            return False
+        exercise_id_db = exercise_row[0]
+        user_id_db = self.current_user_id_db()
+
+        query = (
+            db.session.query(ExerciseEntries.entry_id)
+            .join(Sessions, ExerciseEntries.session_id == Sessions.session_id)
+            .filter(
+                Sessions.user_id == user_id_db,
+                ExerciseEntries.exercise_id == exercise_id_db,
+                ExerciseEntries.weight.isnot(None),
+                or_(
+                    and_(ExerciseEntries.weight > 0, ExerciseEntries.unit.in_(("kg", "lbs"))),
+                    ExerciseEntries.unit == "other",
+                ),
+            )
+        )
+        query = self._scope_by_period_or_mesocycle(query, period, mesocycle_id)
+
+        has_real_weight = db.session.query(query.exists()).scalar()
+        return not has_real_weight
 
     # [{mesocycle_id, name, summary}] for the /statistics mesocycle picker,
     # newest first. "summary" is the one-line human-readable blurb - name,

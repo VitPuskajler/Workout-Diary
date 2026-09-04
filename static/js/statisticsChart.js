@@ -4,9 +4,16 @@
 
    Reads a #chartData <script type="application/json"> tag (shaped like
    exercise_progress_chart_data()'s return value: {exercise_name,
-   period_label, dates, weights, reps}) and draws it into a #progressChart
-   <canvas>. Requires Chart.js and chartjs-plugin-datalabels to already be
-   loaded (see the <script src> tags in whichever page includes this file).
+   period_label, dates, weights, reps, is_bodyweight}) and draws it into a
+   #progressChart <canvas>. Requires Chart.js and chartjs-plugin-datalabels
+   to already be loaded (see the <script src> tags in whichever page
+   includes this file).
+
+   is_bodyweight (see is_bodyweight_exercise() server-side) means every set
+   in this data is 0/None weight, or a unit="other" machine-notch reading -
+   never real kg/lbs. Weight then carries no progress signal, so reps
+   becomes the plotted line instead - "3 pull-ups" to "12 pull-ups" over a
+   few months IS the progress, even though weight never moves off zero.
 
    Used to be a server-rendered matplotlib PNG - a plain image cannot offer
    hover/tap tooltips, which is the whole point, so the server now just
@@ -36,13 +43,16 @@
   var pxPerPoint = data.dates.length > 1 ? plotWidth / data.dates.length : plotWidth;
   var showAllLabels = pxPerPoint >= MIN_PX_PER_LABEL;
 
+  var isBodyweight = !!data.is_bodyweight;
+  var yLabel = isBodyweight ? "Reps" : "Weight (kg)";
+
   new Chart(canvas.getContext("2d"), {
     type: "line",
     data: {
       labels: data.dates,
       datasets: [{
-        label: "Weight (kg)",
-        data: data.weights,
+        label: yLabel,
+        data: isBodyweight ? data.reps : data.weights,
         borderColor: "#0d6efd",
         backgroundColor: "#0d6efd",
         pointBackgroundColor: "#0d6efd",
@@ -77,12 +87,17 @@
           callbacks: {
             label: function (ctx) {
               var i = ctx.dataIndex;
-              return ctx.parsed.y + " kg × " + data.reps[i] + " reps";
+              return isBodyweight
+                ? ctx.parsed.y + " reps"
+                : ctx.parsed.y + " kg × " + data.reps[i] + " reps";
             }
           }
         },
+        // A bodyweight chart already plots reps as the line itself - a
+        // per-point label repeating that same number would just sit glued
+        // to its own point, so this stays off entirely in that mode.
         datalabels: {
-          display: showAllLabels,
+          display: showAllLabels && !isBodyweight,
           align: "top",
           anchor: "end",
           offset: 4,
@@ -99,8 +114,11 @@
       },
       scales: {
         y: {
-          title: { display: true, text: "Weight (kg)" },
-          beginAtZero: false,
+          title: { display: true, text: yLabel },
+          // A weight chart starts wherever the numbers actually sit (55-90kg
+          // shown from 0 would flatten real variation); a rep chart reads
+          // better from zero, so growth (3 -> 12 reps) shows at true scale.
+          beginAtZero: isBodyweight,
         },
         x: {
           ticks: { autoSkip: true, maxRotation: 45, minRotation: 0 },

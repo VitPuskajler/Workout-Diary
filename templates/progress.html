@@ -60,7 +60,7 @@
   <div class="p-3 mb-5">
     <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
       <div class="container-fluid">
-        <a href="{{ url_for('profile') }}" class="text-light me-2 d-flex align-items-center"
+        <a href="{{ url_for('profile') }}" id="backArrow" class="text-light me-2 d-flex align-items-center"
           aria-label="Back to menu" title="Back to menu" style="text-decoration: none;">
           <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path fill-rule="evenodd"
@@ -529,6 +529,22 @@
   <script src="{{ url_for('static', filename='js/rowExpand.js') }}"></script>
   <script src="{{ url_for('static', filename='js/progressEdit.js') }}"></script>
   <script src="{{ url_for('static', filename='js/progressHistory.js') }}"></script>
+
+  <script>
+    // The back arrow defaults to /profile, but if this page was reached
+    // from /training_session (e.g. the "Progress" shortcut that appears
+    // there once every exercise is logged), point it back there instead -
+    // that is the more useful "back" when that is where you actually came
+    // from. Anything else (profile's own "Show Progress" button included)
+    // keeps the default.
+    (function () {
+      var backArrow = document.getElementById("backArrow");
+      if (!backArrow) { return; }
+      if (document.referrer && document.referrer.indexOf("/training_session") !== -1) {
+        backArrow.href = "{{ url_for('training_session') }}";
+      }
+    })();
+  </script>
   <!-- waiting overlay -->
   <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
 </body>

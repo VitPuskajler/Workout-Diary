@@ -385,7 +385,7 @@
               <button type="submit" name="confirm_button"
                 class="btn btn-success btn-lg col-6 col-lg-4 col-md-6 col-sm-6">Confirm</button>
               <button type="submit" name="repeat_button"
-                class="btn btn-primary btn-lg col-3 col-lg-2 col-md-3 col-sm-2">Repeat</button>
+                class="btn btn-primary btn-lg col-3 col-lg-2 col-md-3 col-sm-2 d-flex justify-content-center align-items-center">Repeat</button>
 
             </div>
           </div> <!-- Closing div for col-12 col-md-7 -->
@@ -461,6 +461,33 @@
               var btn = row.querySelector("button[name='chosen_exercise']");
               if (btn) { btn.click(); }
             });
+          </script>
+
+          <script>
+            // Every row here green (done) means nothing left to log today -
+            // the natural next step is /progress, e.g. to hit its Copy
+            // button and hand today's numbers to an AI for analysis. Offer
+            // that shortcut right next to History, but only once it is
+            // actually true.
+            (function () {
+              var rows = document.querySelectorAll("#exercisePreview tbody tr");
+              if (!rows.length) { return; }
+
+              var allDone = Array.prototype.every.call(rows, function (row) {
+                return row.classList.contains("table-success");
+              });
+              if (!allDone) { return; }
+
+              var historyBtn = document.querySelector("button[name='preview_button']");
+              var container = historyBtn && historyBtn.closest(".d-flex");
+              if (!container) { return; }
+
+              var link = document.createElement("a");
+              link.href = "{{ url_for('progress') }}";
+              link.className = "align-self-center small fw-bold text-success text-decoration-none";
+              link.textContent = "Progress";
+              container.appendChild(link);
+            })();
           </script>
           {% endif %}
 
