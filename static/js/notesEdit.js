@@ -59,12 +59,27 @@
       // one line in it) - inheriting that made every wrapped line sit in its
       // own oversized slot, all gap. Normal line-height packs them close, so
       // part of a second line naturally peeks in - the cue that there's more
-      // to scroll to, instead of a dead gap before it. Stays text-center
-      // (the field's own Bootstrap class, untouched here) both empty - so
-      // the "..." placeholder stays centred, not stuck to the left - and
-      // while typing.
+      // to scroll to, instead of a dead gap before it.
+      //
+      // Alignment: writing starts from the left, like any normal text field
+      // (overriding the field's own Bootstrap text-center class, which is
+      // !important - so this has to be too). The one exception is the
+      // generic "..." hint on a genuinely blank note (the brand new set's
+      // empty row) - that stays centred, matching the closed state's look.
+      //
+      // An EXISTING set's note is a different case even though its field is
+      // also technically empty: the old note text lives in placeholder=,
+      // not value= (same pattern as the Kg/Reps/RPE fields - leave it alone
+      // and the old value is kept, type something and it's replaced). That
+      // placeholder is real content, not a blank-slate hint, so it must
+      // stay left-aligned like typed text does - a plain :placeholder-shown
+      // match cannot tell "..." apart from that and centred it too, which is
+      // exactly what put the caret on an empty field slap in the middle of
+      // a previous note. The literal [placeholder="..."] match is what
+      // actually narrows this to the blank-slate case alone.
       SEL + ".wd-note-open{cursor:text;white-space:pre-wrap;overflow-y:auto;" +
-        "line-height:1.3}" +
+        "line-height:1.3;text-align:left!important}" +
+      SEL + ".wd-note-open[placeholder=\"...\"]:placeholder-shown{text-align:center!important}" +
       "td.wd-note-open{border:" + EDGE + ";background:#fff}";
     document.head.appendChild(css);
   }
@@ -116,7 +131,22 @@
     notesTd = td;
     hiddenCells = toHide;
 
-    input.setSelectionRange(input.value.length, input.value.length);   // caret at the end
+    // The closed field is one clipped, unwrapped line showing maybe the
+    // first ten characters - a tap on it lands the caret wherever that
+    // narrow strip happens to map to (usually mid-word, in whatever the
+    // first couple of words are), which has nothing to do with where the
+    // user actually wants to write. End of the note is the predictable,
+    // useful spot - ready to keep writing, like re-opening any note.
+    //
+    // Deferred a frame: set immediately, it would still be positioned
+    // against the OLD narrow single-line layout, an instant before the
+    // colSpan/hide-siblings above widen it - the browser doesn't recompute
+    // where that caret renders just because the layout changed under it.
+    // One frame later, the wider layout has settled and it renders correctly.
+    var pos = input.value.length;
+    requestAnimationFrame(function () {
+      if (field === input) { input.setSelectionRange(pos, pos); }
+    });
   }
 
   function isOutside(target) {
