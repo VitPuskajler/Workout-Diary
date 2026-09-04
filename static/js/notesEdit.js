@@ -51,9 +51,12 @@
       // one line in it) - inheriting that made every wrapped line sit in its
       // own oversized slot, all gap. Normal line-height packs them close, so
       // part of a second line naturally peeks in - the cue that there's more
-      // to scroll to, instead of a dead gap before it.
+      // to scroll to, instead of a dead gap before it. Stays text-center
+      // (the field's own Bootstrap class, untouched here) both empty - so
+      // the "..." placeholder stays centred, not stuck to the left - and
+      // while typing.
       SEL + ".wd-note-open{cursor:text;white-space:pre-wrap;overflow-y:auto;" +
-        "line-height:1.3;text-align:left!important}" +
+        "line-height:1.3}" +
       "td.wd-note-open{border:" + EDGE + ";background:#fff}";
     document.head.appendChild(css);
   }
@@ -101,8 +104,16 @@
     notesTd = td;
     hiddenCells = toHide;
 
-    input.focus();
-    input.setSelectionRange(input.value.length, input.value.length);   // caret at the end
+    // Phones: focus() called in the same tick as removing readOnly is a
+    // known no-op for the on-screen keyboard on some mobile browsers - the
+    // readOnly removal hasn't been registered yet when focus is requested.
+    // One frame later it has, and the keyboard opens as expected. Still
+    // inside the same user gesture as far as iOS/Android are concerned, so
+    // this isn't blocked as an unrequested focus.
+    requestAnimationFrame(function () {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);   // caret at the end
+    });
   }
 
   function isOutside(target) {
