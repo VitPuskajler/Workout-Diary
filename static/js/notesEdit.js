@@ -2,13 +2,20 @@
    notesEdit.js - room to actually write a note
 
    The Notes column in the set table is about 97px wide on a phone, roughly
-   nine characters. Tapping it opens a full width textarea in a row directly
-   underneath, so you can see the whole note and put the caret on any line to
-   fix a typo. Tap anywhere else and it closes.
+   nine characters. Tapping it grows the cell IN PLACE, covering the Kg /
+   Reps / RPE cells of the same row (they're hidden, not lost - their inputs
+   still submit normally, display:none has no effect on form submission),
+   instead of pushing a whole new row underneath.
 
-   The small cell input stays the real form field - it keeps its name and is
-   what gets submitted. The textarea is only an editing surface and writes
-   straight back into it, so nothing about the POST changes.
+   It stays exactly one row tall even while open - a long note scrolls
+   inside that one row (mouse wheel, or arrow keys once the caret reaches
+   the top/bottom line - both native textarea behaviour, no extra JS) rather
+   than growing the row and pushing the rest of the table down.
+
+   The field is the real form input the whole time - no separate proxy
+   editor - so nothing needs to be copied anywhere before it saves. Tap
+   anywhere else on the page (including the Confirm button) and it collapses
+   back, and whatever you typed is already sitting in the field to submit.
 
    Opt in per field:
      <textarea rows="1" name="notes" data-note ...></textarea>
@@ -23,115 +30,102 @@
   "use strict";
 
   var SEL = "[data-note]";
-  var MAX_HEIGHT = 200;          // px, then the textarea scrolls instead of growing
-  var EDGE = "2px solid rgba(13,110,253,.6)";   // the highlight around the editor
-  var field = null;              // the small input currently being edited
-  var editor = null;             // the <tr> holding the textarea
+  var EDGE = "2px solid rgba(13,110,253,.6)";   // the highlight around the open cell
+
+  var field = null;              // the [data-note] textarea currently open, or null
+  var notesTd = null;            // its containing <td>
+  var hiddenCells = [];          // the Kg/Reps/RPE <td>s hidden while it's open
 
   function injectCss() {
     var css = document.createElement("style");
     css.textContent =
-      // the cell field is now a button in disguise - it opens the editor.
-      // one line tall, no resize grip, no scrollbars: it should read as the
-      // single line input it replaced.
-      // line-height is set to the full content box on purpose: one line fills it
-      // exactly, so a note containing a newline clips at the boundary instead of
-      // showing a sliver of line two.
+      // the cell field is a button in disguise when closed - it opens the
+      // editor. one line tall, no resize grip, no scrollbars: it should read
+      // as the single line input it replaced.
       SEL + "{cursor:pointer;resize:none;overflow:hidden;white-space:nowrap;" +
         "height:calc(1.5em + .75rem + 2px);min-height:0;" +
         "padding-top:0;padding-bottom:0;line-height:calc(1.5em + .75rem)}" +
-      // The row being edited and the editor underneath it close into a single
-      // box: top and sides on the row, sides and bottom on the editor, nothing
-      // between them. A bar down one side only looked unfinished.
-      "tr.wd-note-editing > td{border-top:" + EDGE + ";border-bottom:0}" +
-      "tr.wd-note-editing > td:first-child{border-left:" + EDGE + "}" +
-      "tr.wd-note-editing > td:last-child{border-right:" + EDGE + "}" +
-      "tr.wd-note-editor > td{padding:.4rem .5rem;border:" + EDGE + ";border-top:0}" +
-      "tr.wd-note-editor textarea{width:100%;text-align:left;resize:none;" +
-        "overflow-y:auto;line-height:1.35}";
+      // Open state: same one-row BOX height as closed - width comes from the
+      // colSpan below, not height. But a normal line-height for the actual
+      // text, not the closed state's (line-height == box height, to centre
+      // one line in it) - inheriting that made every wrapped line sit in its
+      // own oversized slot, all gap. Normal line-height packs them close, so
+      // part of a second line naturally peeks in - the cue that there's more
+      // to scroll to, instead of a dead gap before it.
+      SEL + ".wd-note-open{cursor:text;white-space:pre-wrap;overflow-y:auto;" +
+        "line-height:1.3;text-align:left!important}" +
+      "td.wd-note-open{border:" + EDGE + ";background:#fff}";
     document.head.appendChild(css);
   }
 
-  function autoGrow(ta) {
-    ta.style.height = "auto";
-    ta.style.height = Math.min(ta.scrollHeight, MAX_HEIGHT) + "px";
-  }
-
   function close() {
-    if (editor) {
-      var row = editor.previousElementSibling;
-      if (row) { row.classList.remove("wd-note-editing"); }
-      if (editor.parentNode) { editor.parentNode.removeChild(editor); }
-    }
-    editor = null;
-    field = null;
-  }
+    if (!field) { return; }
 
-  function toggle(input) {
-    if (field === input) { close(); } else { open(input); }
+    field.readOnly = true;
+    field.classList.remove("wd-note-open");
+
+    if (notesTd) {
+      notesTd.colSpan = 1;
+      notesTd.classList.remove("wd-note-open");
+    }
+    hiddenCells.forEach(function (cell) { cell.style.display = ""; });
+
+    field = null;
+    notesTd = null;
+    hiddenCells = [];
   }
 
   function open(input) {
+    if (field === input) { return; }
     close();
 
     var row = input.closest("tr");
-    if (!row) { return; }
+    var td = input.closest("td");
+    if (!row || !td) { return; }
 
-    var tr = document.createElement("tr");
-    tr.className = "wd-note-editor";
+    // Every <td> before the Notes cell in this row - Kg, Reps, RPE - hidden
+    // (not removed) so the Notes cell can colSpan across their fixed-layout
+    // width. Their inputs keep submitting; display:none doesn't touch that.
+    var toHide = [];
+    var sib = td.previousElementSibling;
+    while (sib) { toHide.unshift(sib); sib = sib.previousElementSibling; }
+    toHide.forEach(function (cell) { cell.style.display = "none"; });
 
-    var td = document.createElement("td");
-    td.colSpan = row.cells.length;
+    td.colSpan = toHide.length + 1;
+    td.classList.add("wd-note-open");
 
-    var ta = document.createElement("textarea");
-    ta.className = "form-control";
-    ta.rows = 2;
-    ta.value = input.value;
-    // the old note lives in the placeholder on these fields - keep showing it
-    ta.placeholder = input.placeholder || "";
+    input.readOnly = false;
+    input.classList.add("wd-note-open");
 
-    // Enter must make a newline here. This page binds Enter on document to the
-    // Confirm button, so the event has to be stopped before it gets that far.
-    ta.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") { e.stopPropagation(); }
-      if (e.key === "Escape") { e.stopPropagation(); close(); input.focus(); }
-    });
-
-    ta.addEventListener("input", function () {
-      input.value = ta.value;      // the named field is always current
-      autoGrow(ta);
-    });
-
-    td.appendChild(ta);
-    tr.appendChild(td);
-    row.parentNode.insertBefore(tr, row.nextSibling);
-
-    row.classList.add("wd-note-editing");
     field = input;
-    editor = tr;
+    notesTd = td;
+    hiddenCells = toHide;
 
-    autoGrow(ta);
-    ta.focus();
-    ta.setSelectionRange(ta.value.length, ta.value.length);   // caret at the end
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);   // caret at the end
   }
 
   function isOutside(target) {
-    return !(editor && editor.contains(target)) && !target.closest(SEL);
+    return !(notesTd && notesTd.contains(target));
   }
 
   function start() {
     injectCss();
 
-    // Read-only so tapping the narrow cell does not raise the keyboard for a
-    // nine character field. Set from JS, so without JS the field still works.
+    // Read-only so tapping the narrow closed cell does not raise the
+    // keyboard for a nine character field. Set from JS, so without JS the
+    // field still works as a plain always-editable input.
     var inputs = document.querySelectorAll(SEL);
     for (var i = 0; i < inputs.length; i++) { inputs[i].readOnly = true; }
 
-    // Opening is driven by click, not focus, so that tapping the cell a second
-    // time closes the editor again. focusin only ever closes.
     document.addEventListener("click", function (e) {
-      if (e.target.matches && e.target.matches(SEL)) { toggle(e.target); }
-      else if (isOutside(e.target)) { close(); }
+      if (e.target.matches && e.target.matches(SEL)) {
+        // A tap on the already-open field is just placing the cursor, same
+        // as any other text field - only tapping a still-closed one opens it.
+        if (field !== e.target) { open(e.target); }
+        return;
+      }
+      if (isOutside(e.target)) { close(); }
     });
 
     document.addEventListener("focusin", function (e) {
@@ -139,13 +133,23 @@
       if (isOutside(e.target)) { close(); }
     });
 
-    // Keyboard equivalent - Enter or Space on a focused Notes cell.
+    // Keyboard: Enter/Space opens a still-closed field, same as a tap. Once
+    // open, Enter must make a newline instead of reaching the page's
+    // Enter-triggers-Confirm binding (bound on document, see
+    // training_session.html), and Escape closes it.
     document.addEventListener("keydown", function (e) {
       if (!e.target.matches || !e.target.matches(SEL)) { return; }
+
+      if (field === e.target) {
+        if (e.key === "Enter") { e.stopPropagation(); }
+        else if (e.key === "Escape") { e.stopPropagation(); close(); e.target.blur(); }
+        return;
+      }
+
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        e.stopPropagation();          // must not reach the Confirm binding
-        toggle(e.target);
+        e.stopPropagation();
+        open(e.target);
       }
     });
   }
