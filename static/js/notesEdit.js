@@ -17,6 +17,14 @@
    anywhere else on the page (including the Confirm button) and it collapses
    back, and whatever you typed is already sitting in the field to submit.
 
+   The field is never readOnly - a phone's on-screen keyboard only reliably
+   appears when focus() happens natively, as the direct and immediate result
+   of the user's own tap on an already-editable field. Toggling readOnly off
+   and calling focus() ourselves, even one frame later, is a step removed
+   from that and phones silently skip the keyboard. So the tap itself is
+   what focuses the field (the browser's own doing, always reliable) - this
+   script just reacts to that focus to do the visual expand.
+
    Opt in per field:
      <textarea rows="1" name="notes" data-note ...></textarea>
 
@@ -64,7 +72,7 @@
   function close() {
     if (!field) { return; }
 
-    field.readOnly = true;
+    var closing = field;
     field.classList.remove("wd-note-open");
 
     if (notesTd) {
@@ -76,6 +84,12 @@
     field = null;
     notesTd = null;
     hiddenCells = [];
+
+    // Explicit: clicking blank page content doesn't itself move focus away
+    // from a focused field (nothing else claims it), so without this the
+    // keyboard would stay up and the field would stay focused right through
+    // its own collapse.
+    closing.blur();
   }
 
   function open(input) {
@@ -96,24 +110,13 @@
 
     td.colSpan = toHide.length + 1;
     td.classList.add("wd-note-open");
-
-    input.readOnly = false;
     input.classList.add("wd-note-open");
 
     field = input;
     notesTd = td;
     hiddenCells = toHide;
 
-    // Phones: focus() called in the same tick as removing readOnly is a
-    // known no-op for the on-screen keyboard on some mobile browsers - the
-    // readOnly removal hasn't been registered yet when focus is requested.
-    // One frame later it has, and the keyboard opens as expected. Still
-    // inside the same user gesture as far as iOS/Android are concerned, so
-    // this isn't blocked as an unrequested focus.
-    requestAnimationFrame(function () {
-      input.focus();
-      input.setSelectionRange(input.value.length, input.value.length);   // caret at the end
-    });
+    input.setSelectionRange(input.value.length, input.value.length);   // caret at the end
   }
 
   function isOutside(target) {
@@ -123,45 +126,30 @@
   function start() {
     injectCss();
 
-    // Read-only so tapping the narrow closed cell does not raise the
-    // keyboard for a nine character field. Set from JS, so without JS the
-    // field still works as a plain always-editable input.
-    var inputs = document.querySelectorAll(SEL);
-    for (var i = 0; i < inputs.length; i++) { inputs[i].readOnly = true; }
-
-    document.addEventListener("click", function (e) {
-      if (e.target.matches && e.target.matches(SEL)) {
-        // A tap on the already-open field is just placing the cursor, same
-        // as any other text field - only tapping a still-closed one opens it.
-        if (field !== e.target) { open(e.target); }
-        return;
-      }
-      if (isOutside(e.target)) { close(); }
-    });
-
+    // The field is a real, always-editable textarea - see the file header
+    // for why. Focusing it (tap, or Tab) is what opens it.
     document.addEventListener("focusin", function (e) {
-      if (e.target.matches && e.target.matches(SEL)) { return; }
+      if (e.target.matches && e.target.matches(SEL)) { open(e.target); return; }
       if (isOutside(e.target)) { close(); }
     });
 
-    // Keyboard: Enter/Space opens a still-closed field, same as a tap. Once
-    // open, Enter must make a newline instead of reaching the page's
+    // Tapping blank page content doesn't move focus by itself (see close()),
+    // so closing on an outside click needs its own listener - this is also
+    // what makes hitting Confirm collapse the field (it's outside, too; the
+    // value is already live in the field, so the submit that follows saves
+    // it same as always).
+    document.addEventListener("click", function (e) {
+      if (isOutside(e.target)) { close(); }
+    });
+
+    // Enter must make a newline while typing a note, not reach the page's
     // Enter-triggers-Confirm binding (bound on document, see
-    // training_session.html), and Escape closes it.
+    // training_session.html) - a note field only ever has focus while open,
+    // so any keydown reaching it here is mid-edit. Escape closes it.
     document.addEventListener("keydown", function (e) {
       if (!e.target.matches || !e.target.matches(SEL)) { return; }
-
-      if (field === e.target) {
-        if (e.key === "Enter") { e.stopPropagation(); }
-        else if (e.key === "Escape") { e.stopPropagation(); close(); e.target.blur(); }
-        return;
-      }
-
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        e.stopPropagation();
-        open(e.target);
-      }
+      if (e.key === "Enter") { e.stopPropagation(); }
+      else if (e.key === "Escape") { e.stopPropagation(); close(); }
     });
   }
 
