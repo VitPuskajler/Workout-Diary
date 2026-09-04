@@ -218,7 +218,7 @@ def login():
             if next_page and next_page != "None":
                 return redirect(next_page)
 
-            return redirect(url_for("index_page"))
+            return redirect(url_for("profile"))
 
     return render_template("login.html", form=form, next=request.args.get("next"))
 
@@ -1144,8 +1144,11 @@ def mesocycle_statistics():
     if chosen_mesocycle:
         exercises_in_mesocycle = exercises_for_mesocycle(chosen_mesocycle["mesocycle_id"])
         chosen_exercise = session.get("stats_mesocycle_exercise")
+        all_exercise_names = [
+            name for group in exercises_in_mesocycle for name in group["exercises"]
+        ]
 
-        if chosen_exercise and chosen_exercise in exercises_in_mesocycle:
+        if chosen_exercise and chosen_exercise in all_exercise_names:
             exercise_data = statistics_for_exercise(
                 chosen_exercise, mesocycle_id=chosen_mesocycle["mesocycle_id"]
             )

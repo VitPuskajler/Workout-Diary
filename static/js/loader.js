@@ -127,6 +127,23 @@
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") { hide(); }
     });
+
+    // Navbar hamburger menu (#navbarCollapse, same id on every page) -
+    // Bootstrap only closes it on a second hit of the toggler button, so
+    // tapping anywhere else on the page (the intended, obvious way to
+    // dismiss it) did nothing. Close it on any click outside the open menu.
+    document.addEventListener("click", function (e) {
+      var menu = document.getElementById("navbarCollapse");
+      if (!menu || !menu.classList.contains("show")) { return; }
+      if (menu.contains(e.target)) { return; }
+      if (e.target.closest && e.target.closest('[data-bs-target="#navbarCollapse"]')) { return; }
+
+      if (window.bootstrap && window.bootstrap.Collapse) {
+        window.bootstrap.Collapse.getOrCreateInstance(menu).hide();
+      } else {
+        menu.classList.remove("show");
+      }
+    });
   }
 
   window.showLoader = show;

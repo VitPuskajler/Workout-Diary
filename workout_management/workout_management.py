@@ -2548,7 +2548,10 @@ class WorkoutManagement:
             "exercise_name": exercise_name,
             "period_label": period_label,
             "dates": [exe[1].strftime("%d.%m.%y") for exe in exercises_data],
-            "weights": [exe[2] for exe in exercises_data],
+            # Raw lbs->kg conversion (e.g. lbs_to_kg(205) = 92.98644085) produces
+            # far more precision than a weight chart ever needs - one decimal
+            # place is plenty and keeps the axis/tooltips readable.
+            "weights": [round(exe[2], 1) if exe[2] is not None else None for exe in exercises_data],
             "reps": [exe[3] for exe in exercises_data],
         }
 
@@ -2730,16 +2733,24 @@ class WorkoutManagement:
 
         return result
 
-    # Exercise names with at least one logged set under this mesocycle
-    # (via session_mesocycles, so this also surfaces an exercise later
-    # removed from the plan - anything actually trained counts), most-used
-    # first. Feeds the exercise dropdown on /mesocycle_statistics once a
-    # mesocycle has been picked.
+    # Exercises with at least one logged set under this mesocycle (via
+    # session_mesocycles, so this also surfaces an exercise later removed
+    # from the plan - anything actually trained counts), grouped by workout
+    # day in plan order (workout_id, then order_in_workout) rather than
+    # alphabetically - so the /mesocycle_statistics picker reads like the
+    # actual workout split. An exercise shared by more than one day in the
+    # plan is only listed under the first day it appears in; anything
+    # logged that no plan slot claims (typically an exercise since removed
+    # from the plan) lands in a trailing "Other" group, most-used first.
+    #
+    # Returns [{day_name, exercises: [name, ...]}, ...]. Feeds the exercise
+    # dropdown on /mesocycle_statistics once a mesocycle has been picked.
     def exercises_for_mesocycle(self, mesocycle_id):
         user_id = self.current_user_id_db()
 
-        rows = (
+        logged_rows = (
             db.session.query(
+                Exercise.exercise_id,
                 Exercise.exercise_name,
                 func.count(ExerciseEntries.entry_id).label("sets"),
             )
@@ -2753,12 +2764,45 @@ class WorkoutManagement:
                 Sessions.user_id == user_id,
                 SessionMesocycles.mesocycle_id == mesocycle_id,
             )
-            .group_by(Exercise.exercise_name)
+            .group_by(Exercise.exercise_id, Exercise.exercise_name)
             .order_by(desc("sets"), Exercise.exercise_name.asc())
             .all()
         )
+        if not logged_rows:
+            return []
 
-        return [row.exercise_name for row in rows]
+        logged_names = {row.exercise_id: row.exercise_name for row in logged_rows}
+        remaining_ids = set(logged_names)
+
+        plans = (
+            db.session.query(WorkoutPlan)
+            .filter(
+                WorkoutPlan.user_id == user_id,
+                WorkoutPlan.mesocycle_id == mesocycle_id,
+            )
+            .order_by(WorkoutPlan.workout_id.asc())
+            .all()
+        )
+
+        groups = []
+        for plan in plans:
+            if plan.workout_name is None or plan.workout_name == "c":
+                continue
+
+            day_exercises = []
+            for row in self._workout_exercises_ordered(plan.workout_id):
+                if row.exercise_id in remaining_ids:
+                    day_exercises.append(logged_names[row.exercise_id])
+                    remaining_ids.discard(row.exercise_id)
+
+            if day_exercises:
+                groups.append({"day_name": plan.workout_name, "exercises": day_exercises})
+
+        if remaining_ids:
+            leftovers = [row.exercise_name for row in logged_rows if row.exercise_id in remaining_ids]
+            groups.append({"day_name": "Other", "exercises": leftovers})
+
+        return groups
 
     # All exercises with at least one entry
     def exercises_ranked_by_use(self):

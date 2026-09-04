@@ -100,8 +100,12 @@
               aria-label="Exercise" onchange="this.form.submit()"
               style="font-size: 16px; min-height: 44px;">
               <option value="" {% if not chosen_exercise %}selected{% endif %}>Choose exercise</option>
-              {% for x in exercises_in_mesocycle %}
-              <option value="{{ x }}" {% if x==chosen_exercise %}selected{% endif %}>{{ x }}</option>
+              {% for group in exercises_in_mesocycle %}
+              <optgroup label="— {{ group.day_name|upper }} —" style="color: #000; font-weight: bold;">
+                {% for x in group.exercises %}
+                <option value="{{ x }}" {% if x==chosen_exercise %}selected{% endif %} style="font-weight: normal;">{{ x }}</option>
+                {% endfor %}
+              </optgroup>
               {% endfor %}
             </select>
           </form>
