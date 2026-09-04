@@ -69,9 +69,12 @@
       <div class="row justify-content-center">
 
         {% if not chosen_mesocycle %}
-        <!-- Nothing picked yet - just the one button. It opens a popup, not
-             a dropdown: the mesocycle list is short and never needs
-             searching/filtering the way the exercise picker does. -->
+        <!-- Nothing picked yet - the button opens the popup below, and the
+             inline script near the bottom of the page pops it straight open
+             on load too, so landing here with nothing chosen never costs an
+             extra click. It stays a popup rather than a dropdown: the
+             mesocycle list is short and never needs searching/filtering the
+             way the exercise picker does. -->
         <div class="col-12 d-flex justify-content-center">
           <button type="button" class="btn btn-success btn-lg" style="min-height: 56px; min-width: 240px;"
             data-bs-toggle="modal" data-bs-target="#mesocyclePicker">
@@ -87,10 +90,11 @@
           <div class="d-flex align-items-center justify-content-center gap-2 mb-3 flex-wrap">
             <span class="fs-5 fw-bold text-center">{{ chosen_mesocycle.name }}</span>
             <span class="badge bg-secondary">{{ chosen_mesocycle.weeks_label }}</span>
-            <form action="{{ url_for('mesocycle_statistics') }}" method="post" class="d-inline">
-              <input type="hidden" name="action" value="change_mesocycle">
-              <button type="submit" class="btn btn-link btn-sm text-decoration-none">Change mesocycle</button>
-            </form>
+            <!-- Same popup as the first pick, reopened directly - picking a
+                 different one there posts "choose_mesocycle" same as always.
+                 No more clear-then-reload-then-reopen round trip. -->
+            <button type="button" class="btn btn-link btn-sm text-decoration-none"
+              data-bs-toggle="modal" data-bs-target="#mesocyclePicker">Change mesocycle</button>
           </div>
 
           {% if exercises_in_mesocycle %}
@@ -175,6 +179,17 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
     crossorigin="anonymous"></script>
+
+  {% if not chosen_mesocycle %}
+  <script>
+    // Nothing chosen yet on this landing - open the picker immediately
+    // instead of making the "Choose mesocycle" button the first click.
+    document.addEventListener("DOMContentLoaded", function () {
+      var picker = document.getElementById("mesocyclePicker");
+      if (picker) { new bootstrap.Modal(picker).show(); }
+    });
+  </script>
+  {% endif %}
 
   <!-- Interactive progress chart - see static/js/statisticsChart.js. -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>

@@ -25,6 +25,7 @@
   var TIMEOUT = 15000; // hard stop - a dead request must never trap you mid workout
   var overlay = null;
   var timer = null;
+  var lastTrigger = null; // whatever earned the .wd-clicked highlight, so hide() can undo it
 
   function build() {
     var css = document.createElement("style");
@@ -37,7 +38,14 @@
       "#wd-loader img{width:90px;max-width:32vw;height:auto;" +
         "animation:wd-spin 1.2s linear infinite}" +
       "@keyframes wd-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}" +
-      "@media (prefers-reduced-motion:reduce){#wd-loader img{animation-duration:3s}}";
+      "@media (prefers-reduced-motion:reduce){#wd-loader img{animation-duration:3s}}" +
+      // Whatever was actually clicked/pressed, highlighted for as long as the
+      // veil is up - so a screen recording shows exactly what triggered the
+      // page change, not just a generic spinner. outline (not border) so it
+      // never nudges layout or fights a button's own border-radius.
+      ".wd-clicked{outline:3px solid #ffc107 !important;outline-offset:1px;" +
+        "background-color:#ffc107 !important;color:#000 !important;" +
+        "border-color:#ffc107 !important;}";
     document.head.appendChild(css);
 
     overlay = document.createElement("div");
@@ -59,6 +67,16 @@
       return;
     }
 
+    // e.submitter is the actual button that triggered a real form submit
+    // (not the form itself). The onchange="this.form.submit()" selects and
+    // plain link clicks carry no such event, but by the time either fires
+    // the element the user acted on is still the focused one.
+    var trigger = (e && e.submitter) || document.activeElement;
+    if (trigger && trigger.nodeType === 1 && trigger !== document.body) {
+      trigger.classList.add("wd-clicked");
+      lastTrigger = trigger;
+    }
+
     overlay.classList.add("wd-on");
     clearTimeout(timer);
     timer = setTimeout(hide, TIMEOUT);
@@ -68,6 +86,10 @@
     if (!overlay) { return; }
     overlay.classList.remove("wd-on");
     clearTimeout(timer);
+    if (lastTrigger) {
+      lastTrigger.classList.remove("wd-clicked");
+      lastTrigger = null;
+    }
   }
 
   function start() {

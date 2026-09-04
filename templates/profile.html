@@ -97,14 +97,6 @@
     <div class="p-5 mb-5">
         <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
           <div class="container-fluid">
-            <a href="{{ url_for('home') }}" class="text-light me-2 d-flex align-items-center"
-              aria-label="Back to main menu" title="Back to main menu" style="text-decoration: none;">
-              <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                <path fill-rule="evenodd"
-                  d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z">
-                </path>
-              </svg>
-            </a>
             <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
             <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
               aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
@@ -169,40 +161,41 @@
                 <!-- Modify Current Mesocycle Button -->
                 <div class="d-grid gap-2 mb-3">
                     <button type="submit" class="btn btn-primary btn-block" name="action"
-                        value="change_mesocycle">Change Current Mesocycle</button>
+                        value="change_mesocycle" title="Switch to a different mesocycle plan">Change Current Mesocycle</button>
                     <!-- Show Progress Button -->
-                    <button type="submit" class="btn btn-primary btn-block" name="action" value="show_progress">Show
+                    <button type="submit" class="btn btn-primary btn-block" name="action" value="show_progress"
+                        title="View and edit your logged sets">Show
                         Progress</button>
 
                     <button type="submit" class="btn btn-primary btn-block" name="action"
-                        value="statistics">Statistics</button>
+                        value="statistics" title="See progress charts for your exercises">Statistics</button>
 
                     <button type="button" class="btn btn-primary btn-block" data-bs-toggle="modal"
-                        data-bs-target="#changePasswordModal">Change Password</button>
+                        data-bs-target="#changePasswordModal" title="Update your account password">Change Password</button>
 
-                    <!-- Deliberately last and deliberately red: this is the way
-                         to the one page that can delete a plan. -->
-                    <button type="submit" class="btn btn-outline-danger btn-block" name="action"
-                        value="mesocycle_management">Manage Mesocycles</button>
+                    <button type="submit" class="btn btn-primary btn-block" name="action"
+                        value="mesocycle_management" title="Delete old mesocycle plans">Manage Mesocycles</button>
 
                     {% if current_user.is_admin and not impersonator %}
-                    <!-- admins only: the route behind this modal 404s for everyone else -->
-                    <button type="button" class="btn btn-warning btn-block" data-bs-toggle="modal"
-                        data-bs-target="#impersonateModal">Sign in as user</button>
-
                     <button type="button"
-                        class="btn btn-block {{ 'btn-warning' if pending_users else 'btn-success' }}"
-                        data-bs-toggle="modal" data-bs-target="#pendingUsersModal">
+                        class="btn btn-block {{ 'btn-warning' if pending_users else 'btn-primary' }}"
+                        data-bs-toggle="modal" data-bs-target="#pendingUsersModal"
+                        title="Approve or decline new sign-ups">
                         Pending Registrations
                         {% if pending_users %}<span class="badge bg-dark">{{ pending_users|length }}</span>{% endif %}
                     </button>
+
+                    <!-- admins only: the route behind this modal 404s for everyone else -->
+                    <button type="button" class="btn btn-warning btn-block" data-bs-toggle="modal"
+                        data-bs-target="#impersonateModal" title="Temporarily log in as another user">Sign in as user</button>
                     {% endif %}
 
                     {% if impersonator %}
                     <!-- formaction sends this one button to a different route, so the
                          return path needs no second form nested inside this one -->
                     <button type="submit" class="btn btn-dark btn-block"
-                        formaction="{{ url_for('stop_impersonating') }}" formmethod="post">
+                        formaction="{{ url_for('stop_impersonating') }}" formmethod="post"
+                        title="Return to your own account">
                         Back to my account ({{ impersonator.username }})</button>
                     {% endif %}
                 </div>
@@ -213,7 +206,7 @@
                      nothing here to hit by accident while reaching for
                      "Manage Mesocycles" or "Sign in as user" above it. -->
                 <div class="d-grid" style="margin-top: 30px;">
-                    <a href="{{ url_for('logout') }}" class="btn btn-danger btn-block">Logout</a>
+                    <a href="{{ url_for('logout') }}" class="btn btn-danger btn-block" title="Sign out of your account">Logout</a>
                 </div>
             </div>
         </form>
@@ -313,12 +306,17 @@
                 <form method="post" action="{{ url_for('impersonate') }}">
                     <div class="modal-body">
                         {% if users_to_impersonate %}
-                        <div class="d-grid gap-2">
+                        <input type="text" id="impersonateSearch" class="form-control mb-2"
+                            placeholder="Search users..." autocomplete="off">
+                        <div class="d-grid gap-2" id="impersonateList">
                             {% for candidate in users_to_impersonate %}
                             <button type="submit" name="user_id" value="{{ candidate.user_id }}"
-                                class="btn btn-outline-primary">{{ candidate.username }}</button>
+                                class="btn btn-outline-primary"
+                                data-username="{{ candidate.username|lower }}">{{ candidate.username }}</button>
                             {% endfor %}
                         </div>
+                        <p class="mb-0 text-body-secondary d-none" id="impersonateNoMatches">
+                            No users match that search.</p>
                         {% else %}
                         <p class="mb-0 text-body-secondary">No other users to sign in as.</p>
                         {% endif %}
@@ -426,6 +424,39 @@
                 this.style.color = placeholderColor;
             });
         });
+
+        // "Sign in as user" search box: filters the button list client-side
+        // as you type, no round trip - the whole list is already on the
+        // page, this just shows/hides buttons by substring match on username.
+        (function () {
+            var search = document.getElementById("impersonateSearch");
+            if (!search) { return; }
+            var buttons = document.querySelectorAll("#impersonateList [data-username]");
+            var noMatches = document.getElementById("impersonateNoMatches");
+
+            function filter() {
+                var query = search.value.trim().toLowerCase();
+                var visible = 0;
+                buttons.forEach(function (btn) {
+                    var match = btn.dataset.username.indexOf(query) !== -1;
+                    btn.classList.toggle("d-none", !match);
+                    if (match) { visible += 1; }
+                });
+                noMatches.classList.toggle("d-none", visible !== 0);
+            }
+
+            search.addEventListener("input", filter);
+
+            // Fresh search box and full list every time the modal opens -
+            // reused across the page's whole session otherwise, so a search
+            // from last time would still be filtering next time it's opened.
+            var modal = document.getElementById("impersonateModal");
+            modal.addEventListener("shown.bs.modal", function () {
+                search.value = "";
+                filter();
+                search.focus();
+            });
+        })();
     </script>
 
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>

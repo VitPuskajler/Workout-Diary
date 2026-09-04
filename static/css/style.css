@@ -43,15 +43,27 @@ body {
     transform-style: preserve-3d;
   }
   
-  .flip-card:hover .flip-card-inner {
+  /* Real mouse: pure CSS hover-to-flip, no JS needed. Scoped out of touch -
+     a tap satisfies :hover too, but there is no "mouse leave" on a touch
+     screen to un-flip it again, so it would flip on tap and then get stuck. */
+  @media (hover: hover) and (pointer: fine) {
+    .flip-card:hover .flip-card-inner {
+      transform: rotateX(180deg);
+      transition: transform 0.7s ease-out; /* Different speed for hover */
+    }
+
+    .flip-card:not(:hover) .flip-card-inner {
+      transition: transform 0.3s ease-in; /* Different speed for returning to original */
+    }
+  }
+
+  /* Touch: flipCards.js toggles this class on tap instead of relying on
+     :hover - tapping the same card again, or anywhere else on the page,
+     removes it. */
+  .flip-card.is-flipped .flip-card-inner {
     transform: rotateX(180deg);
-    transition: transform 0.7s ease-out; /* Different speed for hover */
   }
-  
-  .flip-card:not(:hover) .flip-card-inner {
-    transition: transform 0.3s ease-in; /* Different speed for returning to original */
-  }
-  
+
   .flip-card-front, .flip-card-back {
     position: absolute;
     width: 100%;

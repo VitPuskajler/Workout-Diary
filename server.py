@@ -1186,8 +1186,11 @@ def mesocycle_statistics():
 
     The two picks are remembered in the session so paging around (or
     picking a different exercise in the same mesocycle) does not force you
-    back through the popup every time - "change_mesocycle" is the explicit
-    way out of that.
+    back through the popup every time. The picker modal itself is always
+    rendered on the page (see mesocycle_statistics.html), so re-opening it
+    to switch mesocycles - "Change mesocycle" - is a client-side
+    data-bs-toggle, not a route here; picking a new one from it still posts
+    "choose_mesocycle" below like the very first pick did.
     """
     YEAR = datetime.now().strftime("%Y")
     mesocycles = mesocycles_for_statistics()
@@ -1196,9 +1199,6 @@ def mesocycle_statistics():
         action = request.form.get("action")
         if action == "choose_mesocycle":
             session["stats_mesocycle_id"] = request.form.get("mesocycle_id")
-            session.pop("stats_mesocycle_exercise", None)
-        elif action == "change_mesocycle":
-            session.pop("stats_mesocycle_id", None)
             session.pop("stats_mesocycle_exercise", None)
         elif action == "choose_exercise":
             session["stats_mesocycle_exercise"] = request.form.get("chosen_exercise")
