@@ -1,6 +1,7 @@
 from db_setup import db
 from flask_login import UserMixin
 from sqlalchemy import (
+    Boolean,
     Column,
     Float,
     Integer,
@@ -23,6 +24,10 @@ class Users(UserMixin, db.Model):
     # "user" or "admin". server_default matters: the column was added to a table
     # that already had rows, so existing users need a value at the SQL level.
     role = Column(String(20), nullable=False, default="user", server_default="user")
+    # False until an admin approves the registration from /profile. Defaults
+    # to False for anyone signing up from here on - see add_approval_column.py
+    # for backfilling accounts that predate this column.
+    is_approved = Column(Boolean, nullable=False, default=False, server_default="0")
 
     def __repr__(self):
         return f"<User {self.username}>"

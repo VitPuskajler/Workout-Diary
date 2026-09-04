@@ -30,7 +30,7 @@ from sqlalchemy import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from wtforms import FloatField, IntegerField, PasswordField, StringField, SubmitField
-from wtforms.validators import DataRequired, EqualTo, NumberRange
+from wtforms.validators import DataRequired, EqualTo, NumberRange, ValidationError
 
 from db_setup import db
 from models.models import Users, WorkoutPlan, Mesocycles, load_user
@@ -106,6 +106,19 @@ class RegistrationForm(FlaskForm):
     weight = FloatField("Weight", validators=[DataRequired(), NumberRange(min=0)])
     submit = SubmitField("Sign Up")
     email = StringField("Email", validators=[DataRequired()])
+
+    # WTForms calls any validate_<field> method automatically, before
+    # validate_on_submit() returns - so a taken name/email is rejected here,
+    # as a normal form error, instead of reaching db.session.commit() and
+    # blowing up with an IntegrityError from the users table's UNIQUE
+    # constraint.
+    def validate_username(self, field):
+        if Users.query.filter_by(username=field.data).first():
+            raise ValidationError("This username already exists.")
+
+    def validate_email(self, field):
+        if Users.query.filter_by(email=field.data).first():
+            raise ValidationError("This email is already registered.")
 class LoginForm(FlaskForm):
     username = StringField("Username", validators=[DataRequired()])
     password = PasswordField("Password", validators=[DataRequired()])
@@ -200,7 +213,8 @@ def register():
         )
         db.session.add(new_users)
         db.session.commit()
-        flash("Registration successful! Please login.", "success")
+        flash("Registration successful! An admin needs to approve your account "
+              "before you can log in.", "success")
         return redirect(url_for("login"))
     return render_template("register.html", form=form)
 
@@ -210,6 +224,11 @@ def login():
     if form.validate_on_submit():
         user = Users.query.filter_by(username=form.username.data).first()
         if user and check_password_hash(user.password, form.password.data):
+            if not user.is_approved:
+                flash("Your account is waiting on admin approval - try again "
+                      "later.", "warning")
+                return render_template("login.html", form=form,
+                                        next=request.args.get("next"))
             login_user(user)
 
             next_page = request.args.get("next") or request.form.get("next")
@@ -770,6 +789,53 @@ def stop_impersonating():
     return redirect(url_for("profile"))
 
 
+@app.route("/admin/approve_user", methods=["POST"])
+@login_required
+@admin_required
+def approve_user():
+    try:
+        target_id = int(request.form.get("user_id", ""))
+    except (TypeError, ValueError):
+        abort(400)
+
+    target = db.session.get(Users, target_id)
+    if target is None:
+        abort(404)
+
+    target.is_approved = True
+    db.session.commit()
+
+    flash(f"{target.username} can now log in.", "success")
+    return redirect(url_for("profile"))
+
+
+@app.route("/admin/decline_user", methods=["POST"])
+@login_required
+@admin_required
+def decline_user():
+    """Reject a pending registration by deleting the account outright - it
+    never logged in (is_approved gates that), so there is no training data
+    of theirs to lose."""
+    try:
+        target_id = int(request.form.get("user_id", ""))
+    except (TypeError, ValueError):
+        abort(400)
+
+    target = db.session.get(Users, target_id)
+    if target is None:
+        abort(404)
+    # Only ever a still-pending signup - never a live account, admin or not.
+    if target.is_approved:
+        abort(400)
+
+    username = target.username
+    db.session.delete(target)
+    db.session.commit()
+
+    flash(f"Declined and removed {username}.", "success")
+    return redirect(url_for("profile"))
+
+
 MIN_PASSWORD_LENGTH = 8
 
 
@@ -839,6 +905,7 @@ def profile():
         return redirect(url_for("mesocycle_management"))
 
     users_to_impersonate = []
+    pending_users = []
     if current_user.is_admin and not session.get(IMPERSONATOR_KEY):
         # Never offer yourself, and never offer another admin.
         users_to_impersonate = (
@@ -848,10 +915,17 @@ def profile():
             .order_by(Users.username)
             .all()
         )
+        pending_users = (
+            db.session.query(Users)
+            .filter(Users.is_approved.is_(False))
+            .order_by(Users.username)
+            .all()
+        )
 
     return render_template(
         "profile.html",
         users_to_impersonate=users_to_impersonate,
+        pending_users=pending_users,
     )
 
 # --------------------------------------------------------------------------

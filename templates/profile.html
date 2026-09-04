@@ -189,6 +189,13 @@
                     <!-- admins only: the route behind this modal 404s for everyone else -->
                     <button type="button" class="btn btn-warning btn-block" data-bs-toggle="modal"
                         data-bs-target="#impersonateModal">Sign in as user</button>
+
+                    <button type="button"
+                        class="btn btn-block {{ 'btn-warning' if pending_users else 'btn-success' }}"
+                        data-bs-toggle="modal" data-bs-target="#pendingUsersModal">
+                        Pending Registrations
+                        {% if pending_users %}<span class="badge bg-dark">{{ pending_users|length }}</span>{% endif %}
+                    </button>
                     {% endif %}
 
                     {% if impersonator %}
@@ -198,6 +205,15 @@
                         formaction="{{ url_for('stop_impersonating') }}" formmethod="post">
                         Back to my account ({{ impersonator.username }})</button>
                     {% endif %}
+                </div>
+
+                <!-- Set apart with real space (not just the gap-2 the buttons
+                     above share) and solid red, so this reads as its own
+                     deliberate action rather than the next item in the list -
+                     nothing here to hit by accident while reaching for
+                     "Manage Mesocycles" or "Sign in as user" above it. -->
+                <div class="d-grid" style="margin-top: 30px;">
+                    <a href="{{ url_for('logout') }}" class="btn btn-danger btn-block">Logout</a>
                 </div>
             </div>
         </form>
@@ -311,6 +327,38 @@
                 <div class="modal-footer">
                     <small class="text-body-secondary">You will stay signed in as them until you come back
                         from the banner or this page.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="pendingUsersModal" tabindex="-1" aria-labelledby="pendingUsersModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="pendingUsersModalLabel">Pending registrations</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {% if pending_users %}
+                    <div class="d-grid gap-2">
+                        {% for candidate in pending_users %}
+                        <form method="post" action="{{ url_for('approve_user') }}" class="d-flex gap-2">
+                            <span class="btn btn-outline-secondary disabled flex-grow-1 text-start"
+                                style="pointer-events: none;">{{ candidate.username }} ({{ candidate.email }})</span>
+                            <button type="submit" name="user_id" value="{{ candidate.user_id }}"
+                                class="btn btn-success">Approve</button>
+                            <!-- formaction sends just this button to the delete route, so
+                                 declining needs no second form nested inside this one -->
+                            <button type="submit" name="user_id" value="{{ candidate.user_id }}"
+                                class="btn btn-danger" formaction="{{ url_for('decline_user') }}">Decline</button>
+                        </form>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="mb-0 text-body-secondary">No registrations waiting on approval.</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
