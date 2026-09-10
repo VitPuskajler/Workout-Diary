@@ -1135,8 +1135,15 @@ def statistics():
     # picker, no chart. The data is a mess across a year-plus of logging, so
     # this exists purely to make you commit to one lens before anything
     # else renders, rather than presenting both scopes tangled together.
+    #
+    # The mesocycle list is fetched here too, for the "Mesocycle" button's
+    # own popup - picking one from it posts straight to /mesocycle_statistics
+    # (same form action the picker there uses), so just looking and closing
+    # it back out never leaves this page at all.
     YEAR = datetime.now().strftime("%Y")
-    return render_template("statistics.html", year=YEAR)
+    return render_template(
+        "statistics.html", year=YEAR, mesocycles=mesocycles_for_statistics()
+    )
 
 @app.route("/period_statistics", methods=["GET", "POST"])
 @login_required
@@ -1408,4 +1415,4 @@ def page_not_found(e):
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=False) # Delete this before pushing
+    app.run(debug=True) # Delete this before pushing

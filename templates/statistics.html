@@ -70,14 +70,51 @@
   <div class="d-flex flex-column align-items-center justify-content-center" style="min-height: 60vh;">
     <h3 class="mb-4 text-center">See your progress by...</h3>
     <div class="d-flex flex-column gap-3" style="width: 100%; max-width: 360px;">
-      <a href="{{ url_for('mesocycle_statistics') }}"
-        class="btn btn-success btn-lg" style="min-height: 56px;">
+      <!-- Opens the popup right here rather than navigating to
+           /mesocycle_statistics - just looking and closing it back out
+           (the small X) should never cost a "go back" step. Picking one
+           from the list is what actually moves on. -->
+      <button type="button" class="btn btn-success btn-lg" style="min-height: 56px;"
+        data-bs-toggle="modal" data-bs-target="#mesocyclePicker">
         Mesocycle
-      </a>
+      </button>
       <a href="{{ url_for('period_statistics') }}"
         class="btn btn-outline-success btn-lg" style="min-height: 56px;">
         Time period
       </a>
+    </div>
+  </div>
+
+  <!-- Same popup /mesocycle_statistics itself uses - picking a mesocycle
+       posts straight there (action=choose_mesocycle), which sets the pick
+       and lands you on the chart page with it already selected. -->
+  <div class="modal fade" id="mesocyclePicker" tabindex="-1" aria-labelledby="mesocyclePickerTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="mesocyclePickerTitle">Choose a mesocycle</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-0">
+          {% if mesocycles %}
+          <form action="{{ url_for('mesocycle_statistics') }}" method="post">
+            <input type="hidden" name="action" value="choose_mesocycle">
+            <div class="list-group list-group-flush">
+              {% for m in mesocycles %}
+              <button type="submit" name="mesocycle_id" value="{{ m.mesocycle_id }}"
+                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                style="min-height: 56px;">
+                <span>{{ m.name }}</span>
+                <span class="badge bg-secondary rounded-pill">{{ m.weeks_label }}</span>
+              </button>
+              {% endfor %}
+            </div>
+          </form>
+          {% else %}
+          <p class="text-center text-muted p-4 mb-0">You have no mesocycles yet.</p>
+          {% endif %}
+        </div>
+      </div>
     </div>
   </div>
 
