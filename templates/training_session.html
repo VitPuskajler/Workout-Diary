@@ -268,7 +268,7 @@
                   <td><input type="number" class="form-control text-center" name="update_reps_{{ set.entry_id }}"
                       placeholder="{{set.reps}}" /></td>
 
-                  <td><input type="number" class="form-control text-center" name="update_rpe_{{ set.entry_id }}"
+                  <td><input type="number" step="0.5" min="0" max="10" class="form-control text-center" name="update_rpe_{{ set.entry_id }}"
                       placeholder="{{set.rpe}}" /></td>
 
                   <td><textarea rows="1" class="form-control text-center" data-note
@@ -301,7 +301,7 @@
                   </td>
                   <td>
                     <div class="center-container">
-                      <input type="number" name="rpe" class="form-control text-center text-warning"
+                      <input type="number" step="0.5" min="0" max="10" name="rpe" class="form-control text-center text-warning"
                         placeholder="{{ placeholders.rpe }}" />
                     </div>
                   </td>
@@ -333,7 +333,7 @@
 
                   <td>
                     <div class="col-10 center-container">
-                      <input type="number" name="rpe" class="form-control text-center bg-success-subtle text-warning"
+                      <input type="number" step="0.5" min="0" max="10" name="rpe" class="form-control text-center bg-success-subtle text-warning"
                         placeholder="0" />
                     </div>
                   </td>
