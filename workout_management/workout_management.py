@@ -126,6 +126,12 @@ class WorkoutManagement:
 
             workout_names_in_db = [workout.workout_name for workout in last_workouts]
 
+            # A mesocycle with no workout days yet (new user, or a freestyle-only
+            # one) is the same as having no plan: callers index these lists by
+            # day, so empty lists would blow up with an IndexError.
+            if not workout_names_in_db or not workouts_id:
+                return None, None, None
+
             return per_week_db[0], workout_names_in_db, workouts_id
 
         return None, None, None
@@ -2442,7 +2448,9 @@ class WorkoutManagement:
             create_custom_workout_day = WorkoutPlan(
                 user_id=user_id_db,
                 workout_name="c",
-                mesocycle_id=mesocycle_id_query[0],
+                # A brand-new user has no mesocycle yet - the column is nullable,
+                # so a freestyle day simply isn't attached to one.
+                mesocycle_id=mesocycle_id_query[0] if mesocycle_id_query else None,
             )
             try:
                 db.session.add(create_custom_workout_day)
@@ -4151,7 +4159,9 @@ class WorkoutManagement:
             .order_by(desc(Mesocycles.mesocycle_id))
             .first()
         )
-        return last_meso_query.name
+        # None for a brand-new user - /progress then falls through to its
+        # "no workout plan yet" page.
+        return last_meso_query.name if last_meso_query else None
 
     def user_last_session_id(self, workout_id, chosen_day):
         """(sessions newest-first, workout_id) for this user's current `chosen_day`."""
