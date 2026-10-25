@@ -603,6 +603,14 @@ def training_session():
     exercises_from_user: dict = jinja_exercises[workout_key]
     exercises_in_workout: list = [x["exercise"] for x in exercises_from_user]
 
+    # A day with no exercise picked invites typing sets that are saved nowhere
+    # (e.g. right after switching the day), so open on its first exercise.
+    # Skipped when the user explicitly blanked the exercise dropdown this request.
+    if (chosen_day and not chosen_exercise and exercises_in_workout
+            and request.args.get("chosen_exercise") != ""):
+        chosen_exercise = exercises_in_workout[0]
+        session["chosen_exercise"] = chosen_exercise
+
     if request.method == "GET":
 
         # If the user made a selection, update `chosen_day` and store in session
@@ -1297,6 +1305,14 @@ def intuitive_training():
         session.pop("chosen_exercise_by_user", None)
         session.pop("new_exercise", None)
 
+    # Nothing chosen but today's plan has exercises (cookie lost, page reopened):
+    # open on the most recently added one so typed sets always have a home.
+    if not selected_exercise and saved_exercises:
+        selected_exercise = saved_exercises[-1]
+        exercise_name_for_last_sets = selected_exercise
+        session["chosen_exercise_by_user"] = selected_exercise
+        session.pop("new_exercise", None)
+
     if request.method == "GET":
         # Check existance of the today's custom workout 
         user_confirm = request.args.get("confirm_freestyle")
@@ -1326,10 +1342,24 @@ def intuitive_training():
 
         if "previous_day" in submitted_data or "next_day" in submitted_data:
             move = "previous_day" if "previous_day" in submitted_data else "next_day"
+
+            # Save what is typed before leaving, so an arrow tap never costs a
+            # set. Skipped if a new exercise name is typed too: that set belongs
+            # to the named exercise, not to the one being left.
+            if not (submitted_data.get("exercise") or "").strip():
+                modify_set(submitted_data)
+                add_set_to_db(submitted_data, selected_exercise, "c")
+
             target_exercise = arrow_buttons_next_exercise(move, selected_exercise, "c")
             if target_exercise:
                 session["chosen_exercise_by_user"] = target_exercise
                 session.pop("new_exercise", None)
+            return redirect(url_for("intuitive_training"))
+
+        if "repeat_button" in submitted_data:
+            # Copies the last set of the current exercise (or, if there is none
+            # today, its heaviest set from the last time it was done).
+            repeat_set(selected_exercise, None, "c")
             return redirect(url_for("intuitive_training"))
 
         action = submitted_data.get("action")
@@ -1346,16 +1376,35 @@ def intuitive_training():
             # box. Registering it must NOT short-circuit past the reps
             # below - the natural flow is search, click a suggestion, type
             # today's weight/reps, then hit Confirm once.
-            new_exercise = submitted_data.get("exercise")
+            new_exercise = (submitted_data.get("exercise") or "").strip()
+
+            # Edits to sets already logged today (the update_* boxes above the
+            # new-set row); without this they were silently thrown away.
+            modify_set(submitted_data)
 
             if new_exercise:
-               create_custom_workout_exercise(new_exercise)
-               session["new_exercise"] = new_exercise
-               session.pop("chosen_exercise_by_user", None)
-               selected_exercise = new_exercise
+                # The catalog lookup is case-sensitive, so "pull-up" typed by
+                # hand matched nothing and the set typed with it was dropped
+                # without a word. Resolve to the catalog's own spelling, and say
+                # so when there is no such exercise.
+                catalog_name = next(
+                    (n for n in fetch_exercise_suggestions(new_exercise)
+                     if n.lower() == new_exercise.lower()),
+                    None,
+                )
+                if catalog_name is None:
+                    flash(f'"{new_exercise}" is not in the exercise list - pick one '
+                          f'of the suggestions. Nothing was saved.', "warning")
+                    return redirect(url_for("intuitive_training"))
 
-            if submitted_data.get("reps"):
-                add_set_to_db(submitted_data, selected_exercise, "c")
+                create_custom_workout_exercise(catalog_name)
+                session["new_exercise"] = catalog_name
+                session.pop("chosen_exercise_by_user", None)
+                selected_exercise = catalog_name
+
+            # add_set_to_db ignores a fully blank row itself, so weight/RPE/notes
+            # typed without reps are kept (a hold or bodyweight set has no reps).
+            add_set_to_db(submitted_data, selected_exercise, "c")
 
             return redirect(url_for("intuitive_training"))
     

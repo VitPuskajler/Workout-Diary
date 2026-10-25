@@ -1121,23 +1121,33 @@ class WorkoutManagement:
             return None
         exercise_id = exercise_row[0]
 
-        # WRITE target: latest mesocycle only.
-        current_workout_id = self._current_workout_id(user_id, chosen_day)
-        if current_workout_id is None:
-            print(
-                f"repeat_set: no workout named '{chosen_day}' in this user's "
-                f"current mesocycle"
+        # Freestyle ("c") has no plan row to resolve: its session is the shared
+        # custom one (created lazily, linked to the mesocycle), and its history
+        # is every session of this user that contains the exercise - a freestyle
+        # exercise is often one the user also did in a planned workout.
+        is_custom = chosen_day == "c"
+
+        if is_custom:
+            history_workout_ids = None
+            target_session_id = self.create_custom_session()
+        else:
+            # WRITE target: latest mesocycle only.
+            current_workout_id = self._current_workout_id(user_id, chosen_day)
+            if current_workout_id is None:
+                print(
+                    f"repeat_set: no workout named '{chosen_day}' in this user's "
+                    f"current mesocycle"
+                )
+                return None
+
+            # READ history: deliberately spans older mesocycles, so the first
+            # session of a new mesocycle still has numbers to build on.
+            history_workout_ids = self._user_workout_ids(user_id, chosen_day)
+
+            # 1. Resolve the TARGET session first - today's, created if missing.
+            target_session_id = self._todays_session_id(
+                user_id, current_workout_id, create=True
             )
-            return None
-
-        # READ history: deliberately spans older mesocycles, so the first
-        # session of a new mesocycle still has numbers to build on.
-        history_workout_ids = self._user_workout_ids(user_id, chosen_day)
-
-        # 1. Resolve the TARGET session first - today's, created if missing.
-        target_session_id = self._todays_session_id(
-            user_id, current_workout_id, create=True
-        )
         if target_session_id is None:
             return None
 
@@ -1146,9 +1156,22 @@ class WorkoutManagement:
 
         # 3. Fallback: heaviest set from the most recent earlier session.
         if source_entry is None:
-            for previous_session_id in self._previous_session_ids(
-                user_id, history_workout_ids, exclude_session_id=target_session_id
-            ):
+            if is_custom:
+                previous_session_ids = [
+                    row[0]
+                    for row in db.session.query(Sessions.session_id)
+                    .filter(
+                        Sessions.user_id == user_id,
+                        Sessions.session_id != target_session_id,
+                    )
+                    .order_by(desc(Sessions.session_date), desc(Sessions.session_id))
+                    .all()
+                ]
+            else:
+                previous_session_ids = self._previous_session_ids(
+                    user_id, history_workout_ids, exclude_session_id=target_session_id
+                )
+            for previous_session_id in previous_session_ids:
                 source_entry = self._heaviest_entry(previous_session_id, exercise_id)
                 if source_entry is not None:
                     break

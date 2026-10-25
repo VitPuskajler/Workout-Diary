@@ -275,6 +275,10 @@
         <form action="{{ url_for('intuitive_training') }}" method="POST">
           <!-- Adding Exercise -->
           <input type="hidden" name="action" value="update_exercise_data">
+          <!-- Enter / the phone keyboard's Go key presses the FIRST submit button of the
+               form, which would be the "previous exercise" arrow and throw away what
+               was typed. This invisible one comes first, so Enter means Confirm. -->
+          <button type="submit" class="d-none" tabindex="-1" aria-hidden="true"></button>
           <table class="table table-striped text-center mb-5">
             <tbody>
               <tr>
@@ -449,8 +453,12 @@
               </style>
               {% endif %}
 
-              <div class="d-flex justify-content-center mb-2" style="padding-top: 1.5em;">
-                <button type="submit" class="btn btn-success btn-lg col-8 col-lg-4 col-md-6">Confirm</button>
+              <div class="d-flex justify-content-center mb-2 gap-2" style="padding-top: 1.5em;">
+                <button type="submit" class="btn btn-success btn-lg {% if selected_exercise is not none %}col-6{% else %}col-8{% endif %} col-lg-4 col-md-6">Confirm</button>
+                {% if selected_exercise is not none %}
+                <button type="submit" name="repeat_button"
+                  class="btn btn-primary btn-lg col-3 col-lg-2 col-md-3 d-flex justify-content-center align-items-center">Repeat</button>
+                {% endif %}
               </div>
             </div>
           </form>
