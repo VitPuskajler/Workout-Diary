@@ -480,7 +480,7 @@
                     </thead>
                     <tbody>
                       {% for item in exercises_overview %}
-                      <tr>
+                      <tr class="{% if item.done %}table-success{% endif %}">
                         <td>
                           <button type="submit" name="chosen_exercise" value="{{item.exercise}}"
                             class="btn p-0 border-0 shadow-none w-100 {% if item.exercise == selected_exercise %}text-success-emphasis fw-bold{% endif %}">

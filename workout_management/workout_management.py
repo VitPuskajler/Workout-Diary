@@ -2563,7 +2563,19 @@ class WorkoutManagement:
                 if best_entry is not None:
                     break
 
-            overview.append({"exercise": exercise_name, "best": best_entry})
+            done = False
+            if today_session_id is not None:
+                done = (
+                    db.session.query(ExerciseEntries.entry_id)
+                    .filter(
+                        ExerciseEntries.session_id == today_session_id,
+                        ExerciseEntries.exercise_id == exercise_id,
+                    )
+                    .first()
+                    is not None
+                )
+
+            overview.append({"exercise": exercise_name, "best": best_entry, "done": done})
 
         return overview
 
