@@ -338,6 +338,12 @@ class WorkoutManagement:
 
             if exe_id:
 
+                # The Reps / Sec button on the add row: "1" = seconds, "0" =
+                # reps, blank = leave the exercise as it is.
+                timed_choice = submitted_data.get(f"new_timed_{day}", "")
+                if timed_choice in ("0", "1"):
+                    self.set_exercise_timed(user_exe, timed_choice == "1")
+
                 # Give me last exercise_id from workout_exercises
                 exe_in_db = (
                     db.session.query(WorkoutExercises.exercise_id)
@@ -2600,6 +2606,8 @@ class WorkoutManagement:
             # Tells statisticsChart.js to plot reps as the progress line
             # instead of weight - see is_bodyweight_exercise().
             "is_bodyweight": is_bodyweight,
+            # Holds: the line is seconds (stored in reps), labelled as such.
+            "is_timed": exercise_name in self.timed_exercise_names(),
         }
 
     # Filter data for graph to create
@@ -2741,6 +2749,38 @@ class WorkoutManagement:
         if range_start is not None:
             return query.filter(Sessions.session_date >= range_start)
         return query
+
+    def timed_exercise_names(self):
+        """Names of the exercises measured in seconds (holds) instead of reps.
+
+        The seconds are stored in the ordinary reps column - this flag only
+        changes what the pages call it. The set is tiny (a few dozen names),
+        so templates just ask "is this name in it".
+        """
+        rows = (
+            db.session.query(Exercise.exercise_name)
+            .filter(Exercise.is_timed.is_(True))
+            .all()
+        )
+        return {row[0] for row in rows}
+
+    def set_exercise_timed(self, exercise_name, timed):
+        """Switch an exercise between reps and seconds. Returns True if saved."""
+        exercise = (
+            db.session.query(Exercise).filter_by(exercise_name=exercise_name).first()
+        )
+        if exercise is None:
+            return False
+        if bool(exercise.is_timed) == bool(timed):
+            return True
+        try:
+            exercise.is_timed = bool(timed)
+            db.session.commit()
+            return True
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f"set_exercise_timed: rolling back, {e}")
+            return False
 
     def is_bodyweight_exercise(self, chosen_exercise, period=None, mesocycle_id=None):
         """True when nothing logged for this exercise, in this scope, carries
@@ -3399,10 +3439,14 @@ class WorkoutManagement:
         first_day = min(dated).date() if dated else None
 
         rows = []
+        timed_names = self.timed_exercise_names()
         for r in records:
             day = r.session_date.date() if r.session_date else None
             weight, reps = self._weight_in_kg(r.weight, r.unit), r.reps
-            usable = bool(weight and reps and weight > 0 and reps > 0)
+            # A hold's "reps" are seconds: weight x seconds is not volume and
+            # Epley is not a strength estimate, so those two stay blank.
+            is_hold = r.exercise_name in timed_names
+            usable = bool(weight and reps and weight > 0 and reps > 0) and not is_hold
 
             rows.append(
                 {
@@ -3418,7 +3462,9 @@ class WorkoutManagement:
                     "Reps": reps,
                     "RPE": r.rpe,
                     "Volume (kg)": round(weight * reps, 1) if usable else None,
-                    "Est. 1RM (kg)": self._estimated_1rm(weight, reps, r.rpe),
+                    "Est. 1RM (kg)": (
+                        None if is_hold else self._estimated_1rm(weight, reps, r.rpe)
+                    ),
                     "Notes": (r.notes or "").strip(),
                 }
             )

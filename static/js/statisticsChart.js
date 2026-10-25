@@ -43,8 +43,12 @@
   var pxPerPoint = data.dates.length > 1 ? plotWidth / data.dates.length : plotWidth;
   var showAllLabels = pxPerPoint >= MIN_PX_PER_LABEL;
 
-  var isBodyweight = !!data.is_bodyweight;
-  var yLabel = isBodyweight ? "Reps" : "Weight (kg)";
+  // A hold (is_timed) keeps its seconds in the reps field, so it is charted
+  // exactly like a bodyweight exercise - just labelled in seconds.
+  var isTimed = !!data.is_timed;
+  var isBodyweight = !!data.is_bodyweight || isTimed;
+  var repsUnit = isTimed ? "s" : "reps";
+  var yLabel = isBodyweight ? (isTimed ? "Seconds" : "Reps") : "Weight (kg)";
 
   new Chart(canvas.getContext("2d"), {
     type: "line",
@@ -88,8 +92,8 @@
             label: function (ctx) {
               var i = ctx.dataIndex;
               return isBodyweight
-                ? ctx.parsed.y + " reps"
-                : ctx.parsed.y + " kg × " + data.reps[i] + " reps";
+                ? ctx.parsed.y + " " + repsUnit
+                : ctx.parsed.y + " kg × " + data.reps[i] + " " + repsUnit;
             }
           }
         },

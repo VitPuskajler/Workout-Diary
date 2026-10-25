@@ -243,7 +243,7 @@
                 <thead class="table-striped ">
                   <tr>
                     <th class="col-1">Weight</th>
-                    <th class="col-1">Reps</th>
+                    <th class="col-1">{{ 'Seconds' if is_timed(selected_exercise) else 'Reps' }}</th>
                     <th class="col-1">RPE</th>
                     <th class="col-3">Notes</th>
                   </tr>
@@ -322,7 +322,7 @@
                         title="Click to switch the unit new sets are logged in">{% if default_unit == 'lbs'
                         %}Lbs{% elif default_unit == 'other' %}Other{% else %}Kg{% endif %}</button>
                     </th>
-                    <th class="col-1">Reps</th>
+                    <th class="col-1">{{ 'Seconds' if is_timed(selected_exercise) else 'Reps' }}</th>
                     <th class="col-1">RPE</th>
                     <th class="col-3">Notes</th>
                     <th class="col-1">Del</th>
@@ -489,7 +489,7 @@
                         </td>
                         <td style="white-space: nowrap;">
                           {% if item.best %}
-                          {{item.best.weight}} {{item.best.unit}} x {{item.best.reps}}
+                          {{item.best.weight}} {{item.best.unit}} x {{item.best.reps}}{% if is_timed(item.exercise) %} s{% endif %}
                           {% else %}
                           -
                           {% endif %}

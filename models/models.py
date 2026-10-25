@@ -51,6 +51,9 @@ class Exercise(UserMixin, db.Model):
     exercise_id = Column(Integer, primary_key=True)
     exercise_name = Column(String(100), unique=True, nullable=False)
     muscle_group = Column(String(100), unique=False, nullable=False)
+    # Holds (planks, levers, yoga poses): the "reps" column stores seconds and
+    # every page says "Seconds" instead. See add_timed_column.py.
+    is_timed = Column(Boolean, nullable=False, default=False, server_default="0")
 
     def __init__(self, exercise, muscle_group):
         self.exercise_name = exercise

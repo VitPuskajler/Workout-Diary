@@ -6,6 +6,7 @@ from flask import (
     Flask,
     abort,
     flash,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -484,6 +485,11 @@ def create_workout():
             exercise_names = fetch_exercise_suggestions(search_term)
             return jsonify(exercise_names)
 
+        # Reps / Sec button on the add row: is the exercise just picked a hold?
+        timed_for = request.args.get("timed_for")
+        if timed_for:
+            return jsonify({"timed": timed_for in db_operations.timed_exercise_names()})
+
     elif request.method == "POST":
         # Process form submission and save the workout data
         submitted_data = request.form.to_dict()
@@ -738,6 +744,18 @@ def inject_impersonation():
     if impersonator_id:
         impersonator = db.session.get(Users, impersonator_id)
     return {"impersonator": impersonator}
+
+
+@app.context_processor
+def inject_timed_exercises():
+    """is_timed("Plank") in any template: True for holds, whose sets are logged
+    in seconds instead of reps. The name set is read once per request."""
+    def is_timed(exercise_name):
+        if not hasattr(g, "timed_exercise_names"):
+            g.timed_exercise_names = db_operations.timed_exercise_names()
+        return exercise_name in g.timed_exercise_names
+
+    return {"is_timed": is_timed}
 
 
 @app.route("/admin/impersonate", methods=["POST"])

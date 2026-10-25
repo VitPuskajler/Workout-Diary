@@ -344,7 +344,7 @@
               <thead class="thead-dark">
                 <tr>
                   <th>Date</th>
-                  <th>Reps</th>
+                  <th>{{ 'Seconds' if is_timed(key) else 'Reps' }}</th>
                   <th>Weight</th>
                   <th>RPE</th>
                   <th>Notes</th> <!-- Corrected this heading as well to align with data.notes -->
@@ -364,7 +364,7 @@
                 {% else %}
                 <tr>
                   <td class="col-2">Never exercised</td>
-                  <td class="col-2">No reps</td>
+                  <td class="col-2">No {{ 'seconds' if is_timed(key) else 'reps' }}</td>
                   <td class="col-2">No weight</td>
                   <td class="col-2">No RPE</td>
                   <td class="col-4">nothing written</td>                  

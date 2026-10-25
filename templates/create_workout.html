@@ -360,7 +360,16 @@
                   <input type="number" name="new_pauses_{{ x }}" class="form-control text-center bg-info-subtle" placeholder="120"
                     maxlength="3" />
                 </td>
-                <td class="wd-row-extra"></td>
+                <td class="wd-row-extra">
+                  <!-- Reps <-> Sec for the exercise being added (a hold is timed). Blank
+                       means "leave the exercise as it is"; a tap makes it explicit. It
+                       lives here and not on the training pages so a sweaty thumb mid-set
+                       cannot flip it. -->
+                  <input type="hidden" name="new_timed_{{ x }}" id="new_timed_{{ x }}" value="" />
+                  <button type="button" id="timed_toggle_{{ x }}" data-mode="reps"
+                    class="btn btn-outline-secondary btn-sm px-1 wd-timed-toggle"
+                    title="Count this exercise in reps or in seconds">Reps</button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -412,6 +421,41 @@
   </script>
 
   <script>
+    // Reps / Sec button on the "add exercise" row.
+    function setTimedToggle(day, timed) {
+      const button = document.getElementById(`timed_toggle_${day}`);
+      if (!button) return;
+      button.dataset.mode = timed ? "sec" : "reps";
+      button.textContent = timed ? "Sec" : "Reps";
+      button.classList.toggle("btn-secondary", timed);
+      button.classList.toggle("btn-outline-secondary", !timed);
+    }
+
+    // A freshly picked exercise shows how it is counted now; the hidden value
+    // stays blank until the button is tapped, so merely picking changes nothing.
+    function syncTimedToggle(day, exerciseName) {
+      const hidden = document.getElementById(`new_timed_${day}`);
+      if (hidden) hidden.value = "";
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", "/create_workout?timed_for=" + encodeURIComponent(exerciseName), true);
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState !== 4 || xhr.status !== 200) return;
+        setTimedToggle(day, JSON.parse(xhr.responseText).timed);
+      };
+      xhr.send();
+    }
+
+    document.querySelectorAll(".wd-timed-toggle").forEach(function (button) {
+      const day = button.id.replace("timed_toggle_", "");
+      button.addEventListener("click", function () {
+        const timed = button.dataset.mode !== "sec";
+        setTimedToggle(day, timed);
+        document.getElementById(`new_timed_${day}`).value = timed ? "1" : "0";
+      });
+    });
+  </script>
+
+  <script>
     // Wire one exercise text input to its own suggestions dropdown.
     function wireExerciseAutocomplete(suffix) {
       const input = document.getElementById(`exercise_${suffix}`);
@@ -452,6 +496,7 @@
             li.textContent = exercise;
             li.onclick = function () {
               input.value = exercise;
+              if (suffix.indexOf("new_") === 0) syncTimedToggle(suffix.slice(4), exercise);
               // Picking from the dropdown IS the change, so it becomes the new
               // baseline - collapsing afterwards must not undo it.
               input.dataset.wdOriginal = exercise;
