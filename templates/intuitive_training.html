@@ -243,7 +243,7 @@
                 <thead class="table-striped ">
                   <tr>
                     <th class="col-1">Weight</th>
-                    <th class="col-1">{{ 'Seconds' if is_timed(selected_exercise) else 'Reps' }}</th>
+                    <th class="col-1">{{ 'Sec' if is_timed(selected_exercise) else 'Reps' }}</th>
                     <th class="col-1">RPE</th>
                     <th class="col-3">Notes</th>
                   </tr>
@@ -322,7 +322,7 @@
                         title="Click to switch the unit new sets are logged in">{% if default_unit == 'lbs'
                         %}Lbs{% elif default_unit == 'other' %}Other{% else %}Kg{% endif %}</button>
                     </th>
-                    <th class="col-1">{{ 'Seconds' if is_timed(selected_exercise) else 'Reps' }}</th>
+                    <th class="col-1">{{ 'Sec' if is_timed(selected_exercise) else 'Reps' }}</th>
                     <th class="col-1">RPE</th>
                     <th class="col-3">Notes</th>
                     <th class="col-1">Del</th>
@@ -512,11 +512,9 @@
           {% endif %}
           {% endif %}
 
-          <div class="p-2 m-3">
-            <div class="fixed-bottom text-center">
-              © {{ year }} | Created by Vít Puskajler
-            </div>
-          </div>
+          {% with sw_exercise=selected_exercise, sw_colored=false %}
+          {% include "partials/_stopwatch.html" %}
+          {% endwith %}
           <!-- -------------------------------------------------------------------------- -->
           <!-- Show exercises in DB with suggestion  -->
           <script>

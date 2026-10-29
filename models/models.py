@@ -1,3 +1,4 @@
+from datetime import datetime
 from db_setup import db
 from flask_login import UserMixin
 from sqlalchemy import (
@@ -129,6 +130,12 @@ class ExerciseEntries(UserMixin, db.Model):
     # server_default matters: the column was added to a table that already
     # had rows, so existing entries need a value at the SQL level.
     unit = Column(String(10), nullable=False, default="kg", server_default="kg")
+    # Stopwatch: when the set was logged, and (optionally) when the "Set" button
+    # was tapped. Naive UTC, so the browser can turn them into epoch time without
+    # knowing the server's timezone. NULL on sets logged before the stopwatch.
+    # See add_stopwatch_columns.py.
+    logged_at = Column(DateTime, nullable=True, default=datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)
 
     def __init__(self, session_id, exercise_id, set_number, reps, weight, rpe, notes, unit="kg"):
         self.session_id = session_id

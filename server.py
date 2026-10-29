@@ -758,6 +758,12 @@ def inject_timed_exercises():
     return {"is_timed": is_timed}
 
 
+@app.context_processor
+def inject_stopwatch():
+    """stopwatch_state(exercise, colored) for partials/_stopwatch.html."""
+    return {"stopwatch_state": db_operations.stopwatch_state}
+
+
 @app.route("/admin/impersonate", methods=["POST"])
 @login_required
 @admin_required

@@ -28,8 +28,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 from flask import request
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from workout_management.units import lbs_to_kg
+
+# No set for this long and the stopwatch switches itself off.
+STOPWATCH_IDLE = timedelta(minutes=30)
 
 # Entries may carry "kg", "lbs" or "other" (a machine's own scale, e.g. 1-10
 # plate-stack notches, not a real weight - never converted).
@@ -992,6 +995,91 @@ class WorkoutManagement:
         )
         return (done or 0) + 1
 
+    @staticmethod
+    def _form_epoch_ms(field):
+        """A millisecond epoch from a hidden stopwatch field as a naive UTC
+        datetime, or None when missing, garbled or not in the last 12 hours."""
+        try:
+            moment = datetime.utcfromtimestamp(int(request.form.get(field)) / 1000)
+        except (TypeError, ValueError, OverflowError, OSError):
+            return None
+        age = datetime.utcnow() - moment
+        return moment if timedelta(0) <= age <= timedelta(hours=12) else None
+
+    def _stamp_stopwatch(self, entry, session_id):
+        """Copy the stopwatch's hidden fields onto a set that is about to be
+        added: `set_started` becomes entry.started_at, and `sw_start` (the
+        manual start) overwrites the session date when this is the session's
+        first set. Call it BEFORE db.session.add(entry), so the count below
+        does not see the new set."""
+        entry.started_at = self._form_epoch_ms("set_started")
+
+        manual_start = self._form_epoch_ms("sw_start")
+        if manual_start is None:
+            return
+
+        has_sets = (
+            db.session.query(ExerciseEntries.entry_id)
+            .filter(ExerciseEntries.session_id == session_id)
+            .first()
+        )
+        if has_sets:
+            return
+
+        # session_date is local time (the "today" filters use date.today()), so
+        # convert, and never let the overwrite push a session onto another day.
+        local_start = manual_start.replace(tzinfo=timezone.utc).astimezone().replace(tzinfo=None)
+        if local_start.date() != date.today():
+            return
+        session_row = db.session.get(Sessions, session_id)
+        if session_row is not None:
+            session_row.session_date = local_start
+
+    def stopwatch_state(self, exercise_name, colored=True):
+        """What the stopwatch bar needs from the database, as JSON-ready data.
+
+        last:  epoch ms of the user's latest logged set, but only if it is
+               under 30 minutes old - older than that the stopwatch is off and
+               the next set starts it afresh.
+        limit: the prescribed rest in seconds when the lap should be coloured,
+               else None. Only a lap between two sets of the SAME planned
+               exercise is coloured; a switch to another machine, a freestyle
+               day (colored=False) or an unplanned exercise stays neutral.
+        """
+        state = {"last": None, "limit": None}
+
+        newest = (
+            db.session.query(
+                ExerciseEntries.logged_at,
+                ExerciseEntries.exercise_id,
+                Sessions.workout_id,
+            )
+            .join(Sessions, ExerciseEntries.session_id == Sessions.session_id)
+            .filter(
+                Sessions.user_id == self.current_user_id_db(),
+                ExerciseEntries.logged_at >= datetime.utcnow() - STOPWATCH_IDLE,
+            )
+            .order_by(desc(ExerciseEntries.logged_at), desc(ExerciseEntries.entry_id))
+            .first()
+        )
+        if newest is None:
+            return state
+
+        state["last"] = int(newest.logged_at.replace(tzinfo=timezone.utc).timestamp() * 1000)
+
+        if colored and exercise_name:
+            chosen = self.find_exercise_id_db(exercise_name)
+            if chosen and chosen[0] == newest.exercise_id:
+                state["limit"] = (
+                    db.session.query(WorkoutExercises.rest_period)
+                    .filter(
+                        WorkoutExercises.workout_id == newest.workout_id,
+                        WorkoutExercises.exercise_id == newest.exercise_id,
+                    )
+                    .scalar()
+                )
+        return state
+
     def add_set_to_db(self, submitted_data, exercise, chosen_day) -> dict:
         """Append a manually entered set to today's session for `chosen_day`."""
         if exercise is None:
@@ -1071,6 +1159,7 @@ class WorkoutManagement:
                 notes=submitted_data.get("notes", ""),
                 unit=unit,
             )
+            self._stamp_stopwatch(exercise_entry_add, session_id)
             db.session.add(exercise_entry_add)
             db.session.commit()
             return exercise_entry_add
@@ -1198,6 +1287,7 @@ class WorkoutManagement:
                 notes="",
                 unit=source_entry.unit,
             )
+            self._stamp_stopwatch(new_entry, target_session_id)
             db.session.add(new_entry)
             db.session.commit()
             return new_entry

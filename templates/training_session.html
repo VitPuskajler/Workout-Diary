@@ -177,7 +177,7 @@
 
           <thead>
             <th>Kg</th>
-            <th>{{ 'Seconds' if is_timed(chosen_exercise) else 'Reps' }}</th>
+            <th>{{ 'Sec' if is_timed(chosen_exercise) else 'Reps' }}</th>
             <th>RPE</th>
             <th>Notes</th>
 
@@ -249,7 +249,7 @@
                       title="Click to switch the unit new sets are logged in">{% if default_unit == 'lbs'
                       %}Lbs{% elif default_unit == 'other' %}Other{% else %}Kg{% endif %}</button>
                   </th>
-                  <th>{{ 'Seconds' if is_timed(chosen_exercise) else 'Reps' }}</th>
+                  <th>{{ 'Sec' if is_timed(chosen_exercise) else 'Reps' }}</th>
                   <th>RPE</th>
                   <th>Notes</th>
                   <th>Del</th>
@@ -503,11 +503,9 @@
     </div>
   </form>
 
-  <div class="p-2 m-3">
-    <div class="fixed-bottom text-center">
-      © {{ year }} | Created by Vít Puskajler
-    </div>
-  </div>
+  {% with sw_exercise=chosen_exercise, sw_colored=true %}
+  {% include "partials/_stopwatch.html" %}
+  {% endwith %}
   <!-- -------------------------------------------------------------------------- -->
   <script>
     // Additional script to reset the color on focus if needed
