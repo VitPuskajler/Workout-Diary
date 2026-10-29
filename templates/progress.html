@@ -184,9 +184,82 @@
       </div>
 
       <!-- Source of truth for the clipboard. Kept out of view but still in the DOM
-           so the execCommand fallback has a real element to select. -->
+           so the execCommand copy has a real element to select. position:fixed, so
+           focusing it can never scroll the page; 16px, so iOS does not zoom in. -->
       <textarea id="progressCopySource" readonly aria-hidden="true" tabindex="-1"
-        style="position:absolute; left:-9999px; top:0; opacity:0;">{{ copy_text }}</textarea>
+        style="position:fixed; left:0; top:0; width:2em; height:2em; opacity:0; pointer-events:none; font-size:16px;">{{ copy_text }}</textarea>
+
+      <!-- Right here, not at the bottom of the page: the page's last scripts sit behind
+           the Bootstrap CDN download, and on a slow phone connection the button was
+           tappable for seconds before this handler existed - tap, nothing happens. -->
+      <script>
+        (function () {
+          var btn = document.getElementById("copyProgressBtn");
+          var source = document.getElementById("progressCopySource");
+          var label = document.getElementById("copyProgressLabel");
+          var resetTimer = null;
+
+          function flash(text, cssClass) {
+            label.textContent = text;
+            btn.classList.remove("btn-success", "btn-danger", "btn-secondary");
+            btn.classList.add(cssClass);
+            clearTimeout(resetTimer);
+            resetTimer = setTimeout(function () {
+              label.textContent = "Copy all";
+              btn.classList.remove("btn-danger", "btn-secondary");
+              btn.classList.add("btn-success");
+            }, 1800);
+          }
+
+          // Runs synchronously inside the tap. Mobile browsers (iOS Safari above
+          // all) only allow execCommand("copy") during the gesture itself, so it
+          // must not wait for a rejected promise first.
+          function legacyCopy() {
+            var ok = false;
+            try {
+              source.focus({ preventScroll: true });
+              source.select();
+              source.setSelectionRange(0, source.value.length);
+              ok = document.execCommand("copy");
+            } catch (e) {
+              ok = false;
+            }
+            source.blur();
+            return ok;
+          }
+
+          function modernCopy() {
+            if (navigator.clipboard && window.isSecureContext) {
+              return navigator.clipboard.writeText(source.value);
+            }
+            return Promise.reject(new Error("no clipboard API"));
+          }
+
+          // Nothing worked: show the text, already selected, so a long-press ->
+          // Copy always has something to grab instead of a dead end.
+          function showManual() {
+            source.style.cssText = "position:static; width:100%; height:40vh; opacity:1; " +
+              "pointer-events:auto; font-size:16px; margin-top:8px;";
+            source.removeAttribute("aria-hidden");
+            source.removeAttribute("tabindex");
+            source.focus();
+            source.select();
+            source.setSelectionRange(0, source.value.length);
+            flash("Long-press, Copy", "btn-danger");
+          }
+
+          btn.addEventListener("click", function () {
+            if (legacyCopy()) {
+              flash("Copied!", "btn-secondary");
+              return;
+            }
+            modernCopy().then(
+              function () { flash("Copied!", "btn-secondary"); },
+              showManual
+            );
+          });
+        })();
+      </script>
       {% endif %}
 
       <style>
@@ -463,68 +536,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
       integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
       crossorigin="anonymous"></script>
-
-    <script>
-      (function () {
-        var btn = document.getElementById("copyProgressBtn");
-        var source = document.getElementById("progressCopySource");
-        if (!btn || !source) return;
-
-        var label = document.getElementById("copyProgressLabel");
-        var resetTimer = null;
-
-        function flash(text, cssClass) {
-          label.textContent = text;
-          btn.classList.remove("btn-success", "btn-danger", "btn-secondary");
-          btn.classList.add(cssClass);
-          clearTimeout(resetTimer);
-          resetTimer = setTimeout(function () {
-            label.textContent = "Copy all";
-            btn.classList.remove("btn-danger", "btn-secondary");
-            btn.classList.add("btn-success");
-          }, 1800);
-        }
-
-        // Older mobile browsers, and any non-HTTPS origin, have no
-        // navigator.clipboard - fall back to select + execCommand there.
-        function legacyCopy() {
-          source.style.left = "0";
-          source.style.opacity = "0";
-          source.focus();
-          source.select();
-          source.setSelectionRange(0, source.value.length);
-          var ok = false;
-          try {
-            ok = document.execCommand("copy");
-          } catch (e) {
-            ok = false;
-          }
-          source.blur();
-          source.style.left = "-9999px";
-          return ok;
-        }
-
-        function runFallback() {
-          // Call once - execCommand has a side effect, so it must not be
-          // evaluated twice inside a ternary.
-          var ok = legacyCopy();
-          flash(ok ? "Copied!" : "Copy failed", ok ? "btn-secondary" : "btn-danger");
-        }
-
-        btn.addEventListener("click", function () {
-          if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(source.value).then(
-              function () {
-                flash("Copied!", "btn-secondary");
-              },
-              runFallback
-            );
-          } else {
-            runFallback();
-          }
-        });
-      })();
-    </script>
 
   <script src="{{ url_for('static', filename='js/rowExpand.js') }}"></script>
   <script src="{{ url_for('static', filename='js/progressEdit.js') }}"></script>
