@@ -185,6 +185,9 @@
                         {% if pending_users %}<span class="badge bg-dark">{{ pending_users|length }}</span>{% endif %}
                     </button>
 
+                    <a href="{{ url_for('manage_exercises') }}" class="btn btn-primary btn-block"
+                        title="Add, edit or delete exercises in the catalog">Manage Exercises</a>
+
                     <!-- admins only: the route behind this modal 404s for everyone else -->
                     <button type="button" class="btn btn-warning btn-block" data-bs-toggle="modal"
                         data-bs-target="#impersonateModal" title="Temporarily log in as another user">Sign in as user</button>

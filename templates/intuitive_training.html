@@ -493,8 +493,10 @@
                       <tr class="{% if item.done %}table-success{% endif %}" data-wd-swipe>
                         <td>
                           <button type="submit" name="chosen_exercise" value="{{item.exercise}}"
-                            class="btn p-0 border-0 shadow-none w-100 {% if item.exercise == selected_exercise %}text-success-emphasis fw-bold{% endif %}">
-                            {{item.exercise}}
+                            class="btn p-0 border-0 shadow-none w-100 d-flex align-items-center gap-2 text-start {% if item.exercise == selected_exercise %}text-success-emphasis fw-bold{% endif %}">
+                            {% set icon = exercise_icon(item.exercise) %}
+                            {% if icon %}<img src="{{ icon }}" width="34" height="34" alt="" aria-hidden="true" style="flex: 0 0 34px;">{% endif %}
+                            <span>{{item.exercise}}</span>
                           </button>
                         </td>
                         <td style="white-space: nowrap;">

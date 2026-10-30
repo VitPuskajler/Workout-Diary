@@ -76,6 +76,21 @@
       --bs-table-bg-state: var(--bs-warning-bg-subtle);
     }
 
+    /* Stick-figure drawings (static/icons/exercises) - for the exercises you
+       would not know by name alone. */
+    .wd-exercise-icon {
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+    }
+
+    .dropdown-item .wd-exercise-icon {
+      width: 28px;
+      height: 28px;
+      flex-basis: 28px;
+      margin-right: .35rem;
+    }
+
     #exercise_suggestions {
       max-height: 250px;
       /* Adjust this value to control how many items are visible */
@@ -312,8 +327,12 @@
               {% for exe in user_exe[x] %}
               <tr data-we-id="{{ exe['id'] }}" data-wd-swipe>
                 <td class="wd-exercise-cell">
-                  <input type="text" id="exercise_{{ exe['id'] }}" name="exercise_{{ exe['id'] }}"
-                    class="form-control text-center" value="{{ exe['exercise'] }}" autocomplete="off" />
+                  <div class="d-flex align-items-center gap-1">
+                    {% set icon = exercise_icon(exe['exercise']) %}
+                    {% if icon %}<img src="{{ icon }}" class="wd-exercise-icon" alt="" aria-hidden="true">{% endif %}
+                    <input type="text" id="exercise_{{ exe['id'] }}" name="exercise_{{ exe['id'] }}"
+                      class="form-control text-center" value="{{ exe['exercise'] }}" autocomplete="off" />
+                  </div>
                   <!-- Suggestions dropdown -->
                   <div class="dropdown">
                     <ul id="exercise_suggestions_{{ exe['id'] }}" class="dropdown-menu show"
@@ -459,6 +478,19 @@
   </script>
 
   <script>
+    // The drawings there are, as file names, and the exercises given one by
+    // hand. Same rule as exercise_icon() in server.py: the hand-picked one,
+    // else the drawing named after the exercise.
+    const EXERCISE_ICONS = new Set({{ exercise_icon_slugs|tojson }});
+    const EXERCISE_ICON_CHOICES = {{ exercise_icon_choices()|tojson }};
+    const EXERCISE_ICON_BASE = "{{ url_for('static', filename='icons/exercises/') }}";
+
+    function exerciseIconUrl(name) {
+      const slug = EXERCISE_ICON_CHOICES[name]
+        || (name.toLowerCase().match(/[a-z0-9]+/g) || []).join("-");
+      return EXERCISE_ICONS.has(slug) ? EXERCISE_ICON_BASE + slug + ".svg" : null;
+    }
+
     // Wire one exercise text input to its own suggestions dropdown.
     function wireExerciseAutocomplete(suffix) {
       const input = document.getElementById(`exercise_${suffix}`);
@@ -495,8 +527,16 @@
           suggestions.style.display = "block";
           response.forEach(function (exercise) {
             const li = document.createElement("li");
-            li.classList.add("dropdown-item");
-            li.textContent = exercise;
+            li.classList.add("dropdown-item", "d-flex", "align-items-center");
+            const icon = exerciseIconUrl(exercise);
+            if (icon) {
+              const img = document.createElement("img");
+              img.src = icon;
+              img.alt = "";
+              img.className = "wd-exercise-icon";
+              li.appendChild(img);
+            }
+            li.appendChild(document.createTextNode(exercise));
             li.onclick = function () {
               input.value = exercise;
               if (suffix.indexOf("new_") === 0) syncTimedToggle(suffix.slice(4), exercise);

@@ -1,4 +1,6 @@
+import json
 import os
+import re
 import secrets
 from datetime import datetime, timedelta
 from functools import wraps
@@ -34,7 +36,7 @@ from wtforms import FloatField, IntegerField, PasswordField, StringField, Submit
 from wtforms.validators import DataRequired, EqualTo, NumberRange, ValidationError
 
 from db_setup import db
-from models.models import Users, WorkoutPlan, Mesocycles, load_user
+from models.models import Exercise, Users, WorkoutPlan, Mesocycles, load_user
 from workout_management.workout_management import  WorkoutManagement
 
 app = Flask(__name__, instance_relative_config=True)
@@ -759,6 +761,72 @@ def inject_timed_exercises():
     return {"is_timed": is_timed}
 
 
+EXERCISE_ICON_DIR = os.path.join(basedir, "static", "icons", "exercises")
+
+
+def _load_exercise_icons():
+    """{file name: label} of the icon library, in picker order (hand-drawn
+    first). icons.json comes from make_exercise_icons.py; an icon file without
+    an entry there still counts, labelled by its file name."""
+    files = sorted(
+        name[:-4] for name in (os.listdir(EXERCISE_ICON_DIR) if os.path.isdir(EXERCISE_ICON_DIR) else [])
+        if name.endswith(".svg")
+    )
+    try:
+        with open(os.path.join(EXERCISE_ICON_DIR, "icons.json"), encoding="utf-8") as handle:
+            labels = json.load(handle)
+    except (OSError, ValueError):
+        labels = {}
+    ordered = {name: labels[name] for name in labels if name in files}
+    for name in files:
+        ordered.setdefault(name, name.replace("-", " ").title())
+    return ordered
+
+
+# Read once: the icons only change with a deploy, which restarts the app.
+EXERCISE_ICON_LABELS = _load_exercise_icons()
+EXERCISE_ICONS = list(EXERCISE_ICON_LABELS)
+_EXERCISE_ICON_SET = set(EXERCISE_ICONS)
+
+
+def exercise_icon_slug(exercise_name):
+    """"Dumbbell Bench Press" -> "dumbbell-bench-press", the icon's file name.
+    exerciseIconUrl() in create_workout.html does the same in the browser -
+    keep them in step."""
+    return "-".join(re.findall(r"[a-z0-9]+", (exercise_name or "").lower()))
+
+
+def exercise_icon_choices():
+    """{exercise name: icon} for the exercises given a drawing by hand
+    (exercises.icon) - a few dozen rows, read once per request."""
+    if not hasattr(g, "exercise_icon_choices"):
+        g.exercise_icon_choices = {
+            name: icon
+            for name, icon in db.session.query(Exercise.exercise_name, Exercise.icon)
+            .filter(Exercise.icon.isnot(None))
+            if icon in _EXERCISE_ICON_SET
+        }
+    return g.exercise_icon_choices
+
+
+@app.context_processor
+def inject_exercise_icons():
+    """exercise_icon("Pull-Up") -> the icon's URL, or None for an exercise that
+    has no drawing yet: the one picked on /admin/exercises, else the drawing
+    named after the exercise. The other two are the same data for page scripts."""
+    def exercise_icon(exercise_name):
+        slug = exercise_icon_choices().get(exercise_name) or exercise_icon_slug(exercise_name)
+        if slug not in _EXERCISE_ICON_SET:
+            return None
+        return url_for("static", filename=f"icons/exercises/{slug}.svg")
+
+    return {
+        "exercise_icon": exercise_icon,
+        "exercise_icon_slugs": EXERCISE_ICONS,
+        "exercise_icon_choices": exercise_icon_choices,
+    }
+
+
 @app.context_processor
 def inject_stopwatch():
     """stopwatch_state(exercise, colored) for partials/_stopwatch.html."""
@@ -868,6 +936,116 @@ def decline_user():
 
     flash(f"Declined and removed {username}.", "success")
     return redirect(url_for("profile"))
+
+
+def catalog_muscle_groups():
+    """The muscle groups already in the exercise catalog - the only ones a new
+    exercise may go under, so the searches and statistics keep grouping."""
+    rows = db.session.query(Exercise.muscle_group).distinct().order_by(Exercise.muscle_group)
+    return [row[0] for row in rows]
+
+
+def _catalog_name_taken(name, except_id=None):
+    """The catalog's spelling of `name` if another exercise already has it.
+    exercise_name is UNIQUE, but only case-sensitively - "pull-up" next to
+    "Pull-Up" would be two entries in every search. Deleted ones count too:
+    they still hold the name, and Edit can bring them back."""
+    query = db.session.query(Exercise.exercise_name).filter(
+        func.lower(Exercise.exercise_name) == name.lower()
+    )
+    if except_id is not None:
+        query = query.filter(Exercise.exercise_id != except_id)
+    row = query.first()
+    return row[0] if row else None
+
+
+@app.route("/admin/exercises", methods=["GET", "POST"])
+@login_required
+@admin_required
+def manage_exercises():
+    """The exercise catalog everyone's search reads: add, delete (a flag - the
+    row stays, so logged sets keep their name), and edit / restore.
+
+    The page checks duplicates and asks for confirmation in the browser; the
+    checks below repeat what matters, since a form can be sent without it."""
+    if request.method == "POST":
+        action = request.form.get("action")
+        name = " ".join((request.form.get("exercise_name") or "").split())[:100]
+        muscle_group = request.form.get("muscle_group")
+        icon = request.form.get("icon") or None
+        if icon is not None and icon not in _EXERCISE_ICON_SET:
+            icon = None
+
+        exercise = None
+        if action in ("delete", "edit"):
+            try:
+                exercise = db.session.get(Exercise, int(request.form.get("exercise_id", "")))
+            except (TypeError, ValueError):
+                exercise = None
+            if exercise is None:
+                flash("That exercise was not found.", "warning")
+                return redirect(url_for("manage_exercises"))
+
+        if action == "delete":
+            exercise.is_deleted = True
+            db.session.commit()
+            flash(f'Deleted "{exercise.exercise_name}". Sets logged with it are kept; '
+                  f'Edit can bring it back.', "success")
+            return redirect(url_for("manage_exercises"))
+
+        if action not in ("add", "edit"):
+            abort(400)
+        if not name:
+            flash("The exercise needs a name.", "warning")
+            return redirect(url_for("manage_exercises"))
+        if muscle_group not in catalog_muscle_groups():
+            flash("Pick one of the listed muscle groups.", "warning")
+            return redirect(url_for("manage_exercises"))
+        taken = _catalog_name_taken(name, exercise.exercise_id if exercise else None)
+        if taken:
+            flash(f'"{taken}" is already in the catalog - nothing was saved.', "warning")
+            return redirect(url_for("manage_exercises"))
+
+        if action == "add":
+            exercise = Exercise(name, muscle_group)
+            db.session.add(exercise)
+            message = f'Added "{name}".'
+        else:
+            was_deleted = exercise.is_deleted
+            exercise.is_deleted = request.form.get("is_deleted") == "1"
+            message = f'Saved "{name}".'
+            if exercise.exercise_name != name:
+                message = f'Renamed "{exercise.exercise_name}" to "{name}".'
+            if was_deleted and not exercise.is_deleted:
+                message += " It is back in the exercise search."
+            exercise.exercise_name = name
+
+        exercise.muscle_group = muscle_group
+        exercise.icon = icon
+        exercise.is_timed = request.form.get("is_timed") == "1"
+        db.session.commit()
+        flash(message, "success")
+        return redirect(url_for("manage_exercises"))
+
+    exercises = [
+        {
+            "id": row.exercise_id,
+            "name": row.exercise_name,
+            "group": row.muscle_group,
+            "timed": bool(row.is_timed),
+            "icon": row.icon if row.icon in _EXERCISE_ICON_SET else None,
+            "deleted": bool(row.is_deleted),
+        }
+        for row in db.session.query(Exercise).order_by(Exercise.exercise_name)
+    ]
+    return render_template(
+        "manage_exercises.html",
+        year=datetime.now().strftime("%Y"),
+        exercises=exercises,
+        muscle_groups=catalog_muscle_groups(),
+        # Pairs, not a dict: tojson sorts keys, and the order is the picker's.
+        icons=list(EXERCISE_ICON_LABELS.items()),
+    )
 
 
 MIN_PASSWORD_LENGTH = 8

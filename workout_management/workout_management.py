@@ -336,7 +336,9 @@ class WorkoutManagement:
 
             # Find exercise_id for exercise user have inputed
             exe_id = (
-                db.session.query(Exercise).filter_by(exercise_name=user_exe).first()
+                db.session.query(Exercise)
+                .filter_by(exercise_name=user_exe, is_deleted=False)
+                .first()
             )
 
             if exe_id:
@@ -2268,7 +2270,8 @@ class WorkoutManagement:
     # AJAX for exercises preview when creating workout
     def fetch_exercise_suggestions(self, search_term):
         exercises = Exercise.query.filter(
-            Exercise.exercise_name.ilike(f"%{search_term}%")
+            Exercise.exercise_name.ilike(f"%{search_term}%"),
+            Exercise.is_deleted.is_(False),
         ).all()
         return [exercise.exercise_name for exercise in exercises]
 
@@ -2303,7 +2306,9 @@ class WorkoutManagement:
         tomorrow = today + timedelta(days=1)
         # Find exercise_id for exercise user have inputed
         exe_id = (
-            db.session.query(Exercise).filter_by(exercise_name=exercise_name).first()
+            db.session.query(Exercise)
+            .filter_by(exercise_name=exercise_name, is_deleted=False)
+            .first()
         )
         if exe_id is None:
             # Not an exact match against the catalog (e.g. leftover/typo'd

@@ -55,6 +55,13 @@ class Exercise(UserMixin, db.Model):
     # Holds (planks, levers, yoga poses): the "reps" column stores seconds and
     # every page says "Seconds" instead. See add_timed_column.py.
     is_timed = Column(Boolean, nullable=False, default=False, server_default="0")
+    # File name (no .svg) of a drawing in static/icons/exercises. NULL means
+    # "the drawing named after the exercise, if there is one".
+    icon = Column(String(100), nullable=True)
+    # Deleted from /admin/exercises: hidden from every exercise picker, but the
+    # row stays so the sets logged with it keep their name.
+    # See add_exercise_icon_columns.py.
+    is_deleted = Column(Boolean, nullable=False, default=False, server_default="0")
 
     def __init__(self, exercise, muscle_group):
         self.exercise_name = exercise
