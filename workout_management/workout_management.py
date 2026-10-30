@@ -2301,13 +2301,15 @@ class WorkoutManagement:
         text = " ".join(text.split())
         return text
 
-    def progress_as_markdown(self, progress, chosen_day, chosen_mesocycle):
+    def progress_as_markdown(self, progress, chosen_day, chosen_mesocycle, session_summary=None):
         """Render the progress page's tables as markdown, ready to paste anywhere.
 
         Pure formatter: it takes the exact dict that `exercise_progress_data`
         already handed to the template, so what you copy always matches what
-        you see. Returns "" when there is nothing to copy, which the template
-        uses to hide the button.
+        you see. `session_summary` (from progress_session_summary) becomes a
+        short "Workout durations" list above the exercise tables. Returns ""
+        when there is nothing to copy, which the template uses to hide the
+        button.
         """
         if not progress:
             return ""
@@ -2323,6 +2325,18 @@ class WorkoutManagement:
         lines = []
         if title_bits:
             lines.append(f"# {' - '.join(str(b) for b in title_bits)}")
+            lines.append("")
+
+        # One line per workout, newest first - a list rather than a table so
+        # it stays a quick read ahead of the exercise tables.
+        if session_summary:
+            lines.append("## Workout Durations")
+            for item in session_summary:
+                sets = item["sets"]
+                lines.append(
+                    f"- {item['date']} - {item['duration'] or 'no time'}, "
+                    f"{sets} {'set' if sets == 1 else 'sets'}"
+                )
             lines.append("")
 
         # Same columns as the table on screen.

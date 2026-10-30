@@ -1280,9 +1280,10 @@ def progress():
             (d["label"] for d in custom_dates if d["session_id"] == chosen_custom_session_id),
             None,
         )
-        copy_text = progress_as_markdown(exercise_progress, chosen_custom_date_label, chosen_mesocycle)
+        copy_text = progress_as_markdown(exercise_progress, chosen_custom_date_label, chosen_mesocycle,
+                                         session_summary)
     else:
-        copy_text = progress_as_markdown(exercise_progress, chosen_day, chosen_mesocycle)
+        copy_text = progress_as_markdown(exercise_progress, chosen_day, chosen_mesocycle, session_summary)
 
     return render_template(
     "progress.html",

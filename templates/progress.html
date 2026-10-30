@@ -397,21 +397,49 @@
       </style>
 
       {# The workouts themselves: when, how long, how many sets. Duration needs
-         the stopwatch's set times, so older sessions show a dash. Newest first,
-         collapsed to three like the exercise tables below. #}
+         the stopwatch's set times, so older sessions show a dash. Newest first.
+         A small closed-by-default note rather than a full table, so it does not
+         compete with the exercise tables below - tap the header to open it. #}
       {% if session_summary %}
-      <div class="row mb-2">
-        <div class="col-12 text-center">
-          <h5 class="text-success mb-1">{{ 'Workout' if session_summary|length == 1 else 'Workouts' }}</h5>
-          {% if session_summary|length > 3 %}
-          <span class="wd-history-toggle wd-history-has-more" role="button" tabindex="0" aria-expanded="false"
-            data-target="wd-sessions-table">Show all ▾</span>
-          {% endif %}
-        </div>
-      </div>
-      <div class="row mb-4">
-        <div class="col-12">
-          <table id="wd-sessions-table" class="table table-striped text-center">
+      <style>
+        .wd-durations {
+          max-width: 22rem;
+          margin: 0 auto 1.5rem;
+          font-size: .8rem;
+        }
+        .wd-durations > summary {
+          list-style: none;
+          cursor: pointer;
+          text-align: center;
+          padding: .2rem .75rem;
+          border: 1px solid #dee2e6;
+          border-radius: 1rem;
+          width: fit-content;
+          margin: 0 auto;
+          user-select: none;
+        }
+        .wd-durations > summary::-webkit-details-marker {
+          display: none;
+        }
+        .wd-durations > summary::after {
+          content: " ▾";
+        }
+        .wd-durations[open] > summary::after {
+          content: " ▴";
+        }
+        .wd-durations-body {
+          max-height: 14rem;
+          overflow-y: auto;
+          margin-top: .4rem;
+        }
+        .wd-durations table {
+          margin-bottom: 0;
+        }
+      </style>
+      <details class="wd-durations">
+        <summary class="h5 text-success mb-0">Workout Durations</summary>
+        <div class="wd-durations-body">
+          <table class="table table-sm table-striped text-center">
             <thead>
               <tr>
                 <th>Date</th>
@@ -421,7 +449,7 @@
             </thead>
             <tbody>
               {% for item in session_summary %}
-              <tr class="{{ 'wd-hist-older' if loop.index > 3 else '' }}">
+              <tr>
                 <td>{{ item.date }}</td>
                 <td>{{ item.duration or '–' }}</td>
                 <td>{{ item.sets }}</td>
@@ -430,7 +458,7 @@
             </tbody>
           </table>
         </div>
-      </div>
+      </details>
       {% endif %}
 
       {% for key, value in progress.items() %}
