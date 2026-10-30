@@ -2053,16 +2053,10 @@ class WorkoutManagement:
                             .all()
                         )
 
-                        # Check if these is custom (c) workout
-                        if not all_sessions:
-                            all_sessions = (
-                                db.session.query(Sessions)
-                                .filter(
-                                    Sessions.user_id == current_user_id,
-                                    Sessions.workout_id == "c",
-                                )
-                                .all()
-                            )
+                        # A day with no sessions yet just shows empty tables.
+                        # Freestyle ("c") sessions are never pulled in here -
+                        # they belong to /progress's "Custom Workouts" option,
+                        # which scopes them to the chosen mesocycle.
 
                         exercises_in_workout = self._workout_exercises_ordered(
                             workout_id
