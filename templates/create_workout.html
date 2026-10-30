@@ -270,7 +270,7 @@
     <!-- Row to center the content -->
     <div class="row justify-content-center">
       <!-- Column that adjusts width based on screen size -->
-      <div class="col-12 col-md-7">
+      <div class="col-12 col-md-7" data-wd-editable="create_workout">
         {% for x in range(week) %}
         <form action="{{ url_for('create_workout') }}" method="POST" data-wd-plan>
           <!-- If no no name keep input else use h3 -->
@@ -290,13 +290,17 @@
           <table class="table table-striped text-center mb-2">
             <thead>
               <tr>
-                <th class="wd-drag-cell"><span class="visually-hidden">Reorder</span></th>
                 <th class="exercise text-center">
                   Exercises for day {{ x + 1 }}
                 </th>
                 <th>Sets</th>
                 <th>Pauses</th>
-                <th>Del</th>
+                {# Edit mode: the drag handles and swipe-to-delete. They sit on the
+                   right, where a left thumb does not land while scrolling. #}
+                <th class="wd-drag-cell">
+                  <button type="button" class="btn btn-sm btn-outline-secondary px-1 py-0 small"
+                    data-wd-edit-toggle aria-pressed="false">Edit</button>
+                </th>
               </tr>
             </thead>
             <tbody data-day="{{ x }}">
@@ -306,15 +310,7 @@
                  identify the row it is asked to rename, retime or delete, and
                  it is the prerequisite for reordering these rows by hand. #}
               {% for exe in user_exe[x] %}
-              <tr data-we-id="{{ exe['id'] }}">
-                <td class="wd-drag-cell align-middle">
-                  <span class="wd-drag-handle" role="button" tabindex="-1"
-                    aria-label="Drag to reorder" title="Drag to reorder">
-                    <svg width="22" height="22" fill="currentColor" aria-hidden="true">
-                      <use href="#grip-lines"></use>
-                    </svg>
-                  </span>
-                </td>
+              <tr data-we-id="{{ exe['id'] }}" data-wd-swipe>
                 <td class="wd-exercise-cell">
                   <input type="text" id="exercise_{{ exe['id'] }}" name="exercise_{{ exe['id'] }}"
                     class="form-control text-center" value="{{ exe['exercise'] }}" autocomplete="off" />
@@ -333,15 +329,22 @@
                   <input type="number" name="pauses_{{ exe['id'] }}" class="form-control text-center"
                     value="{{ exe['pauses'] }}" />
                 </td>
-                <td class="wd-row-extra">
-                  <!-- "Remove" checkbox -->
-                  <input class="form-check-input" type="checkbox" name="remove_{{ exe['id'] }}" value="yes" />
+                <td class="wd-drag-cell wd-swipe-cell align-middle">
+                  <span class="wd-drag-handle wd-edit-only" role="button" tabindex="-1"
+                    aria-label="Drag to reorder" title="Drag to reorder">
+                    <svg width="22" height="22" fill="currentColor" aria-hidden="true">
+                      <use href="#grip-lines"></use>
+                    </svg>
+                  </span>
+                  {# Swiping the row left slides this out; tapping it ticks the
+                     hidden remove box and saves. #}
+                  <input type="checkbox" class="d-none" name="remove_{{ exe['id'] }}" value="yes" />
+                  <button type="button" class="wd-swipe-del" data-wd-remove="remove_{{ exe['id'] }}">Delete</button>
                 </td>
               </tr>
               {% endfor %}
-              
+
               <tr>
-                <td class="wd-drag-cell"></td>
                 <td class="wd-exercise-cell">
                   <input type="text" id="exercise_new_{{ x }}" name="new_exercise_{{ x }}"
                     class="form-control text-center bg-info-subtle" placeholder="Select Exercise" autocomplete="off" />
@@ -637,6 +640,20 @@
        still works if jsdelivr is blocked, and so there is no hash to keep in
        sync. -->
   <script src="{{ url_for('static', filename='js/sortable.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/editMode.js') }}"></script>
+  <script>
+    // The swiped-out Delete button is the confirmation: tick the row's remove
+    // box and save straight away. Other unsaved edits on the page go with it.
+    document.addEventListener("click", function (e) {
+      const button = e.target.closest("[data-wd-remove]");
+      if (!button) return;
+      const box = document.querySelector(`input[name="${button.dataset.wdRemove}"]`);
+      const form = button.closest("form");
+      if (!box || !form) return;
+      box.checked = true;
+      form.requestSubmit ? form.requestSubmit() : form.submit();
+    });
+  </script>
   <script>
     // One Sortable per day. Rows carry their own workout_exercise_id, so the
     // new order is simply the sequence of those ids - nothing here needs to

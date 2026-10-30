@@ -168,6 +168,7 @@ fetch_exercise_suggestions = db_operations.fetch_exercise_suggestions
 get_today_intuitive_traing = db_operations.get_today_intuitive_traing
 create_custom_workout_exercise = db_operations.create_custom_workout_exercise
 add_intuitive_exercise = db_operations.add_intuitive_exercise
+remove_custom_workout_exercise = db_operations.remove_custom_workout_exercise
 check_c_session = db_operations.check_c_session
 create_custom_workout_plan = db_operations.create_custom_workout_plan
 load_custom_exercises_for_day = db_operations.load_custom_exercises_for_day
@@ -1387,6 +1388,18 @@ def intuitive_training():
             return redirect(url_for("intuitive_training"))
 
         action = submitted_data.get("action")
+
+        if action == "remove_exercise":
+            # Swipe-to-delete on "Today's exercises". The plan row goes, the
+            # sets logged for it stay - /progress is where those are deleted.
+            removed_exercise = submitted_data.get("exercise_name")
+            if remove_custom_workout_exercise(removed_exercise):
+                if removed_exercise == selected_exercise:
+                    session.pop("chosen_exercise_by_user", None)
+                    session.pop("new_exercise", None)
+                flash(f'Removed "{removed_exercise}" from today. Sets already logged '
+                      f'are kept in Training Progress.', "success")
+            return redirect(url_for("intuitive_training"))
 
         if action == "choose_exercise":
             chosen_exercise = submitted_data.get("chosen_exercise")

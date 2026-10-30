@@ -466,8 +466,17 @@
           {% if exercises_overview %}
           <div class="container">
             <div class="row justify-content-center">
-              <div class="col-12 col-md-9 p-4">
-                <h5 class="text-center mb-3">Today's exercises</h5>
+              <div class="col-12 col-md-9 p-4" data-wd-editable="intuitive">
+                <div class="d-flex align-items-center justify-content-center position-relative mb-3">
+                  <h5 class="text-center mb-0">Today's exercises</h5>
+                  <button type="button" class="btn btn-sm btn-outline-secondary position-absolute end-0"
+                    data-wd-edit-toggle aria-pressed="false">Edit</button>
+                </div>
+                {# Swipe a row left in Edit mode, then tap Delete. Only today's plan
+                   loses the exercise - its logged sets stay (Training Progress). #}
+                <form action="{{ url_for('intuitive_training') }}" method="POST" id="removeExerciseForm">
+                  <input type="hidden" name="action" value="remove_exercise">
+                </form>
                 <form action="{{ url_for('intuitive_training') }}" method="POST">
                   <input type="hidden" name="action" value="choose_exercise">
                   <table class="table table-striped text-center mb-1" id="todaysExercises">
@@ -476,11 +485,12 @@
                         <th>Exercise</th>
                         <th>Set</th>
                         <th>RPE</th>
+                        <th class="wd-edit-only" style="min-width: 0; width: 44px;"><span class="visually-hidden">Delete</span></th>
                       </tr>
                     </thead>
                     <tbody>
                       {% for item in exercises_overview %}
-                      <tr class="{% if item.done %}table-success{% endif %}">
+                      <tr class="{% if item.done %}table-success{% endif %}" data-wd-swipe>
                         <td>
                           <button type="submit" name="chosen_exercise" value="{{item.exercise}}"
                             class="btn p-0 border-0 shadow-none w-100 {% if item.exercise == selected_exercise %}text-success-emphasis fw-bold{% endif %}">
@@ -500,6 +510,17 @@
                           {% else %}
                           -
                           {% endif %}
+                        </td>
+                        <td class="wd-edit-only wd-swipe-cell p-0">
+                          <button type="button" class="btn btn-link text-secondary p-1 wd-swipe-open"
+                            aria-label="Delete {{ item.exercise }}" title="Delete">
+                            <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                              <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                            </svg>
+                          </button>
+                          <button type="submit" form="removeExerciseForm" name="exercise_name"
+                            value="{{ item.exercise }}" class="wd-swipe-del">Delete</button>
                         </td>
                       </tr>
                       {% endfor %}
@@ -597,6 +618,7 @@
           </script>
           <!-- waiting overlay -->
           <script src="{{ url_for('static', filename='js/notesEdit.js') }}"></script>
+          <script src="{{ url_for('static', filename='js/editMode.js') }}"></script>
           <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
           <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
             integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"

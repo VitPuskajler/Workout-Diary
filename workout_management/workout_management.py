@@ -2366,6 +2366,39 @@ class WorkoutManagement:
                     db.session.rollback()
                     return False
 
+    def remove_custom_workout_exercise(self, exercise_name):
+        """Take an exercise off today's freestyle plan. Only the plan row goes:
+        sets already logged for it stay in the database, and /progress is where
+        they can be deleted. True if something was removed."""
+        exercise_row = self.find_exercise_id_db(exercise_name)
+        if not exercise_row:
+            return False
+
+        today, tomorrow = self._today_bounds()
+        today_workout = (
+            db.session.query(WorkoutPlan.workout_id)
+            .filter(
+                WorkoutPlan.user_id == self.current_user_id_db(),
+                WorkoutPlan.created_at >= today,
+                WorkoutPlan.created_at < tomorrow,
+                WorkoutPlan.workout_name == "c",
+            )
+            .first()
+        )
+        if today_workout is None:
+            return False
+
+        removed = (
+            db.session.query(WorkoutExercises)
+            .filter(
+                WorkoutExercises.workout_id == today_workout[0],
+                WorkoutExercises.exercise_id == exercise_row[0],
+            )
+            .delete()
+        )
+        db.session.commit()
+        return removed > 0
+
     # Function to add exercise to database for intuitive training
     def add_intuitive_exercise(self, exercise):
         user_id_db = self.current_user_id_db()
