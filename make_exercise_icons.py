@@ -7,6 +7,10 @@ Each icon is a list of strokes: ("b", points) body, ("e", points) equipment,
 ("w", points) weight, ("h", (x, y)) head, ("c", (x, y, r)) weight plate,
 ("p", d, kind) a raw path, ("a", d) a motion arrow.
 
+Every icon with an end pose - ANIMATED for the drawn ones, POSE_ENDS for the
+generated ones - also gets static/icons/exercises/anim/<file>.svg, moving
+between its drawing and that pose (SMIL, ~1 KB more). Holds have none.
+
 The key is the icon's name; its file name is the slug of it. An exercise with
 exactly that name gets the icon on its own, any other exercise is pointed at it
 through exercises.icon (see add_exercise_icon_columns.py).
@@ -26,37 +30,77 @@ def pts(p):
     return " ".join(f"{x:g},{y:g}" for x, y in p)
 
 
-def render(strokes):
+def element(s):
+    """A stroke as (tag, {the attributes that place it}, the rest)."""
+    k = s[0]
+    if k == "b":
+        return "polyline", {"points": pts(s[1])}, f'stroke="{BODY}" stroke-width="4.5"'
+    if k == "e":
+        return "polyline", {"points": pts(s[1])}, f'stroke="{EQUIP}" stroke-width="3"'
+    if k == "w":
+        return "polyline", {"points": pts(s[1])}, f'stroke="{WEIGHT}" stroke-width="4"'
+    if k == "h":
+        x, y = s[1]
+        return "circle", {"cx": f"{x:g}", "cy": f"{y:g}"}, f'r="4.6" fill="{BODY}"'
+    if k == "c":
+        x, y, r = s[1]
+        return "circle", {"cx": f"{x:g}", "cy": f"{y:g}"}, f'r="{r:g}" stroke="{WEIGHT}" stroke-width="3.5"'
+    if k == "p":
+        color, width = {"b": (BODY, 4.5), "e": (EQUIP, 3), "w": (WEIGHT, 4)}[s[2]]
+        return "path", {"d": s[1]}, f'stroke="{color}" stroke-width="{width}"'
+    if k == "a":
+        return "path", {"d": s[1]}, f'stroke="{ARROW}" stroke-width="2.2" stroke-dasharray="3 3"'
+    if k == "f":                                         # medicine ball
+        x, y, r = s[1]
+        return "circle", {"cx": f"{x:g}", "cy": f"{y:g}"}, f'r="{r:g}" fill="{WEIGHT}"'
+    if k == "g":                                         # stability ball
+        x, y, r = s[1]
+        return "circle", {"cx": f"{x:g}", "cy": f"{y:g}"}, f'r="{r:g}" stroke="{EQUIP}" stroke-width="3"'
+    if k == "d":                                         # band
+        return "path", {"d": s[1]}, f'stroke="{WEIGHT}" stroke-width="2.4" stroke-dasharray="2 3"'
+    raise ValueError(f"unknown stroke kind {k!r}")
+
+
+# One rep, 2 s: the drawn pose -> the other end (40 %), hold, back (40 %),
+# hold. Eased, so it reads as a movement rather than a slide.
+EASE = ".45 0 .55 1"
+ANIMATE = ('<animate attributeName="{0}" values="{1};{2};{2};{1};{1}" keyTimes="0;.4;.5;.9;1" '
+           f'calcMode="spline" keySplines="{EASE};{EASE};{EASE};{EASE}" dur="2s" repeatCount="indefinite"/>')
+
+
+def render(strokes, end=None):
+    """The icon as SVG. With end - the same strokes in the other pose of the
+    rep, point for point - every stroke that moves is animated between them,
+    and the motion arrows go: the movement itself says it better."""
+    if end is not None:
+        strokes = [s for s in strokes if s[0] != "a"]
+        end = [s for s in end if s[0] != "a"]
+    if end is not None and len(end) != len(strokes):
+        raise ValueError(f"end pose has {len(end)} strokes, the icon {len(strokes)}")
     parts = []
-    for s in strokes:
-        k = s[0]
-        if k == "b":
-            parts.append(f'<polyline points="{pts(s[1])}" stroke="{BODY}" stroke-width="4.5"/>')
-        elif k == "e":
-            parts.append(f'<polyline points="{pts(s[1])}" stroke="{EQUIP}" stroke-width="3"/>')
-        elif k == "w":
-            parts.append(f'<polyline points="{pts(s[1])}" stroke="{WEIGHT}" stroke-width="4"/>')
-        elif k == "h":
-            x, y = s[1]
-            parts.append(f'<circle cx="{x:g}" cy="{y:g}" r="4.6" fill="{BODY}"/>')
-        elif k == "c":
-            x, y, r = s[1]
-            parts.append(f'<circle cx="{x:g}" cy="{y:g}" r="{r:g}" stroke="{WEIGHT}" stroke-width="3.5"/>')
-        elif k == "p":
-            color, width = {"b": (BODY, 4.5), "e": (EQUIP, 3), "w": (WEIGHT, 4)}[s[2]]
-            parts.append(f'<path d="{s[1]}" stroke="{color}" stroke-width="{width}"/>')
-        elif k == "a":
-            parts.append(f'<path d="{s[1]}" stroke="{ARROW}" stroke-width="2.2" stroke-dasharray="3 3"/>')
-        elif k == "f":                                   # medicine ball
-            x, y, r = s[1]
-            parts.append(f'<circle cx="{x:g}" cy="{y:g}" r="{r:g}" fill="{WEIGHT}"/>')
-        elif k == "g":                                   # stability ball
-            x, y, r = s[1]
-            parts.append(f'<circle cx="{x:g}" cy="{y:g}" r="{r:g}" stroke="{EQUIP}" stroke-width="3"/>')
-        elif k == "d":                                   # band
-            parts.append(f'<path d="{s[1]}" stroke="{WEIGHT}" stroke-width="2.4" stroke-dasharray="2 3"/>')
+    for i, s in enumerate(strokes):
+        tag, place, rest = element(s)
+        anims = ""
+        if end is not None:
+            end_tag, end_place, _ = element(end[i])
+            if end_tag != tag or (tag == "polyline" and len(end[i][1]) != len(s[1])):
+                raise ValueError(f"stroke {i} does not match its end pose")
+            anims = "".join(ANIMATE.format(attr, place[attr], end_place[attr])
+                            for attr in place if end_place[attr] != place[attr])
+        attrs = " ".join(f'{attr}="{value}"' for attr, value in place.items())
+        parts.append(f"<{tag} {attrs} {rest}>{anims}</{tag}>" if anims else f"<{tag} {attrs} {rest}/>")
     return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" '
             'stroke-linecap="round" stroke-linejoin="round">' + "".join(parts) + "</svg>")
+
+
+def moved(strokes, changes):
+    """strokes with some replaced - {index: stroke}, or {index: [strokes]}
+    for a run of them (a dumbbell is three). How an end pose is written."""
+    out = list(strokes)
+    for i, new in changes.items():
+        new = new if isinstance(new, list) else [new]
+        out[i:i + len(new)] = new
+    return out
 
 
 def dumbbell(x, y, horizontal=True):
@@ -84,7 +128,7 @@ ICONS = {
     ],
     "Push-Up": [
         FLOOR,
-        ("b", [(20, 58), (21, 43)]),
+        ("b", [(20, 58), (20.5, 50.5), (21, 43)]),       # elbow mid-arm: it bends in ANIMATED
         ("b", [(21, 43), (37, 48), (56, 57)]),
         ("h", (13, 40)),
     ],
@@ -105,14 +149,14 @@ ICONS = {
         ("e", [(8, 46), (50, 46)]), ("e", [(14, 46), (14, 60)]), ("e", [(44, 46), (44, 60)]),
         ("h", (11, 40)),
         ("b", [(18, 41), (36, 41), (46, 36), (50, 59)]),
-        ("b", [(20, 41), (20, 22)]),
+        ("b", [(20, 41), (20, 31.5), (20, 22)]),
         *dumbbell(20, 18),
     ],
     "Dumbbell Incline Bench Press": [
         ("e", [(17, 24), (36, 48), (50, 48)]), ("e", [(38, 48), (38, 60)]),
         ("h", (17, 19)),
         ("b", [(22, 27), (36, 44), (48, 42), (50, 59)]),
-        ("b", [(23, 28), (25, 11)]),
+        ("b", [(23, 28), (24, 19.5), (25, 11)]),
         *dumbbell(25, 8),
     ],
     "Barbell Stiff-Leg Deadlift": [
@@ -235,20 +279,20 @@ ICONS = {
         FLOOR, ("e", [(42, 38), (60, 38)]), ("e", [(52, 38), (52, 60)]),
         ("e", [(15, 60), (17, 55), (25, 55), (27, 60)]),
         ("h", (13, 43)),
-        ("b", [(21, 55), (21, 45)]),
+        ("b", [(21, 55), (21, 50), (21, 45)]),
         ("b", [(20, 45), (36, 40), (50, 35)]),
     ],
     "Bench Push-Up": [
         FLOOR, ("e", [(4, 38), (24, 38)]), ("e", [(14, 38), (14, 60)]),
         ("h", (16, 22)),
-        ("b", [(18, 38), (22, 28)]),
+        ("b", [(18, 38), (20, 33), (22, 28)]),
         ("b", [(22, 28), (39, 43), (56, 57)]),
     ],
     "Barbell Bench Press": [
         ("e", [(8, 46), (50, 46)]), ("e", [(14, 46), (14, 60)]), ("e", [(44, 46), (44, 60)]),
         ("h", (11, 40)),
         ("b", [(18, 41), (36, 41), (46, 36), (50, 59)]),
-        ("b", [(20, 41), (20, 24)]),
+        ("b", [(20, 41), (20, 32.5), (20, 24)]),
         ("c", (20, 18, 7)),
     ],
     "Barbell Squat": [
@@ -418,9 +462,237 @@ ICONS = {
     "Muscle-Up": [
         ("e", [(8, 32), (56, 32)]),
         ("h", (32, 9)),
-        ("b", [(22, 32), (26, 18), (38, 18), (42, 32)]),
+        ("b", [(22, 32), (24, 25), (26, 18), (38, 18), (40, 25), (42, 32)]),
         ("b", [(32, 18), (32, 38), (29, 52), (31, 60)]), ("b", [(32, 38), (35, 52), (33, 60)]),
     ],
+}
+
+# The other end of the rep for some ICONS: the same strokes, in the same order
+# and with as many points, moved. Each gets a second, animated file in
+# static/icons/exercises/anim, which the exercise dropdown plays on hover.
+ANIMATED = {
+    "Barbell Squat": [                                   # bottom -> standing
+        FLOOR,
+        ("c", (34, 15, 6)),
+        ("h", (25, 7)),
+        ("b", [(28, 15), (29, 32), (27, 45), (24, 58)]),
+        ("b", [(29, 17), (35, 22), (36, 15)]),
+    ],
+    "Pull-Up": [                                         # top -> dead hang
+        ("e", [(8, 9), (56, 9)]),
+        ("b", [(20, 9), (21, 20), (24, 31), (40, 31), (43, 20), (44, 9)]),
+        ("h", (32, 23)),
+        ("b", [(32, 30), (32, 46)]),
+        ("b", [(32, 46), (29, 54), (31, 61)]), ("b", [(32, 46), (35, 54), (33, 61)]),
+    ],
+    "Push-Up": [                                         # arms straight -> chest down
+        FLOOR,
+        ("b", [(20, 58), (29, 53), (22, 51)]),
+        ("b", [(22, 51), (38, 54), (56, 57)]),
+        ("h", (14, 48)),
+    ],
+    "Cable Rope Face Pull": [                            # pulled in -> arms out
+        FLOOR, ("e", [(56, 4), (56, 60)]), ("e", [(56, 20), (48, 20)]),
+        ("h", (29, 13)),
+        ("b", [(28, 21), (28, 39), (26, 49), (27, 58)]), ("b", [(28, 39), (32, 49), (33, 58)]),
+        ("b", [(28, 22), (38, 21), (48, 20)]),
+    ],
+    "Dumbbell Lateral Raise": [                          # raised -> arms down
+        FLOOR,
+        ("h", (32, 12)),
+        ("b", [(22, 34), (26, 21), (38, 21), (42, 34)]),
+        ("b", [(32, 21), (32, 40), (27, 58)]), ("b", [(32, 40), (37, 58)]),
+        *dumbbell(21, 37), *dumbbell(43, 37),
+    ],
+    # The rest name only what moves - see moved(). A hold shows the way into
+    # it, or its harder version (Tuck Front Lever opens out to a full lever).
+    "Plank": moved(ICONS["Plank"], {3: ("b", [(19, 47), (37, 44), (56, 57)])}),     # hip lift
+    "Tuck Front Lever": moved(ICONS["Tuck Front Lever"], {3: ("b", [(22, 28), (37, 29), (47, 29), (57, 29)])}),
+    "Dip": moved(ICONS["Dip"], {                         # top -> bottom
+        4: ("h", (32, 22)),
+        5: ("b", [(14, 34), (16, 24), (26, 31), (38, 31), (48, 24), (50, 34)]),
+        6: ("b", [(32, 31), (32, 46), (28, 53), (35, 58)]),
+        7: ("b", [(32, 46), (36, 53), (29, 58)]),
+    }),
+    "Front Lever Raise": moved(ICONS["Front Lever Raise"], {   # lever -> hang
+        1: ("b", [(24, 8), (23, 26)]),
+        2: ("h", (18, 21)),
+        3: ("b", [(23, 26), (24, 43), (25, 60)]),
+    }),
+    "Dumbbell Bench Press": moved(ICONS["Dumbbell Bench Press"], {
+        5: ("b", [(20, 41), (28, 45), (22, 34)]), 6: dumbbell(22, 31),
+    }),
+    "Dumbbell Incline Bench Press": moved(ICONS["Dumbbell Incline Bench Press"], {
+        4: ("b", [(23, 28), (31, 31), (27, 21)]), 5: dumbbell(27, 18),
+    }),
+    "Barbell Stiff-Leg Deadlift": moved(ICONS["Barbell Stiff-Leg Deadlift"], {   # -> standing
+        1: ("h", (30, 12)),
+        2: ("b", [(31, 20), (33, 36), (32, 47), (33, 58)]),
+        3: ("b", [(31, 21), (32, 35)]),
+        4: ("c", (32, 39, 6.5)),
+    }),
+    "Machine Calf Raise": moved(ICONS["Machine Calf Raise"], {    # -> on the toes
+        0: ("e", [(22, 12), (42, 12)]),
+        2: ("h", (32, 5)),
+        3: ("b", [(32, 12), (32, 29), (32, 38), (33, 46), (36, 53)]),
+        4: ("b", [(26, 12), (25, 19)]),
+    }),
+    "Parallel Bar Leg Raise": moved(ICONS["Parallel Bar Leg Raise"], {
+        4: ("b", [(25, 15), (25, 34), (25, 47), (25, 60)]),
+    }),
+    "Machine Lateral Shoulder Raise": moved(ICONS["Machine Lateral Shoulder Raise"], {
+        3: ("b", [(22, 34), (26, 21), (38, 21), (42, 34)]),
+        4: ("e", [(20, 22), (18, 31)]), 5: ("e", [(44, 22), (46, 31)]),
+    }),
+    "Machine Seated Leg Curl": moved(ICONS["Machine Seated Leg Curl"], {   # -> leg out
+        3: ("b", [(18, 21), (22, 40), (38, 40), (51, 47)]),
+        5: ("c", (52, 51, 3.5)),
+    }),
+    "Hack Squat": moved(ICONS["Hack Squat"], {           # bottom -> up
+        2: ("h", (44, 8)),
+        3: ("b", [(43, 16), (37, 38), (20, 44), (23, 58)]),
+        4: ("b", [(43, 17), (37, 23), (42, 16)]),
+    }),
+    "EZ Bar Curl": moved(ICONS["EZ Bar Curl"], {         # curled -> arms down
+        3: ("b", [(27, 21), (25, 32), (24, 43)]), 4: ("b", [(37, 21), (39, 32), (40, 43)]),
+        5: ("p", "M14 43 H19 L23 40 L28 45 L32 43 L36 40 L41 45 L45 43 H50", "w"),
+        6: ("w", [(12, 37), (12, 49)]), 7: ("w", [(52, 37), (52, 49)]),
+    }),
+    "Cable Seated Row": moved(ICONS["Cable Seated Row"], {    # pulled -> reaching
+        2: ("e", [(57, 46), (44, 38)]),
+        4: ("h", (24, 16)),
+        5: ("b", [(22, 24), (20, 45), (35, 37), (48, 46)]),
+        6: ("b", [(22, 26), (33, 32), (44, 38)]),
+    }),
+    "Machine Seated Row": moved(ICONS["Machine Seated Row"], {
+        7: ("b", [(20, 23), (30, 26), (40, 30)]),
+    }),
+    "Barbell Bulgarian Split Squat": moved(ICONS["Barbell Bulgarian Split Squat"], {
+        3: ("c", (36, 14, 6)),
+        4: ("h", (25, 6)),
+        5: ("b", [(27, 14), (29, 33), (22, 45), (20, 58)]),
+        6: ("b", [(28, 16), (33, 20), (35, 14)]),
+        7: ("b", [(29, 33), (34, 49), (44, 44)]),
+    }),
+    "Cable Tricep Extension": moved(ICONS["Cable Tricep Extension"], {     # -> hands up
+        2: ("e", [(52, 8), (42, 24)]),
+        4: ("b", [(30, 20), (31, 32), (42, 24)]),
+    }),
+    "Machine Fly": moved(ICONS["Machine Fly"], {         # open -> closed
+        2: ("e", [(20, 8), (18, 28)]), 3: ("e", [(44, 8), (46, 28)]),
+        5: ("b", [(24, 9), (21, 22), (26, 21), (38, 21), (43, 22), (40, 9)]),
+    }),
+    "Cable Crunch": moved(ICONS["Cable Crunch"], {       # crunched -> upright
+        2: ("e", [(56, 8), (39, 22)]),
+        3: ("p", "M31 42 Q31 33 34 25", "b"),
+        4: ("h", (37, 19)),
+    }),
+    "Explosive Pull-Up": moved(ICONS["Explosive Pull-Up"], {
+        1: ("h", (32, 26)),
+        2: ("b", [(20, 22), (22, 27), (26, 32), (38, 32), (42, 27), (44, 22)]),
+        3: ("b", [(32, 32), (32, 47), (30, 59)]),
+        4: ("b", [(32, 47), (34, 59)]),
+    }),
+    "Decline Push-Up (Handles)": moved(ICONS["Decline Push-Up (Handles)"], {
+        4: ("h", (14, 49)),
+        5: ("b", [(21, 55), (28, 53), (22, 50)]),
+        6: ("b", [(21, 50), (36, 42), (50, 35)]),
+    }),
+    "Bench Push-Up": moved(ICONS["Bench Push-Up"], {
+        3: ("h", (14, 29)),
+        4: ("b", [(18, 38), (26, 38), (21, 33)]),
+        5: ("b", [(21, 33), (38, 45), (56, 57)]),
+    }),
+    "Barbell Bench Press": moved(ICONS["Barbell Bench Press"], {
+        5: ("b", [(20, 41), (28, 45), (22, 34)]), 6: ("c", (22, 28, 7)),
+    }),
+    "Barbell Bent-Over Row": moved(ICONS["Barbell Bent-Over Row"], {
+        3: ("b", [(19, 33), (20, 41), (20, 48)]), 4: ("c", (20, 52, 6)),
+    }),
+    "Barbell Military Press": moved(ICONS["Barbell Military Press"], {    # -> bar at the chin
+        1: ("w", [(10, 21), (54, 21)]), 2: ("w", [(10, 15), (10, 27)]), 3: ("w", [(54, 15), (54, 27)]),
+        5: ("b", [(21, 21), (20, 32), (27, 26), (37, 26), (44, 32), (43, 21)]),
+    }),
+    "Dumbbell Shoulder Press": moved(ICONS["Dumbbell Shoulder Press"], {
+        3: ("b", [(17, 20), (16, 31), (27, 26), (37, 26), (48, 31), (47, 20)]),
+        6: dumbbell(17, 17), 9: dumbbell(47, 17),
+    }),
+    "Barbell Upright Row": moved(ICONS["Barbell Upright Row"], {     # -> bar at the hips
+        2: ("b", [(29, 43), (27, 32), (27, 20), (37, 20), (37, 32), (35, 43)]),
+        3: ("w", [(14, 43), (50, 43)]), 4: ("w", [(12, 37), (12, 49)]), 5: ("w", [(52, 37), (52, 49)]),
+    }),
+    "Dumbbell Bicep Curl": moved(ICONS["Dumbbell Bicep Curl"], {     # the arms swap
+        2: ("b", [(20, 24), (24, 34), (27, 21), (37, 21), (40, 34), (41, 44)]),
+        3: dumbbell(20, 21), 6: dumbbell(41, 47),
+    }),
+    "Dumbbell Preacher Curl": moved(ICONS["Dumbbell Preacher Curl"], {
+        5: ("b", [(21, 24), (35, 39), (45, 49)]), 6: dumbbell(46, 52, horizontal=False),
+    }),
+    "EZ Bar Tricep Extension": moved(ICONS["EZ Bar Tricep Extension"], {   # -> arms up
+        5: ("b", [(21, 41), (22, 24), (23, 13)]), 6: ("c", (23, 9, 5)),
+    }),
+    "Machine Leg Extension": moved(ICONS["Machine Leg Extension"], {     # -> knee bent
+        3: ("b", [(18, 21), (22, 40), (38, 40), (33, 55)]),
+        5: ("c", (37, 53, 3.5)),
+    }),
+    "Machine Leg Curl (Prone)": moved(ICONS["Machine Leg Curl (Prone)"], {   # -> leg straight
+        4: ("b", [(15, 42), (34, 42), (47, 42), (59, 42)]),
+        6: ("c", (58, 38, 3.5)),
+    }),
+    "Machine Leg Press": moved(ICONS["Machine Leg Press"], {     # -> legs out
+        2: ("e", [(47, 24), (61, 42)]),
+        5: ("b", [(13, 30), (24, 49), (38, 37), (52, 32)]),
+    }),
+    "Machine Lat Pulldown": moved(ICONS["Machine Lat Pulldown"], {   # pulled -> arms up
+        0: ("e", [(32, 2), (32, 5)]),
+        3: ("w", [(8, 5), (56, 5)]),
+        5: ("b", [(14, 5), (20, 15), (27, 25), (37, 25), (44, 15), (50, 5)]),
+    }),
+    "Dumbbell One-Arm Row": moved(ICONS["Dumbbell One-Arm Row"], {   # -> arm hanging
+        8: ("b", [(22, 31), (24, 40), (25, 50)]), 9: dumbbell(25, 53),
+    }),
+    "Bench Crunch": moved(ICONS["Bench Crunch"], {       # up -> lying
+        1: ("p", "M34 56 Q24 57 15 56", "b"),
+        2: ("h", (8, 54)),
+        4: ("b", [(16, 55), (22, 51)]),
+    }),
+    "Leg Raise": moved(ICONS["Leg Raise"], {
+        2: ("b", [(16, 57), (34, 57), (60, 53)]),
+    }),
+    "Hanging Leg Raise": moved(ICONS["Hanging Leg Raise"], {
+        3: ("b", [(30, 20), (30, 38), (31, 50), (32, 61)]),
+    }),
+    "Ab Roll": moved(ICONS["Ab Roll"], {                 # out -> rolled in
+        1: ("c", (28, 55, 4.5)),
+        2: ("h", (28, 31)),
+        3: ("b", [(28, 52), (32, 38)]),
+        4: ("b", [(32, 38), (40, 46), (42, 57), (56, 57)]),
+    }),
+    "Dumbbell Lunge": moved(ICONS["Dumbbell Lunge"], {   # bottom -> up
+        1: ("h", (30, 5)),
+        2: ("b", [(30, 12), (32, 31), (24, 45), (20, 58)]),
+        3: ("b", [(32, 31), (42, 45), (50, 58)]),
+        4: ("b", [(30, 14), (31, 28)]),
+        5: dumbbell(31, 32, horizontal=False),
+    }),
+    "Machine Hip Adduction": moved(ICONS["Machine Hip Adduction"], {     # open -> closed
+        6: ("b", [(32, 32), (26, 42), (26, 56)]), 7: ("b", [(32, 32), (38, 42), (38, 56)]),
+        8: ("e", [(20, 43), (20, 56)]), 9: ("e", [(44, 43), (44, 56)]),
+    }),
+    "Machine Hip Abduction": moved(ICONS["Machine Hip Abduction"], {     # open -> closed
+        6: ("b", [(32, 32), (24, 42), (23, 56)]), 7: ("b", [(32, 32), (40, 42), (41, 56)]),
+        8: ("e", [(28, 43), (27, 56)]), 9: ("e", [(36, 43), (37, 56)]),
+    }),
+    "Machine Reverse Fly": moved(ICONS["Machine Reverse Fly"], {     # open -> in front
+        2: ("e", [(27, 19), (27, 31)]), 3: ("e", [(37, 19), (37, 31)]),
+        5: ("b", [(27, 25), (26, 21), (38, 21), (37, 25)]),
+    }),
+    "Muscle-Up": moved(ICONS["Muscle-Up"], {             # support -> coming over the bar
+        1: ("h", (32, 23)),
+        2: ("b", [(22, 32), (19, 25), (26, 30), (38, 30), (45, 25), (42, 32)]),
+        3: ("b", [(32, 30), (32, 47), (30, 55), (31, 61)]),
+        4: ("b", [(32, 47), (34, 55), (33, 61)]),
+    }),
 }
 
 
@@ -486,12 +758,12 @@ POSES = {
                        parts=[("b", [(29, 21), (27, 37), (12, 38)])],
                        anchors=[(10, 36)], cable=[(10, 58)]),
     "press_bench": dict(label="Bench press", base="bench_flat", view="side",
-                        parts=[("b", [(20, 41), (20, 24)])], anchors=[(20, 19)], cable=[(4, 58)],
+                        parts=[("b", [(20, 41), (20, 32.5), (20, 24)])], anchors=[(20, 19)], cable=[(4, 58)],
                         ball=(26, 52, 8)),
     "press_incline": dict(label="Incline press", base="bench_incline", view="side",
-                          parts=[("b", [(23, 28), (25, 12)])], anchors=[(25, 8)], cable=[(4, 58)]),
+                          parts=[("b", [(23, 28), (24, 20), (25, 12)])], anchors=[(25, 8)], cable=[(4, 58)]),
     "press_decline": dict(label="Decline press", base="bench_decline", view="side",
-                          parts=[("b", [(19, 46), (19, 30)])], anchors=[(19, 26)], cable=[(4, 58)]),
+                          parts=[("b", [(19, 46), (19, 38), (19, 30)])], anchors=[(19, 26)], cable=[(4, 58)]),
     "press_overhead": dict(label="Overhead press", base="front_stand", view="front",
                            parts=[("b", [(26, 21), (17, 20), (19, 9)]), ("b", [(38, 21), (47, 20), (45, 9)])],
                            anchors=[(19, 7), (45, 7)], cable=[(6, 58), (58, 58)]),
@@ -524,12 +796,17 @@ POSES = {
                         anchors=[(28, 31), (36, 31)], cable=[(32, 58), (32, 58)]),
     "row_inverted": dict(label="Inverted row", base="none", view="side",
                          parts=[FLOOR, ("e", [(6, 22), (30, 22)]), ("e", [(8, 22), (8, 60)]),
-                                ("h", (11, 37)), ("b", [(18, 22), (18, 37)]),
+                                ("h", (11, 37)), ("b", [(18, 22), (18, 29.5), (18, 37)]),
                                 ("b", [(18, 37), (36, 47), (56, 57)])],
                          anchors=[(18, 22)]),
     "shrug": dict(label="Shrug", base="front_stand", view="front",
                   parts=[("b", [(26, 21), (23, 39)]), ("b", [(38, 21), (41, 39)]), ARROW_UP_L, ARROW_UP_R],
                   anchors=[(23, 42), (41, 42)], cable=[(6, 58), (58, 58)]),
+    "hang": dict(label="Hang", base="none", view="front",
+                 parts=[("e", [(8, 6), (56, 6)]), ("h", (32, 15)), ("b", [(26, 24), (38, 24)]),
+                        ("b", [(32, 24), (32, 42)]), ("b", [(32, 42), (29, 59)]), ("b", [(32, 42), (35, 59)]),
+                        ("b", [(26, 24), (25, 15), (24, 6)]), ("b", [(38, 24), (41, 39)])],
+                 anchors=[]),
     "carry": dict(label="Carry / hold", base="none", view="front",
                   parts=[FLOOR, HEAD_F, SHOULDERS_F, ("b", [(32, 21), (32, 40)]),
                          ("b", [(32, 40), (25, 59)]), ("b", [(32, 40), (40, 58)]),
@@ -558,7 +835,7 @@ POSES = {
                      parts=[("b", [(29, 21), (31, 33), (21, 42)])], anchors=[(20, 43)], cable=[(6, 6)]),
     "bench_dip": dict(label="Bench dip", base="none", view="side",
                       parts=[FLOOR, ("e", [(38, 40), (58, 40)]), ("e", [(50, 40), (50, 60)]),
-                             ("h", (36, 17)), ("b", [(42, 40), (38, 26)]),
+                             ("h", (36, 17)), ("b", [(42, 40), (40, 33), (38, 26)]),
                              ("b", [(38, 25), (36, 44), (20, 46), (8, 58)])],
                       anchors=[(30, 44)]),
     "pulldown": dict(label="Pulldown", base="front_seat", view="front",
@@ -643,7 +920,7 @@ POSES = {
                 parts=[FLOOR, ("h", (16, 32)), ("b", [(20, 38), (32, 56), (46, 34)]), ("b", [(21, 40), (40, 33)])],
                 anchors=[(41, 32)], ball=(32, 52, 7)),
     "side_plank": dict(label="Side plank", base="none", view="side",
-                       parts=[FLOOR, ("h", (12, 40)), ("b", [(18, 44), (56, 58)]),
+                       parts=[FLOOR, ("h", (12, 40)), ("b", [(18, 44), (37, 51), (56, 58)]),
                               ("b", [(24, 58), (16, 58), (18, 44)]), ("b", [(20, 44), (22, 28)])],
                        anchors=[(22, 26)]),
     "woodchop": dict(label="Wood chop", base="front_stand", view="front",
@@ -696,7 +973,8 @@ POSES = {
                         ("b", [(29, 21), (18, 22), (20, 12)]), ("a", "M14 4 Q8 10 12 18")],
                  anchors=[(22, 7)]),
     "handstand": dict(label="Handstand", base="none", view="front",
-                      parts=[FLOOR, ("h", (32, 50)), ("b", [(26, 59), (26, 42), (38, 42), (38, 59)]),
+                      parts=[FLOOR, ("h", (32, 50)),
+                             ("b", [(26, 59), (26, 50.5), (26, 42), (38, 42), (38, 50.5), (38, 59)]),
                              ("b", [(32, 42), (32, 22)]), ("b", [(32, 22), (28, 4)]), ("b", [(32, 22), (36, 4)])],
                       anchors=[]),
     # stretches and yoga
@@ -743,6 +1021,149 @@ POSES = {
                   parts=[FLOOR, HEAD_F, SHOULDERS_F, ("b", [(32, 21), (32, 40)]), ("b", [(32, 40), (32, 59)]),
                          ("b", [(32, 40), (41, 47), (33, 51)]), ("b", [(26, 21), (30, 4)]), ("b", [(38, 21), (34, 4)])],
                   anchors=[]),
+}
+
+# The other end of the rep for the POSES: their parts moved (see moved()) and
+# where the hands are then - the load is drawn there again by draw_load(), so
+# one end pose animates every equipment variant of it. "bases" swaps a base
+# body for the end pose (shrug: the shoulders go up). Every pose has one - a
+# hold shows the way into it (wall squat: sliding down the wall).
+def end_of(key, changes, anchors, **extra):
+    return dict(parts=moved(POSES[key]["parts"], changes), anchors=anchors, **extra)
+
+
+POSE_ENDS = {
+    "curl": end_of("curl", {0: ("b", [(26, 21), (25, 32), (24, 43)]), 1: ("b", [(38, 21), (39, 32), (40, 43)])},
+                   [(24, 44), (40, 44)]),
+    "preacher": end_of("preacher", {5: ("b", [(21, 24), (35, 39), (45, 49)])}, [(46, 51)]),
+    "concentration": end_of("concentration", {4: ("b", [(30, 27), (24, 41), (21, 52)])}, [(21, 54)]),
+    "wrist_curl": end_of("wrist_curl", {0: ("b", [(29, 21), (27, 37), (12, 35)])}, [(9, 31)]),
+    "press_bench": end_of("press_bench", {0: ("b", [(20, 41), (28, 45), (22, 34)])}, [(22, 30)]),
+    "press_incline": end_of("press_incline", {0: ("b", [(23, 28), (31, 31), (27, 21)])}, [(27, 17)]),
+    "press_decline": end_of("press_decline", {0: ("b", [(19, 46), (27, 48), (21, 37)])}, [(21, 33)]),
+    "press_overhead": end_of("press_overhead", {0: ("b", [(26, 21), (17, 30), (18, 20)]),
+                                                1: ("b", [(38, 21), (47, 30), (46, 20)])}, [(18, 18), (46, 18)]),
+    "chest_press": end_of("chest_press", {0: ("b", [(29, 21), (35, 27), (22, 24)])}, [(20, 24)]),
+    "fly": end_of("fly", {0: ("b", [(26, 21), (24, 28), (29, 30)]), 1: ("b", [(38, 21), (40, 28), (35, 30)])},
+                  [(29, 30), (35, 30)]),
+    "fly_bench": end_of("fly_bench", {0: ("b", [(20, 41), (20, 24)])}, [(20, 21)]),
+    "lateral": end_of("lateral", {0: ("b", [(26, 21), (22, 35)]), 1: ("b", [(38, 21), (42, 35)])},
+                      [(21, 37), (43, 37)]),
+    "front_raise": end_of("front_raise", {0: ("b", [(29, 21), (27, 38)])}, [(27, 41)]),
+    "rear_raise": end_of("rear_raise", {3: ("b", [(19, 33), (25, 24)])}, [(26, 22)]),
+    "row_bent": end_of("row_bent", {3: ("b", [(19, 33), (20, 41), (20, 49)])}, [(20, 52)]),
+    "row_seated": end_of("row_seated", {0: ("b", [(29, 21), (18, 26), (8, 30)])}, [(6, 30)]),
+    "row_upright": end_of("row_upright", {0: ("b", [(29, 43), (27, 32), (26, 21)]),
+                                          1: ("b", [(35, 43), (37, 32), (38, 21)])}, [(29, 43), (35, 43)]),
+    "row_inverted": end_of("row_inverted", {3: ("h", (13, 26)), 4: ("b", [(18, 22), (26, 24), (20, 27)]),
+                                            5: ("b", [(20, 27), (37, 41), (56, 57)])}, [(18, 22)]),
+    "shrug": end_of("shrug", {0: ("b", [(26, 18), (23, 36)]), 1: ("b", [(38, 18), (41, 36)])},
+                    [(23, 39), (41, 39)],
+                    bases={"front_stand": moved(BASES["front_stand"], {2: ("b", [(26, 18), (38, 18)]),
+                                                                        3: ("b", [(32, 18), (32, 40)])}),
+                           "front_seat": moved(BASES["front_seat"], {3: ("b", [(26, 18), (38, 18)]),
+                                                                     4: ("b", [(32, 18), (32, 41)])})}),
+    "tricep_overhead": end_of("tricep_overhead", {5: ("b", [(30, 21), (32, 13), (34, 6)])}, [(34, 5)]),
+    "tricep_overhead_seated": end_of("tricep_overhead_seated", {5: ("b", [(30, 21), (32, 13), (34, 6)])},
+                                     [(34, 5)]),
+    "skull": end_of("skull", {0: ("b", [(21, 41), (22, 24), (23, 12)])}, [(23, 9)]),
+    "kickback": end_of("kickback", {6: ("b", [(21, 31), (30, 34), (31, 45)])}, [(31, 47)]),
+    "pushdown": end_of("pushdown", {0: ("b", [(29, 21), (31, 33), (21, 26)])}, [(20, 26)]),
+    "bench_dip": end_of("bench_dip", {3: ("h", (35, 26)), 4: ("b", [(42, 40), (46, 31), (37, 33)]),
+                                      5: ("b", [(37, 33), (35, 51), (20, 50), (8, 58)])}, [(29, 47)]),
+    "pulldown": end_of("pulldown", {0: ("b", [(26, 21), (19, 13), (15, 5)]),
+                                    1: ("b", [(38, 21), (45, 13), (49, 5)])}, [(15, 5), (49, 5)]),
+    "pullover": end_of("pullover", {0: ("b", [(19, 41), (20, 24)])}, [(20, 21)]),
+    "squat": end_of("squat", {1: ("h", (25, 7)), 2: ("b", [(28, 15), (29, 32), (27, 45), (24, 58)]),
+                              3: ("b", [(29, 17), (35, 22), (36, 15)])}, [(34, 15)]),
+    "squat_goblet": end_of("squat_goblet", {1: ("h", (25, 7)), 2: ("b", [(28, 15), (29, 32), (27, 45), (24, 58)]),
+                                            3: ("b", [(29, 17), (22, 26), (20, 21)])}, [(19, 21)]),
+    "squat_overhead": end_of("squat_overhead", {1: ("h", (24, 11)),
+                                                2: ("b", [(29, 19), (32, 37), (22, 45), (24, 58)]),
+                                                3: ("b", [(29, 19), (31, 5)])}, [(31, 4)]),
+    "lunge": end_of("lunge", {1: ("h", (30, 5)), 2: ("b", [(30, 12), (32, 31), (24, 45), (20, 58)]),
+                              3: ("b", [(32, 31), (42, 45), (50, 58)]), 4: ("b", [(30, 14), (31, 28)])},
+                    [(31, 32)], bar=[(34, 13)]),
+    "stepup": end_of("stepup", {2: ("h", (22, 6)), 3: ("b", [(23, 13), (24, 31), (18, 38), (19, 46)]),
+                                4: ("b", [(24, 31), (30, 42), (32, 52)]), 5: ("b", [(23, 15), (25, 28)])},
+                     [(25, 32)], bar=[(27, 13)]),
+    "sissy": end_of("sissy", {1: ("h", (29, 10)), 2: ("b", [(28, 18), (26, 36), (22, 47), (26, 59)]),
+                              3: ("b", [(28, 20), (20, 24)])}, [(18, 24)]),
+    "deadlift": end_of("deadlift", {1: ("h", (30, 12)), 2: ("b", [(31, 20), (33, 36), (32, 47), (33, 58)]),
+                                    3: ("b", [(31, 21), (32, 35)])}, [(32, 39)]),
+    "good_morning": end_of("good_morning", {1: ("h", (30, 12)),
+                                            2: ("b", [(31, 20), (33, 36), (32, 47), (33, 58)]),
+                                            3: ("b", [(31, 21), (35, 17)])}, [(35, 16)]),
+    "calf": end_of("calf", {1: ("h", (32, 5)), 2: ("b", [(32, 12), (32, 29), (32, 38), (33, 46), (36, 53)]),
+                            3: ("b", [(32, 14), (31, 29)])}, [(31, 32)], bar=[(36, 11)]),
+    "calf_seated": end_of("calf_seated", {3: ("b", [(29, 19), (30, 41), (16, 37), (15, 49), (10, 56)]),
+                                          4: ("b", [(29, 21), (22, 32), (17, 34)])}, [(18, 32)]),
+    "leg_curl_stand": end_of("leg_curl_stand", {5: ("b", [(30, 40), (32, 50), (35, 58)])}, [(36, 57)]),
+    "bridge": end_of("bridge", {4: ("b", [(16, 38), (34, 47), (46, 39), (48, 59)])}, [(34, 43)]),
+    "glute_kick": end_of("glute_kick", {3: ("b", [(36, 42), (38, 52), (48, 54)])}, [(49, 54)]),
+    "reverse_crunch": end_of("reverse_crunch", {2: ("b", [(15, 57), (32, 56), (42, 44), (54, 50)])}, [(52, 48)]),
+    "situp": end_of("situp", {1: ("h", (9, 54)), 2: ("b", [(16, 57), (34, 56), (44, 42), (55, 57)]),
+                              3: ("b", [(17, 56), (24, 52)])}, [(23, 51)]),
+    "twist": end_of("twist", {3: ("b", [(25, 40), (18, 46)])}, [(17, 48)]),
+    "vup": end_of("vup", {1: ("h", (6, 53)), 2: ("b", [(13, 56), (32, 57), (56, 56)]),
+                          3: ("b", [(14, 55), (7, 46)])}, [(6, 45)]),
+    "woodchop": end_of("woodchop", {0: ("b", [(26, 21), (41, 36)]), 1: ("b", [(38, 21), (43, 37)])}, [(43, 39)]),
+    "mountain": end_of("mountain", {4: ("b", [(36, 47), (46, 53), (54, 58)])}, []),
+    "side_bend": end_of("side_bend", {1: ("h", (36, 12)), 2: ("b", [(32, 40), (34, 21)]),
+                                      3: ("b", [(28, 21), (40, 21)]), 6: ("b", [(28, 21), (26, 39)]),
+                                      7: ("b", [(40, 21), (45, 30), (39, 36)])}, [(26, 42)]),
+    "back_ext": end_of("back_ext", {3: ("h", (19, 58)), 4: ("b", [(24, 54), (34, 40), (54, 57)]),
+                                    5: ("b", [(25, 53), (31, 51)])}, [(29, 51)]),
+    "clean": end_of("clean", {0: ("b", [(29, 21), (29, 31), (28, 40)])}, [(28, 42)]),
+    "overhead_lift": end_of("overhead_lift", {5: ("b", [(29, 21), (24, 17)])}, [(23, 16)]),
+    "swing": end_of("swing", {1: ("h", (27, 10)), 2: ("b", [(29, 18), (34, 38), (32, 48), (33, 59)]),
+                              3: ("b", [(29, 19), (12, 18)])}, [(10, 20)]),
+    "throw": end_of("throw", {0: ("b", [(26, 21), (25, 32), (30, 40)]), 1: ("b", [(38, 21), (39, 32), (34, 40)])},
+                    [(32, 42)]),
+    "jump": end_of("jump", {2: ("h", (19, 26)), 3: ("b", [(22, 33), (30, 46), (18, 50), (22, 59)]),
+                            4: ("b", [(23, 35), (33, 44)])}, [(34, 44)]),
+    "rotation": end_of("rotation", {0: ("b", [(26, 21), (42, 30)]), 1: ("b", [(38, 21), (46, 28)])}, [(46, 31)]),
+    "circles": end_of("circles", {0: ("b", [(26, 21), (13, 15)]), 1: ("b", [(38, 21), (51, 15)])},
+                      [(11, 14), (53, 14)]),
+    "side_plank": end_of("side_plank", {2: ("b", [(18, 44), (37, 55), (56, 58)])}, [(22, 26)]),   # hip dip
+    "wall_squat": end_of("wall_squat", {2: ("h", (44, 6)), 3: ("b", [(45, 14), (45, 34), (32, 44), (27, 59)]),
+                                        4: ("b", [(45, 16), (31, 18)])}, [(29, 18)]),
+    "handstand": end_of("handstand", {1: ("h", (32, 56)),                  # -> lowered: the push-up
+                                      2: ("b", [(26, 59), (19, 52), (27, 50), (37, 50), (45, 52), (38, 59)]),
+                                      3: ("b", [(32, 50), (32, 30)]), 4: ("b", [(32, 30), (28, 12)]),
+                                      5: ("b", [(32, 30), (36, 12)])}, []),
+    "hang": end_of("hang", {1: ("h", (32, 12)), 2: ("b", [(26, 20), (38, 20)]),   # -> active hang
+                            3: ("b", [(32, 20), (32, 38)]), 4: ("b", [(32, 38), (29, 55)]),
+                            5: ("b", [(32, 38), (35, 55)]), 6: ("b", [(26, 20), (23, 13), (24, 6)]),
+                            7: ("b", [(38, 20), (41, 35)])}, []),
+    "carry": end_of("carry", {4: ("b", [(32, 40), (39, 59)]), 5: ("b", [(32, 40), (24, 58)])},   # walking
+                    [(22, 42), (42, 42)]),
+    "neck": end_of("neck", {1: ("h", (21, 16)), 5: ("b", [(29, 21), (17, 24), (18, 15)])}, [(20, 10)]),
+    # stretches and yoga: easing into the position
+    "stretch_side": end_of("stretch_side", {1: ("h", (42, 15)), 2: ("b", [(32, 40), (39, 23)]),
+                                            3: ("b", [(33, 22), (46, 24)]),
+                                            6: ("b", [(33, 22), (32, 7), (45, 4)]),
+                                            7: ("b", [(46, 24), (48, 34), (41, 38)])}, []),
+    "stretch_fold": end_of("stretch_fold", {1: ("h", (14, 40)), 4: ("b", [(32, 38), (20, 40)]),
+                                            5: ("b", [(21, 41), (25, 52)])}, []),
+    "stretch_quad": end_of("stretch_quad", {4: ("b", [(30, 40), (33, 53), (38, 36)]),
+                                            5: ("b", [(29, 21), (35, 31), (38, 36)])}, []),
+    "stretch_arm": end_of("stretch_arm", {0: ("b", [(26, 21), (45, 22)]), 1: ("b", [(38, 21), (41, 29), (36, 23)])},
+                          []),
+    "stretch_lying": end_of("stretch_lying", {3: ("b", [(34, 57), (24, 44), (32, 38)]),
+                                              4: ("b", [(16, 56), (25, 45)])}, []),
+    "stretch_seated": end_of("stretch_seated", {1: ("h", (37, 44)), 3: ("b", [(14, 57), (31, 48)]),
+                                                4: ("b", [(31, 49), (46, 56)])}, []),
+    "cobra": end_of("cobra", {1: ("h", (7, 53)), 2: ("b", [(56, 58), (34, 57), (14, 56)]),
+                              3: ("b", [(14, 55), (20, 58)])}, []),
+    "child": end_of("child", {1: ("h", (14, 52)), 2: ("b", [(46, 59), (34, 58), (42, 50), (21, 52)]),
+                              3: ("b", [(20, 54), (4, 58)])}, []),
+    "dog": end_of("dog", {1: ("h", (18, 50)), 2: ("b", [(12, 59), (34, 32), (54, 59)])}, []),
+    "warrior": end_of("warrior", {1: ("h", (32, 16)), 2: ("b", [(32, 24), (32, 44)]),
+                                  3: ("b", [(32, 44), (20, 48), (18, 59)]), 4: ("b", [(32, 44), (46, 54), (54, 59)]),
+                                  5: ("b", [(32, 26), (30, 8)])}, []),
+    "stork": end_of("stork", {5: ("b", [(32, 40), (42, 44), (35, 49)]),
+                              6: ("b", [(26, 21), (12, 18)]), 7: ("b", [(38, 21), (52, 18)])}, []),
 }
 
 # Seated versions of the standing poses that have one.
@@ -860,7 +1281,8 @@ RULES = [
     (r"sit.?up|situp", "situp"),
     (r"russian twist|twist", "twist"),
     (r"v.?up|jackknife|jack knife|toe touch", "vup"),
-    (r"hanging (leg|knee)|hanging raise", "=hanging-leg-raise"),
+    (r"hanging (leg|knee|pike)|hanging raise", "=hanging-leg-raise"),
+    (r"\bhang$|dead hang", "hang"),                      # not "Hang Clean" / "Hang Snatch"
     (r"parallel bar|captain", "=parallel-bar-leg-raise"),
     (r"(leg|knee) raise|flutter|scissor|hundreds", "=leg-raise"),
     (r"roll.?out|ab roll|ab wheel|wheel", "=ab-roll"),
@@ -981,11 +1403,11 @@ def resolve_pose(name, group):
 
 
 def generated_icon(name, group):
-    """(file name, label, strokes) for one exercise, or ("=slug", ...) for a
-    hand-drawn one."""
+    """(file name, label, strokes, end strokes or None) for one exercise, or
+    ("=slug", ...) for a hand-drawn one."""
     pose_key = resolve_pose(name, group)
     if pose_key.startswith("="):
-        return pose_key[1:], None, None
+        return pose_key[1:], None, None, None
     n = name.lower()
     equipment = equipment_of(name)
     one_arm = bool(re.search(r"one.?arm|single.?arm|alternat|one.?leg|single.?leg|unilateral", n))
@@ -998,6 +1420,15 @@ def generated_icon(name, group):
     behind, front = draw_load(pose, equipment, one_arm)
     strokes = behind + BASES[base] + pose["parts"] + front
 
+    end_strokes = None
+    if pose_key in POSE_ENDS:
+        end = POSE_ENDS[pose_key]
+        # The seated front raise swaps its arm above for the same one, so the
+        # standing end pose fits it too.
+        end_pose = dict(pose, parts=end["parts"], anchors=end["anchors"], bar=end.get("bar", pose.get("bar")))
+        end_behind, end_front = draw_load(end_pose, equipment, one_arm)
+        end_strokes = end_behind + end.get("bases", {}).get(base, BASES[base]) + end_pose["parts"] + end_front
+
     parts = [pose_key.replace("_", "-"), equipment]
     label = [pose["label"], EQUIPMENT_LABELS[equipment]]
     if base != pose["base"]:
@@ -1006,7 +1437,7 @@ def generated_icon(name, group):
     if one_arm and pose["anchors"] and equipment != "none" and len(pose["anchors"]) > 1:
         parts.append("one-arm")
         label.append("one arm")
-    return "x-" + "-".join(parts), " · ".join(label), strokes
+    return "x-" + "-".join(parts), " · ".join(label), strokes, end_strokes
 
 
 def catalog_names():
@@ -1019,33 +1450,42 @@ def catalog_names():
 
 
 def main():
-    os.makedirs(OUT, exist_ok=True)
+    anim_dir = os.path.join(OUT, "anim")
+    os.makedirs(anim_dir, exist_ok=True)
     # Start clean, so a pose that no exercise uses any more leaves no file.
-    for old in os.listdir(OUT):
-        if old.endswith(".svg"):
-            os.remove(os.path.join(OUT, old))
+    for folder in (OUT, anim_dir):
+        for old in os.listdir(folder):
+            if old.endswith(".svg"):
+                os.remove(os.path.join(folder, old))
 
     labels, total = {}, 0
+    animated, anim_total = 0, 0
 
-    def write(file_name, label, strokes):
-        nonlocal total
+    def write(file_name, label, strokes, end=None):
+        nonlocal total, animated, anim_total
         svg = render(strokes)
         with open(os.path.join(OUT, file_name + ".svg"), "w", encoding="utf-8", newline="") as f:
             f.write(svg)
         labels[file_name] = label
         total += len(svg.encode())
+        if end is not None:
+            svg = render(strokes, end)
+            with open(os.path.join(anim_dir, file_name + ".svg"), "w", encoding="utf-8", newline="") as f:
+                f.write(svg)
+            animated += 1
+            anim_total += len(svg.encode())
 
     for name, strokes in ICONS.items():
-        write(slug(name), name, strokes)
+        write(slug(name), name, strokes, ANIMATED.get(name))
     drawn = len(labels)
 
     mapping, generated = {}, {}
     for name, group in catalog_names():
         if slug(name) in labels:
             continue                                  # has its own drawing
-        file_name, label, strokes = generated_icon(name, group)
+        file_name, label, strokes, end = generated_icon(name, group)
         if strokes is not None and file_name not in generated:
-            generated[file_name] = (label, strokes)
+            generated[file_name] = (label, strokes, end)
         mapping[name] = file_name
     for file_name in sorted(generated, key=lambda f: generated[f][0]):
         write(file_name, *generated[file_name])
@@ -1058,7 +1498,8 @@ def main():
         json.dump(dict(sorted(mapping.items())), f, ensure_ascii=False, indent=1)
 
     print(f"{drawn} drawn + {len(generated)} generated icons, {total} bytes; "
-          f"{len(mapping)} exercises mapped to a shared icon")
+          f"{len(mapping)} exercises mapped to a shared icon; "
+          f"{animated} of them animated, {anim_total} bytes")
 
 
 if __name__ == "__main__":

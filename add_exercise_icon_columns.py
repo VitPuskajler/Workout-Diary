@@ -10,6 +10,7 @@ database: locally, and again on PythonAnywhere.
                                       their logged sets keep a name, but no
                                       picker offers them any more
   - registers exercises the catalog was missing (NEW_EXERCISES)
+  - clears icons whose drawing no longer exists
   - points variants at a shared drawing (ICON_ALIASES), then every other
     exercise at the icon make_exercise_icons.py generated for it
     (data/exercise_icons.json) - only where the exercise has no icon chosen
@@ -111,6 +112,18 @@ def main():
                 print(f"  registered: {name} ({group})")
 
         icon_dir = os.path.join(os.path.dirname(DB_PATH), "..", "static", "icons", "exercises")
+
+        # An icon whose drawing make_exercise_icons.py no longer makes (the
+        # exercise was moved to a better one) is not a pick worth keeping -
+        # cleared, so the steps below give it its current drawing.
+        drawings = {f[:-4] for f in os.listdir(icon_dir) if f.endswith(".svg")}
+        stale = [(name, icon) for name, icon in conn.execute(
+            "SELECT exercise_name, icon FROM exercises WHERE icon IS NOT NULL") if icon not in drawings]
+        conn.executemany("UPDATE exercises SET icon = NULL WHERE exercise_name = ?",
+                         [(name,) for name, _ in stale])
+        for name, icon in stale:
+            print(f"  {name}: drawing {icon}.svg is gone - icon cleared")
+
         linked = 0
         for name, icon in ICON_ALIASES.items():
             if not os.path.exists(os.path.join(icon_dir, icon + ".svg")):
