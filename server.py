@@ -467,6 +467,22 @@ def mesocycle_management():
         mesocycles=mesocycles_for_management(),
     )
 
+@app.route("/exercise_suggestions")
+@login_required
+def exercise_suggestions():
+    """The exercise-name dropdowns (create_workout, intuitive_training), one
+    page at a time - see static/js/exerciseSuggestions.js. Its own route, so
+    a keystroke no longer rebuilds the whole plan the page routes load first."""
+    search_term = (request.args.get("query") or "").strip()
+    if not search_term:
+        return jsonify({"items": [], "has_more": False})
+    offset = max(request.args.get("offset", 0, type=int), 0)
+    limit = min(max(request.args.get("limit", 10, type=int), 1), 50)
+    # One more than asked for says whether there is a next page.
+    names = fetch_exercise_suggestions(search_term, offset=offset, limit=limit + 1)
+    return jsonify({"items": names[:limit], "has_more": len(names) > limit})
+
+
 # Here is created mesocycle workout
 @app.route("/create_workout", methods=["GET", "POST"])
 @login_required
@@ -482,13 +498,6 @@ def create_workout():
     exercises_for_jinja(jinja_exercises, weekly, workouts_id)
 
     if request.method == "GET":
-        # Handle AJAX request for exercise search
-        search_term = request.args.get("query")
-
-        if search_term:
-            exercise_names = fetch_exercise_suggestions(search_term)
-            return jsonify(exercise_names)
-
         # Reps / Sec button on the add row: is the exercise just picked a hold?
         timed_for = request.args.get("timed_for")
         if timed_for:
@@ -788,6 +797,13 @@ def _load_exercise_icons():
 EXERCISE_ICON_LABELS = _load_exercise_icons()
 EXERCISE_ICONS = list(EXERCISE_ICON_LABELS)
 _EXERCISE_ICON_SET = set(EXERCISE_ICONS)
+# The icons that also come moving (icons/exercises/anim, see ANIMATED in
+# make_exercise_icons.py) - the exercise dropdown plays them on hover.
+_EXERCISE_ICON_ANIM_DIR = os.path.join(EXERCISE_ICON_DIR, "anim")
+EXERCISE_ICONS_ANIMATED = sorted(
+    name[:-4] for name in (os.listdir(_EXERCISE_ICON_ANIM_DIR) if os.path.isdir(_EXERCISE_ICON_ANIM_DIR) else [])
+    if name.endswith(".svg") and name[:-4] in _EXERCISE_ICON_SET
+)
 
 
 def exercise_icon_slug(exercise_name):
@@ -814,7 +830,7 @@ def exercise_icon_choices():
 def inject_exercise_icons():
     """exercise_icon("Pull-Up") -> the icon's URL, or None for an exercise that
     has no drawing yet: the one picked on /admin/exercises, else the drawing
-    named after the exercise. The other two are the same data for page scripts."""
+    named after the exercise. The others are the same data for page scripts."""
     def exercise_icon(exercise_name):
         slug = exercise_icon_choices().get(exercise_name) or exercise_icon_slug(exercise_name)
         if slug not in _EXERCISE_ICON_SET:
@@ -824,6 +840,7 @@ def inject_exercise_icons():
     return {
         "exercise_icon": exercise_icon,
         "exercise_icon_slugs": EXERCISE_ICONS,
+        "exercise_icon_animated_slugs": EXERCISE_ICONS_ANIMATED,
         "exercise_icon_choices": exercise_icon_choices,
     }
 
@@ -1536,13 +1553,7 @@ def intuitive_training():
                 return redirect(url_for('intuitive_training'))
         else:
             print('No confirmation yet')
-            
-        # Check if there are already some exercies in workout - In case website / webbrowser would crash and we had no POST after opening :)
-        search_term = request.args.get("query")
-        if search_term:
-            exercise_names = fetch_exercise_suggestions(search_term)
-            return jsonify(exercise_names)
-        
+
     else:  # POST
         submitted_data = request.form.to_dict()
         # request.form (not submitted_data) - delete_set needs every checked

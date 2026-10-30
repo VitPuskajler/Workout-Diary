@@ -2370,12 +2370,31 @@ class WorkoutManagement:
         return "\n".join(lines).strip()
 
     # AJAX for exercises preview when creating workout
-    def fetch_exercise_suggestions(self, search_term):
-        exercises = Exercise.query.filter(
-            Exercise.exercise_name.ilike(f"%{search_term}%"),
-            Exercise.is_deleted.is_(False),
-        ).all()
-        return [exercise.exercise_name for exercise in exercises]
+    def fetch_exercise_suggestions(self, search_term, offset=0, limit=None):
+        """Exercise names containing search_term, best match first: starting
+        with it, then a word starting with it ("row" -> "Barbell Bent-Over
+        Row"), then the rest - each A-Z, so a page at a time (offset/limit)
+        never repeats or skips a name."""
+        # % and _ typed in the box are letters to look for, not wildcards.
+        term = search_term.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        name = func.lower(Exercise.exercise_name)
+        rank = case(
+            (name.like(f"{term}%", escape="\\"), 0),
+            (or_(name.like(f"% {term}%", escape="\\"), name.like(f"%-{term}%", escape="\\")), 1),
+            else_=2,
+        )
+        query = (
+            db.session.query(Exercise.exercise_name)
+            .filter(
+                name.like(f"%{term}%", escape="\\"),
+                Exercise.is_deleted.is_(False),
+            )
+            .order_by(rank, Exercise.exercise_name)
+            .offset(offset)
+        )
+        if limit is not None:
+            query = query.limit(limit)
+        return [exercise_name for (exercise_name,) in query]
 
     def get_today_intuitive_traing(self):
         current_user_id = self.current_user_id_db()

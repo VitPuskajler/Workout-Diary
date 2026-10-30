@@ -540,43 +540,23 @@
           {% endwith %}
           <!-- -------------------------------------------------------------------------- -->
           <!-- Show exercises in DB with suggestion  -->
+          <script src="{{ url_for('static', filename='js/exerciseSuggestions.js') }}"></script>
           <script>
             // The search box only exists once today's freestyle session is confirmed.
+            // Moving icons only while looking for an exercise - "Today's exercises"
+            // above keeps the still ones.
             const newExerciseInput = document.getElementById('new_exercise');
-            if (newExerciseInput) newExerciseInput.addEventListener('input', function () {
-              let query = this.value;
-              if (query.length > 0) {
-                let xhr = new XMLHttpRequest();
-                xhr.open("GET", "/intuitive_training?query=" + encodeURIComponent(query), true);
-                xhr.onreadystatechange = function () {
-                  // If operation is complete and state is succecsful -> continue 
-                  if (xhr.readyState == 4 && xhr.status == 200) {
-                    let response = JSON.parse(xhr.responseText);
-                    let suggestions = document.getElementById('exercise_suggestions');
-                    suggestions.innerHTML = ""; // Clear previous suggestions
-                    if (response.length > 0) {
-                      suggestions.style.display = "block"; // Show suggestion list
-                      response.forEach(function (exercise) {
-                        let li = document.createElement("li");
-                        li.classList.add("dropdown-item");
-                        li.textContent = exercise;
-                        li.onclick = function () {
-                          document.getElementById('new_exercise').value = exercise;
-                          suggestions.style.display = "none";
-                        };
-                        suggestions.appendChild(li);
-                      });
-                    } else {
-                      suggestions.style.display = "none"; // Hide if no matches
-                    }
-                  }
-                };
-                xhr.send();
-              } else {
-                document.getElementById('exercise_suggestions').style.display = "none";
-              }
-            });
-
+            if (newExerciseInput) {
+              wireExerciseSuggestions(newExerciseInput, document.getElementById('exercise_suggestions'), {
+                url: "{{ url_for('exercise_suggestions') }}",
+                icons: {
+                  base: "{{ url_for('static', filename='icons/exercises/') }}",
+                  slugs: {{ exercise_icon_slugs|tojson }},
+                  choices: {{ exercise_icon_choices()|tojson }},
+                  animated: {{ exercise_icon_animated_slugs|tojson }},
+                },
+              });
+            }
           </script>
           <!-- Kg -> Lbs -> Other -> Kg toggle for the new-set weight field -->
           <script>

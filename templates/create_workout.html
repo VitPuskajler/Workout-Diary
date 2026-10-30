@@ -84,20 +84,6 @@
       flex: 0 0 34px;
     }
 
-    .dropdown-item .wd-exercise-icon {
-      width: 28px;
-      height: 28px;
-      flex-basis: 28px;
-      margin-right: .35rem;
-    }
-
-    #exercise_suggestions {
-      max-height: 250px;
-      /* Adjust this value to control how many items are visible */
-      overflow-y: auto;
-      /* Make the dropdown scrollable */
-    }
-
     @media (max-width: 576px) {
       .table .col-2 {
         max-width: 50px;
@@ -477,79 +463,35 @@
     });
   </script>
 
+  <script src="{{ url_for('static', filename='js/exerciseSuggestions.js') }}"></script>
   <script>
-    // The drawings there are, as file names, and the exercises given one by
-    // hand. Same rule as exercise_icon() in server.py: the hand-picked one,
-    // else the drawing named after the exercise.
-    const EXERCISE_ICONS = new Set({{ exercise_icon_slugs|tojson }});
-    const EXERCISE_ICON_CHOICES = {{ exercise_icon_choices()|tojson }};
-    const EXERCISE_ICON_BASE = "{{ url_for('static', filename='icons/exercises/') }}";
+    // The drawings there are, which of them move, and the exercises given one
+    // by hand - exerciseSuggestions.js puts them on the suggestions.
+    const EXERCISE_ICONS = {
+      base: "{{ url_for('static', filename='icons/exercises/') }}",
+      slugs: {{ exercise_icon_slugs|tojson }},
+      choices: {{ exercise_icon_choices()|tojson }},
+      animated: {{ exercise_icon_animated_slugs|tojson }},
+    };
 
-    function exerciseIconUrl(name) {
-      const slug = EXERCISE_ICON_CHOICES[name]
-        || (name.toLowerCase().match(/[a-z0-9]+/g) || []).join("-");
-      return EXERCISE_ICONS.has(slug) ? EXERCISE_ICON_BASE + slug + ".svg" : null;
-    }
-
-    // Wire one exercise text input to its own suggestions dropdown.
+    // Wire one exercise text input to its own suggestions dropdown - paging,
+    // icons, waiting out fast typing and dropping stale answers are all in
+    // exerciseSuggestions.js; here is only what picking one does.
     function wireExerciseAutocomplete(suffix) {
       const input = document.getElementById(`exercise_${suffix}`);
       const suggestions = document.getElementById(`exercise_suggestions_${suffix}`);
       if (!input || !suggestions) return;
 
-      input.addEventListener("input", function () {
-        const query = this.value;
-        if (query.length === 0) {
-          suggestions.style.display = "none";
-          return;
-        }
-
-        const xhr = new XMLHttpRequest();
-        xhr.open("GET", "/create_workout?query=" + encodeURIComponent(query), true);
-        xhr.onreadystatechange = function () {
-          if (xhr.readyState !== 4 || xhr.status !== 200) return;
-
-          // The field has moved on since this request went out: the row was
-          // collapsed and reverted, or more was typed and a later response is
-          // the right one. Either way this answer is stale - dropping it stops
-          // a dropdown popping open over a row nobody is editing any more,
-          // which PythonAnywhere's latency makes easy to hit.
-          if (input.value !== query) return;
-
-          const response = JSON.parse(xhr.responseText);
-          suggestions.innerHTML = "";
-
-          if (response.length === 0) {
-            suggestions.style.display = "none";
-            return;
-          }
-
-          suggestions.style.display = "block";
-          response.forEach(function (exercise) {
-            const li = document.createElement("li");
-            li.classList.add("dropdown-item", "d-flex", "align-items-center");
-            const icon = exerciseIconUrl(exercise);
-            if (icon) {
-              const img = document.createElement("img");
-              img.src = icon;
-              img.alt = "";
-              img.className = "wd-exercise-icon";
-              li.appendChild(img);
-            }
-            li.appendChild(document.createTextNode(exercise));
-            li.onclick = function () {
-              input.value = exercise;
-              if (suffix.indexOf("new_") === 0) syncTimedToggle(suffix.slice(4), exercise);
-              // Picking from the dropdown IS the change, so it becomes the new
-              // baseline - collapsing afterwards must not undo it.
-              input.dataset.wdOriginal = exercise;
-              suggestions.style.display = "none";
-              collapseExerciseRow(false);
-            };
-            suggestions.appendChild(li);
-          });
-        };
-        xhr.send();
+      wireExerciseSuggestions(input, suggestions, {
+        url: "{{ url_for('exercise_suggestions') }}",
+        icons: EXERCISE_ICONS,
+        onPick: function (exercise) {
+          if (suffix.indexOf("new_") === 0) syncTimedToggle(suffix.slice(4), exercise);
+          // Picking from the dropdown IS the change, so it becomes the new
+          // baseline - collapsing afterwards must not undo it.
+          input.dataset.wdOriginal = exercise;
+          collapseExerciseRow(false);
+        },
       });
     }
 
