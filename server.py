@@ -195,6 +195,7 @@ last_exercise_preview = db_operations.last_exercise_preview
 arrow_buttons_next_exercise = db_operations.arrow_buttons_next_exercise
 custom_session_dates = db_operations.custom_session_dates
 custom_session_progress = db_operations.custom_session_progress
+progress_session_summary = db_operations.progress_session_summary
 
 # Sentinel value for the "Custom Workouts" option in the /progress mesocycle
 # dropdown - distinct from any real Mesocycles.name so a user's own mesocycle
@@ -1270,6 +1271,9 @@ def progress():
         elif workout_day_info:
             exercise_progress = exercise_progress_data(workout_day_info, chosen_day, chosen_mesocycle)
 
+    # Date / duration / sets for each session behind the tables below.
+    session_summary = progress_session_summary(exercise_progress)
+
     # Human-readable title bits for the copy-to-markdown button.
     if chosen_day == CUSTOM_WORKOUTS_OPTION:
         chosen_custom_date_label = next(
@@ -1294,6 +1298,7 @@ def progress():
     workouts_info=workout_day_info,
     progress=exercise_progress,
     copy_text=copy_text,
+    session_summary=session_summary,
 )
 
 @app.route("/progress/update_entry", methods=["POST"])

@@ -2144,13 +2144,18 @@ class WorkoutManagement:
             .order_by(desc(Sessions.session_date), desc(Sessions.session_id))
             .all()
         )
-        return [
-            {
+        durations = self.session_durations([row.session_id for row in rows])
+        result = []
+        for row in rows:
+            label = f"{row.session_date.day}.{row.session_date.month}.{row.session_date.year}"
+            duration = self.format_duration(durations.get(row.session_id))
+            result.append({
                 "session_id": row.session_id,
-                "label": f"{row.session_date.day}.{row.session_date.month}.{row.session_date.year}",
-            }
-            for row in rows
-        ]
+                "label": label,
+                "duration": duration,
+                "option": f"{label} · {duration}" if duration else label,
+            })
+        return result
 
     # Same {exercise: [{entry_id, date, reps, weight, rpe, notes}, ...]} shape
     # exercise_progress_data() returns, but scoped to a single freestyle
@@ -2200,6 +2205,95 @@ class WorkoutManagement:
                 }
             )
         return result
+
+    # A started stopwatch moves session_date back to the "Start" tap (see
+    # _stamp_stopwatch). Further back than this before the first set and it is
+    # not a warm-up but some other clock - the first set is used instead.
+    LONGEST_WARM_UP = timedelta(hours=1)
+
+    def session_durations(self, session_ids):
+        """{session_id: minutes or None}. Start is the stopwatch's Start tap
+        (session_date), or the first set if there was none; end is the last
+        set logged. None for sessions logged before the stopwatch existed -
+        their sets carry no times."""
+        if not session_ids:
+            return {}
+        rows = (
+            db.session.query(
+                Sessions.session_id,
+                Sessions.session_date,
+                func.min(func.coalesce(ExerciseEntries.started_at, ExerciseEntries.logged_at)),
+                func.max(ExerciseEntries.logged_at),
+            )
+            .join(ExerciseEntries, ExerciseEntries.session_id == Sessions.session_id)
+            .filter(Sessions.session_id.in_(session_ids))
+            .group_by(Sessions.session_id)
+            .all()
+        )
+
+        def as_datetime(value):
+            # min()/max() over a column come back from SQLite as plain strings.
+            if value is None or isinstance(value, datetime):
+                return value
+            try:
+                return datetime.fromisoformat(str(value))
+            except ValueError:
+                return None
+
+        durations = {sid: None for sid in session_ids}
+        for session_id, session_date, first_set, last_set in rows:
+            first_set, last_set = as_datetime(first_set), as_datetime(last_set)
+            if first_set is None or last_set is None:
+                continue
+            start = first_set
+            if session_date is not None and timedelta(0) <= first_set - session_date <= self.LONGEST_WARM_UP:
+                start = session_date
+            durations[session_id] = max(0, round((last_set - start).total_seconds() / 60))
+        return durations
+
+    @staticmethod
+    def format_duration(minutes):
+        """58 -> "58 min", 72 -> "1 h 12 min", None -> None."""
+        if minutes is None:
+            return None
+        hours, mins = divmod(int(minutes), 60)
+        return f"{hours} h {mins} min" if hours else f"{mins} min"
+
+    def progress_session_summary(self, progress):
+        """The sessions behind a /progress table set, newest first:
+        [{date, duration, sets}]. Read off the entry_ids already in the dict,
+        so it covers exactly the sessions the tables below show."""
+        entry_ids = [
+            row["entry_id"]
+            for rows in (progress or {}).values() if rows
+            for row in rows if row.get("entry_id")
+        ]
+        if not entry_ids:
+            return []
+
+        sessions = (
+            db.session.query(Sessions.session_id, Sessions.session_date,
+                             func.count(ExerciseEntries.entry_id))
+            .join(ExerciseEntries, ExerciseEntries.session_id == Sessions.session_id)
+            .filter(
+                Sessions.session_id.in_(
+                    db.session.query(ExerciseEntries.session_id)
+                    .filter(ExerciseEntries.entry_id.in_(entry_ids))
+                )
+            )
+            .group_by(Sessions.session_id)
+            .order_by(desc(Sessions.session_date))
+            .all()
+        )
+        durations = self.session_durations([row[0] for row in sessions])
+        return [
+            {
+                "date": f"{date_.day}.{date_.month}.{date_.year}",
+                "duration": self.format_duration(durations.get(session_id)),
+                "sets": sets,
+            }
+            for session_id, date_, sets in sessions
+        ]
 
     @staticmethod
     def _md_cell(value):

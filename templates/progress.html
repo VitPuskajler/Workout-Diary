@@ -139,7 +139,7 @@
               id="CustomDateSelect" name="custom_date" onchange="this.form.submit()">
               {% for item in custom_dates %}
               <option value="{{ item.session_id }}" {% if item.session_id==chosen_custom_session_id %}selected{% endif %}>
-                {{ item.label }}</option>
+                {{ item.option }}</option>
               {% endfor %}
             </select>
           </form>
@@ -395,6 +395,43 @@
           color: #ced4da;
         }
       </style>
+
+      {# The workouts themselves: when, how long, how many sets. Duration needs
+         the stopwatch's set times, so older sessions show a dash. Newest first,
+         collapsed to three like the exercise tables below. #}
+      {% if session_summary %}
+      <div class="row mb-2">
+        <div class="col-12 text-center">
+          <h5 class="text-success mb-1">{{ 'Workout' if session_summary|length == 1 else 'Workouts' }}</h5>
+          {% if session_summary|length > 3 %}
+          <span class="wd-history-toggle wd-history-has-more" role="button" tabindex="0" aria-expanded="false"
+            data-target="wd-sessions-table">Show all ▾</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="row mb-4">
+        <div class="col-12">
+          <table id="wd-sessions-table" class="table table-striped text-center">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Duration</th>
+                <th>Sets</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in session_summary %}
+              <tr class="{{ 'wd-hist-older' if loop.index > 3 else '' }}">
+                <td>{{ item.date }}</td>
+                <td>{{ item.duration or '–' }}</td>
+                <td>{{ item.sets }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
 
       {% for key, value in progress.items() %}
         {% set session_dates = value | map(attribute='date') | unique | list %}
