@@ -12,12 +12,18 @@
    Every number is computed from timestamps (Date.now()), never from counting
    ticks, so a locked phone or a page reload cannot make it drift. #}
 <style>
-  body { padding-bottom: 92px; }
+  body { padding-bottom: 78px; }
+
+  /* Only the training pages include this bar, and there the screen belongs to
+     the sets: a slimmer top navbar too. */
+  .navbar.fixed-top { --bs-navbar-padding-y: .3rem; }
+  .navbar.fixed-top .navbar-brand { font-size: 1.1rem; }
+  .navbar.fixed-top .navbar-toggler { padding: .2rem .55rem; }
 
   .wd-sw {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 1030;
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    padding: 7px 16px calc(7px + env(safe-area-inset-bottom));
     background: #16181d; color: #e9ecef;
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 18px rgba(0, 0, 0, .25);
@@ -54,7 +60,7 @@
   /* The clock is a button: tap it to swap between the lap and the total time. */
   .wd-sw-lap { flex: 1; border: 0; background: transparent; color: inherit; padding: 4px 0; text-align: center; line-height: 1; }
   .wd-sw[data-view="total"] .wd-sw-lap output { color: #9aa0a6 !important; }
-  .wd-sw-lap output { display: block; font-size: 2.1rem; font-weight: 600; letter-spacing: .01em; transition: color .2s; }
+  .wd-sw-lap output { display: block; font-size: 1.8rem; font-weight: 600; letter-spacing: .01em; transition: color .2s; }
   .wd-sw[data-tone="ok"]   .wd-sw-lap output { color: #3ddc84; }
   .wd-sw[data-tone="over"] .wd-sw-lap output { color: #ff5c5c; }
   .wd-sw[data-phase="intro"] .wd-sw-lap output,
@@ -62,11 +68,27 @@
   .wd-sw[data-phase="intro"] .wd-sw-lap { opacity: .65; }
 
   .wd-sw-main {
-    min-width: 84px; border: 0; border-radius: 12px; padding: 10px 16px;
+    min-width: 84px; border: 0; border-radius: 12px; padding: 8px 16px;
     background: #2b2f38; color: #fff; font-weight: 600;
   }
   .wd-sw-main:active { background: #3a3f4b; }
-  .wd-sw[data-phase="off"] .wd-sw-main { background: #198754; padding: 10px 28px; }
+  .wd-sw[data-phase="off"] .wd-sw-main { background: #198754; padding: 8px 28px; }
+
+  /* Rest is up and Go still not tapped: easy to forget mid-set, so it nags. */
+  .wd-sw[data-nudge="1"] .wd-sw-main { background: #198754; animation: wd-sw-pulse 1.2s ease-in-out infinite; }
+  @keyframes wd-sw-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(61, 220, 132, .6); }
+    50% { box-shadow: 0 0 0 8px rgba(61, 220, 132, 0); }
+  }
+
+  /* SS: the second exercise of a superset starts now - no rest in between. */
+  .wd-sw-right { flex: 0 0 auto; display: flex; gap: 8px; }
+  .wd-sw-ss {
+    display: none; border: 0; border-radius: 12px; padding: 8px 10px;
+    background: #2b2f38; color: #ffc107; font-weight: 700;
+  }
+  .wd-sw[data-phase="rest"] .wd-sw-ss { display: block; }
+  .wd-sw[data-ss="1"] .wd-sw-lap output { color: #ffc107 !important; }
 </style>
 
 <div class="wd-sw" id="wd-sw" data-phase="off" role="timer" aria-label="Workout stopwatch">
@@ -80,7 +102,10 @@
   <button type="button" class="wd-sw-lap" id="wd-sw-clock" aria-label="Switch between lap time and total time">
     <output id="wd-sw-lap">0:00</output><small id="wd-sw-label">rest</small>
   </button>
-  <button type="button" class="wd-sw-main" id="wd-sw-main">Start</button>
+  <div class="wd-sw-right">
+    <button type="button" class="wd-sw-ss" id="wd-sw-ss" aria-label="Superset: next exercise starts now">SS</button>
+    <button type="button" class="wd-sw-main" id="wd-sw-main">Start</button>
+  </div>
 </div>
 
 <div class="wd-sw-modal" id="wd-sw-modal" role="dialog" aria-modal="true" aria-label="Finish workout?">
@@ -98,6 +123,7 @@
     var STATE = {{ stopwatch_state(sw_exercise, sw_colored)|tojson }};   // {last: ms|null, limit: s|null}
     var KEY = "wd_sw_{{ current_user.user_id }}";
     var IDLE = 30 * 60 * 1000;                  // no set for 30 min -> off, next set starts afresh
+    var NUDGE_AFTER = 90;                       // s of rest before Go pulses, when nothing is prescribed
 
     var bar = document.getElementById("wd-sw");
     var lapEl = document.getElementById("wd-sw-lap");
@@ -105,8 +131,9 @@
     var mainBtn = document.getElementById("wd-sw-main");
     var stopBtn = document.getElementById("wd-sw-stop");
 
-    // st = {start, seen, setAt, view}: run start, newest set time seen, "Go" tap
-    // time, and which clock is showing ("total" or the lap).
+    // st = {start, seen, setAt, ss, view}: run start, newest set time seen, "Go"
+    // (or "SS") tap time, whether that tap was SS, and which clock is showing
+    // ("total" or the lap).
     function load() {
       try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch (e) { return null; }
     }
@@ -130,6 +157,7 @@
       } else if (STATE.last !== st.seen) {
         st.seen = STATE.last;
         st.setAt = null;                        // a new set ends the "Set" phase
+        st.ss = false;                          // and the superset round
         st.view = "lap";                        // and brings the rest clock back
       }
     }
@@ -145,8 +173,9 @@
       now = Date.now();
       if (st && now - (st.setAt || st.seen || st.start) > IDLE) { st = null; save(); }
 
-      var p = phase(), tone = "";
+      var p = phase(), tone = "", nudge = false;
       bar.dataset.phase = p;
+      bar.dataset.ss = st && st.ss && p === "set" ? "1" : "";
       // Before the first set the lap IS the total, so there is nothing to swap.
       var showTotal = !!st && st.view === "total" && p !== "intro";
       bar.dataset.view = showTotal ? "total" : "lap";
@@ -154,24 +183,35 @@
         if (showTotal) {
           lapEl.textContent = fmt(now - st.start); labelEl.textContent = "total";
         } else if (p === "set") {
-          lapEl.textContent = fmt(now - st.setAt); labelEl.textContent = "set";
+          lapEl.textContent = fmt(now - st.setAt); labelEl.textContent = st.ss ? "superset" : "set";
         } else if (p === "intro") {
           lapEl.textContent = fmt(now - st.start); labelEl.textContent = "warm-up";
         } else {
           var lap = now - st.seen;
           lapEl.textContent = fmt(lap); labelEl.textContent = "rest";
           if (STATE.limit) tone = lap / 1000 <= STATE.limit ? "ok" : "over";
+          // Go is easy to forget: once the rest is up it starts pulsing.
+          nudge = lap / 1000 >= (STATE.limit || NUDGE_AFTER);
         }
       }
       bar.dataset.tone = tone;
+      bar.dataset.nudge = nudge ? "1" : "";
       mainBtn.textContent = { off: "Start", set: "Cancel" }[p] || "Go";
     }
 
     mainBtn.addEventListener("click", function () {
       var p = phase();
       if (p === "off") st = { start: Date.now(), seen: 0, setAt: null };
-      else if (p === "set") st.setAt = null;
+      else if (p === "set") { st.setAt = null; st.ss = false; }
       else { st.setAt = Date.now(); st.view = "lap"; }
+      save(); render();
+    });
+
+    // Superset: just switched to the second exercise. Same as Go - the set
+    // starts now - but marked, so the clock says "superset" until it is logged.
+    document.getElementById("wd-sw-ss").addEventListener("click", function () {
+      if (phase() !== "rest") return;
+      st.setAt = Date.now(); st.ss = true; st.view = "lap";
       save(); render();
     });
 
@@ -212,6 +252,27 @@
         form.appendChild(input);
       });
     });
+
+    // On a phone the bar spans the screen. On a wide screen it would stretch
+    // far past the sets, so it takes the width of the page's sets column
+    // instead - the element marked data-wd-sw-anchor, minus its padding.
+    var anchor = document.querySelector("[data-wd-sw-anchor]");
+    var wide = window.matchMedia("(min-width: 768px)");
+    function fit() {
+      if (!anchor || !wide.matches) {
+        bar.style.left = bar.style.width = bar.style.right = "";
+        return;
+      }
+      var box = anchor.getBoundingClientRect(), css = getComputedStyle(anchor);
+      var padLeft = parseFloat(css.paddingLeft) || 0, padRight = parseFloat(css.paddingRight) || 0;
+      bar.style.left = (box.left + padLeft) + "px";
+      bar.style.width = (box.width - padLeft - padRight) + "px";
+      bar.style.right = "auto";
+    }
+    fit();
+    window.addEventListener("resize", fit);
+    // A scrollbar showing up moves the column without a resize event.
+    if (window.ResizeObserver) new ResizeObserver(fit).observe(document.documentElement);
 
     render();
     setInterval(render, 250);
