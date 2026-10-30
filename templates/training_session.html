@@ -350,27 +350,64 @@
                 </tr>
               </tbody>
             </table>
-            <!-- Insert 2 arrows on the edges of my table 
-           path to images which will work as button Workout-Diary\static\pictures\left_arrow.png and Workout-Diary\static\pictures\right_arrow.png 
-          -->
+            <!-- Previous / next exercise buttons on the edges of the table. Each
+                 shows the icon of the exercise it leads to (the general biceps
+                 icon when that exercise has none) plus a chevron for direction.
+                 Same order as arrow_buttons_next_exercise() walks - both read
+                 the plan sorted by order_in_workout. On the first / last
+                 exercise that side is left empty, but its slot keeps the other
+                 button on its own edge. -->
+            {% set nav_fallback_icon = url_for('static', filename='icons/exercises/dumbbell-bicep-curl.svg') %}
+            {% set nav_index = exercises_to_display.index(chosen_exercise) if chosen_exercise in exercises_to_display else none %}
+            {% set prev_exercise = exercises_to_display[nav_index - 1] if nav_index is not none and nav_index > 0 else none %}
+            {% set next_exercise = exercises_to_display[nav_index + 1] if nav_index is not none and nav_index + 1 < exercises_to_display|length else none %}
             <div class="d-flex justify-content-between align-items-start" style="margin-top: -2em;">
-              <button type="submit" name="previous_day"
-                class="btn p-0 border rounded-3 shadow-sm d-flex justify-content-center align-items-center"
-                style="width: 8%; max-width: 55px; aspect-ratio: 1.3; border-color: #bbb; background-color: #fff; transition: all 0.25s ease;">
-                <img src="{{ url_for('static', filename='pictures/left_arrow.png') }}" alt="Previous Exercise"
-                  style="width: 65%; height: auto;">
+              {% if prev_exercise %}
+              <button type="submit" name="previous_day" class="wd-nav-btn btn p-0 border rounded-3 shadow-sm"
+                title="Previous: {{ prev_exercise }}" aria-label="Previous exercise: {{ prev_exercise }}">
+                <span class="wd-nav-chevron" aria-hidden="true">&lsaquo;</span>
+                <img src="{{ exercise_icon(prev_exercise) or nav_fallback_icon }}" alt="">
               </button>
+              {% else %}
+              <span class="wd-nav-btn" aria-hidden="true"></span>
+              {% endif %}
 
-              <button type="submit" name="next_day"
-                class="btn p-0 border rounded-3 shadow-sm d-flex justify-content-center align-items-center"
-                style="width: 8%; max-width: 55px; aspect-ratio: 1.3; border-color: #bbb; background-color: #fff; transition: all 0.25s ease;">
-                <img src="{{ url_for('static', filename='pictures/right_arrow.png') }}" alt="Next Exercise"
-                  style="width: 65%; height: auto;">
+              {% if next_exercise %}
+              <button type="submit" name="next_day" class="wd-nav-btn btn p-0 border rounded-3 shadow-sm"
+                title="Next: {{ next_exercise }}" aria-label="Next exercise: {{ next_exercise }}">
+                <img src="{{ exercise_icon(next_exercise) or nav_fallback_icon }}" alt="">
+                <span class="wd-nav-chevron" aria-hidden="true">&rsaquo;</span>
               </button>
+              {% else %}
+              <span class="wd-nav-btn" aria-hidden="true"></span>
+              {% endif %}
             </div>
 
             <!-- I keep this style in here because I am not willing to search for it later... and it changes borders of my pretty arrow buttons -->
             <style>
+              .wd-nav-btn {
+                width: 12%;
+                max-width: 64px;
+                aspect-ratio: 1.3;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 2px;
+              }
+              button.wd-nav-btn {
+                border-color: #bbb;
+                background-color: #fff;
+                transition: all 0.25s ease;
+              }
+              .wd-nav-btn img {
+                width: 60%;
+                height: auto;
+              }
+              .wd-nav-chevron {
+                font-size: 1.3rem;
+                line-height: 1;
+                color: #6c757d;
+              }
               button[name="previous_day"]:hover,
               button[name="next_day"]:hover {
                 border-color: #888;
