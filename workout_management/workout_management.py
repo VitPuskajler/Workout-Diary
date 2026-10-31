@@ -1,5 +1,6 @@
 import inspect
 import json
+import unicodedata
 import os
 import io
 from types import SimpleNamespace
@@ -29,9 +30,45 @@ from sqlalchemy import (
 from sqlalchemy.exc import SQLAlchemyError
 from flask import request
 
-from translations.i18n import translate as tr
+from translations.i18n import current_language, translate as tr
 from datetime import datetime, date, timedelta, timezone
 from workout_management.units import lbs_to_kg
+
+
+# ---- exercise names in the user's language ---------------------------------
+# exercise_name (English) stays the key: every form sends it and every lookup
+# matches on it. Exercise.name_sk / name_cs are only shown, to users who switch
+# translated names on in Customization - and a translated name typed or picked
+# on a page is turned back into the English one by english_exercise_name().
+
+def fold_text(text):
+    """Lower case, accents dropped: "Šikmý" -> "sikmy", so a search typed
+    without diacritics (most phone keyboards) still finds the name."""
+    return "".join(c for c in unicodedata.normalize("NFKD", text or "")
+                   if not unicodedata.combining(c)).lower()
+
+
+def localized_name_column():
+    """Exercise.name_sk / name_cs for a user reading exercise names in their
+    own language, else None (English names)."""
+    if not getattr(current_user, "translate_exercises", False):
+        return None
+    return {"sk": Exercise.name_sk, "cs": Exercise.name_cs}.get(current_language())
+
+
+def english_exercise_name(name):
+    """A name from a page -> the catalog's English name. A Slovak or Czech
+    one (any case, with or without accents) maps back; an English or unknown
+    name comes back unchanged."""
+    if not name or db.session.query(Exercise.exercise_id).filter(Exercise.exercise_name == name).first():
+        return name
+    folded = fold_text(name.strip())
+    rows = db.session.query(Exercise.exercise_name, Exercise.name_sk, Exercise.name_cs).filter(
+        or_(Exercise.name_sk.isnot(None), Exercise.name_cs.isnot(None)))
+    for english, sk, cs in rows:
+        if folded in (fold_text(sk), fold_text(cs)):
+            return english
+    return name
 
 # No set for this long and the stopwatch switches itself off.
 STOPWATCH_IDLE = timedelta(minutes=30)
@@ -251,7 +288,7 @@ class WorkoutManagement:
         for row in rows:
             edit = edits[row.workout_exercise_id]
 
-            new_name = (edit.get("exercise") or "").strip()
+            new_name = english_exercise_name((edit.get("exercise") or "").strip())
             if new_name:
                 exercise_row = (
                     db.session.query(Exercise.exercise_id)
@@ -334,7 +371,7 @@ class WorkoutManagement:
             return rest_period, prescribed_sets
 
         for day in range(weekly):
-            user_exe = submitted_data.get(f"new_exercise_{day}", "")
+            user_exe = english_exercise_name(submitted_data.get(f"new_exercise_{day}", ""))
 
             # Find exercise_id for exercise user have inputed
             exe_id = (
@@ -608,6 +645,7 @@ class WorkoutManagement:
             return sets_for_jinja
 
     def find_exercise_id_db(self, exercise):
+        exercise = english_exercise_name(exercise)
         find_exercise_query = (
             db.session.query(Exercise.exercise_id)
             .filter(Exercise.exercise_name == exercise)
@@ -2440,11 +2478,21 @@ class WorkoutManagement:
         return "\n".join(lines).strip()
 
     # AJAX for exercises preview when creating workout
-    def fetch_exercise_suggestions(self, search_term, offset=0, limit=None):
+    def fetch_exercise_suggestions(self, search_term, offset=0, limit=None, labelled=False):
         """Exercise names containing search_term, best match first: starting
         with it, then a word starting with it ("row" -> "Barbell Bent-Over
         Row"), then the rest - each A-Z, so a page at a time (offset/limit)
-        never repeats or skips a name."""
+        never repeats or skips a name.
+
+        labelled: [{"name": English, "label": shown}] instead, for the pages'
+        dropdowns - with translated names on, the search also matches them
+        (accents optional) and the label is the translation."""
+        column = localized_name_column() if labelled else None
+        if column is not None:
+            return self._localized_suggestions(search_term, column, offset, limit)
+        if labelled:
+            names = self.fetch_exercise_suggestions(search_term, offset, limit)
+            return [{"name": name, "label": name} for name in names]
         # % and _ typed in the box are letters to look for, not wildcards.
         term = search_term.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         name = func.lower(Exercise.exercise_name)
@@ -2465,6 +2513,25 @@ class WorkoutManagement:
         if limit is not None:
             query = query.limit(limit)
         return [exercise_name for (exercise_name,) in query]
+
+    @staticmethod
+    def _localized_suggestions(search_term, column, offset, limit):
+        """fetch_exercise_suggestions() over both names, in Python: SQLite's
+        lower() leaves "Š" alone and knows nothing of accents. ~1200 short rows."""
+        term = fold_text(search_term.strip())
+        hits = []
+        rows = db.session.query(Exercise.exercise_name, column).filter(Exercise.is_deleted.is_(False))
+        for english, translated in rows:
+            label = translated or english
+            texts = [t for t in (fold_text(label), fold_text(english)) if term in t]
+            if not texts:
+                continue
+            rank = min(0 if t.startswith(term) else 1 if any(sep + term in t for sep in " -(") else 2
+                       for t in texts)
+            hits.append((rank, fold_text(label), english, label))
+        hits.sort()
+        end = None if limit is None else offset + limit
+        return [{"name": english, "label": label} for _rank, _key, english, label in hits[offset:end]]
 
     def get_today_intuitive_traing(self):
         current_user_id = self.current_user_id_db()
@@ -2492,6 +2559,7 @@ class WorkoutManagement:
 
     # Add exercise into workout_exercises
     def create_custom_workout_exercise(self, exercise_name):
+        exercise_name = english_exercise_name(exercise_name)
         user_id_db = self.current_user_id_db()
         today = datetime.combine(date.today(), datetime.min.time())
         tomorrow = today + timedelta(days=1)
@@ -2597,6 +2665,7 @@ class WorkoutManagement:
 
     # Function to add exercise to database for intuitive training
     def add_intuitive_exercise(self, exercise):
+        exercise = english_exercise_name(exercise)
         user_id_db = self.current_user_id_db()
 
         # Check if there is exercise in database

@@ -40,6 +40,9 @@ class Users(UserMixin, db.Model):
     show_set_gaps = Column(Boolean, nullable=False, default=True, server_default="1")
     # "en", "sk" or "cs" - see translations/i18n.py.
     language = Column(String(5), nullable=False, default="en", server_default="en")
+    # Exercise names in the user's language (Exercise.name_sk / name_cs) where
+    # one is written, instead of the English ones. Off: English, as before.
+    translate_exercises = Column(Boolean, nullable=False, default=False, server_default="0")
 
     def __repr__(self):
         return f"<User {self.username}>"
@@ -69,6 +72,11 @@ class Exercise(UserMixin, db.Model):
     # File name (no .svg) of a drawing in static/icons/exercises. NULL means
     # "the drawing named after the exercise, if there is one".
     icon = Column(String(100), nullable=True)
+    # The name in Slovak / Czech, shown instead of exercise_name to users who
+    # switch it on in Customization. NULL: no translation yet, English shows.
+    # exercise_name stays the key every form and lookup uses.
+    name_sk = Column(String(100), nullable=True)
+    name_cs = Column(String(100), nullable=True)
     # Deleted from /admin/exercises: hidden from every exercise picker, but the
     # row stays so the sets logged with it keep their name.
     # See temp/add_exercise_icon_columns.py.

@@ -221,6 +221,15 @@
               </div>
             </div>
 
+            <!-- Shown instead of the English name to users who switch translated
+                 exercise names on in Customization. Empty: English shows. -->
+            <div class="mb-3">
+              <label class="form-label" for="exNameSk">Name in Slovak <small class="text-body-secondary">(optional)</small></label>
+              <input type="text" class="form-control" id="exNameSk" maxlength="100" autocomplete="off" lang="sk">
+              <label class="form-label mt-2" for="exNameCs">Name in Czech <small class="text-body-secondary">(optional)</small></label>
+              <input type="text" class="form-control" id="exNameCs" maxlength="100" autocomplete="off" lang="cs">
+            </div>
+
             <div class="form-check mb-2">
               <input class="form-check-input" type="checkbox" id="exTimed">
               <label class="form-check-label" for="exTimed">Timed hold - sets are logged in seconds</label>
@@ -337,6 +346,8 @@
     <input type="hidden" name="muscle_group">
     <input type="hidden" name="icon">
     <input type="hidden" name="is_timed">
+    <input type="hidden" name="name_sk">
+    <input type="hidden" name="name_cs">
     <input type="hidden" name="is_deleted">
   </form>
 
@@ -499,6 +510,8 @@
         $("exName").classList.remove("is-invalid");
         $("exGroup").value = ex ? ex.group : $("exGroup").options[0].value;
         $("exTimed").checked = ex ? ex.timed : false;
+        $("exNameSk").value = ex ? ex.name_sk || "" : "";
+        $("exNameCs").value = ex ? ex.name_cs || "" : "";
         $("exDeleted").checked = ex ? ex.deleted : false;
         chosenIcon = ex ? ex.icon : null;
         $("exIconPanel").classList.add("d-none");
@@ -560,6 +573,8 @@
           group: $("exGroup").value,
           icon: chosenIcon,
           timed: $("exTimed").checked,
+          name_sk: tidy($("exNameSk").value),
+          name_cs: tidy($("exNameCs").value),
           deleted: mode === "edit" && $("exDeleted").checked,
         };
         showSummary(next);
@@ -605,12 +620,16 @@
         if (mode === "add") {
           $("exSummaryTitle").textContent = "Add this exercise?";
           row("Name", next.name);
+          if (next.name_sk) row("Slovak", next.name_sk);
+          if (next.name_cs) row("Czech", next.name_cs);
           row("Muscle group", groupLabel(next.group));
           row("Icon", iconBox);
           row("Logged in", unit(next.timed));
         } else {
           $("exSummaryTitle").textContent = "Save these changes?";
           row("Name", change(editing.name, next.name));
+          row("Slovak", change(editing.name_sk || "–", next.name_sk || "–"));
+          row("Czech", change(editing.name_cs || "–", next.name_cs || "–"));
           row("Muscle group", change(groupLabel(editing.group), groupLabel(next.group)));
           row("Icon", iconBox);
           row("Logged in", change(unit(editing.timed), unit(next.timed)));
@@ -625,6 +644,8 @@
           muscle_group: next.group,
           icon: next.icon || "",
           is_timed: next.timed ? "1" : "0",
+          name_sk: next.name_sk,
+          name_cs: next.name_cs,
           is_deleted: next.deleted ? "1" : "0",
         });
         $("exSummaryConfirm").className = "btn btn-success";
@@ -727,7 +748,7 @@
         row("Muscle group", groupLabel(toDelete.group));
         row("Afterwards", "Hidden from every exercise search. Logged sets stay.");
         setSubmit({ action: "delete", exercise_id: toDelete.id, exercise_name: "",
-          muscle_group: "", icon: "", is_timed: "", is_deleted: "" });
+          muscle_group: "", icon: "", is_timed: "", name_sk: "", name_cs: "", is_deleted: "" });
         $("exSummaryConfirm").className = "btn btn-danger";
         $("exSummaryConfirm").textContent = "Delete";
         backTo = "exDelete";

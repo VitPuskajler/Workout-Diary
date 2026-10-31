@@ -152,11 +152,11 @@
           <select class="form-select text-center fw-bolder" aria-label="{{ _("Exercise") }}"
             onchange="this.form.submit()" name="chosen_exercise">
 
-            <option value="">{{ chosen_exercise if chosen_exercise else _("Select an exercise") }}</option>
+            <option value="">{{ exercise_label(chosen_exercise) if chosen_exercise else _("Select an exercise") }}</option>
 
             {% for exercise in exercises_to_display %}
             {% if chosen_exercise != exercise %}
-            <option>{{exercise}}</option>
+            <option value="{{ exercise }}">{{ exercise_label(exercise) }}</option>
             {% endif %}
             {% endfor %}
 
@@ -392,7 +392,7 @@
             <div class="d-flex justify-content-between align-items-start" style="margin-top: -2em;">
               {% if prev_exercise %}
               <button type="submit" name="previous_day" class="wd-nav-btn btn p-0 border rounded-3 shadow-sm"
-                title="{{ _("Previous: {name}", name=prev_exercise) }}" aria-label="{{ _("Previous exercise: {name}", name=prev_exercise) }}">
+                title="{{ _("Previous: {name}", name=exercise_label(prev_exercise)) }}" aria-label="{{ _("Previous exercise: {name}", name=exercise_label(prev_exercise)) }}">
                 <span class="wd-nav-chevron" aria-hidden="true">&lsaquo;</span>
                 <img src="{{ exercise_icon(prev_exercise) or nav_fallback_icon }}" alt="">
               </button>
@@ -402,7 +402,7 @@
 
               {% if next_exercise %}
               <button type="submit" name="next_day" class="wd-nav-btn btn p-0 border rounded-3 shadow-sm"
-                title="{{ _("Next: {name}", name=next_exercise) }}" aria-label="{{ _("Next exercise: {name}", name=next_exercise) }}">
+                title="{{ _("Next: {name}", name=exercise_label(next_exercise)) }}" aria-label="{{ _("Next exercise: {name}", name=exercise_label(next_exercise)) }}">
                 <img src="{{ exercise_icon(next_exercise) or nav_fallback_icon }}" alt="">
                 <span class="wd-nav-chevron" aria-hidden="true">&rsaquo;</span>
               </button>
@@ -481,7 +481,7 @@
                   <button type="submit" name="chosen_exercise" value="{{row.exercise}}"
                     class="btn p-0 border-0 shadow-none w-100 {% if row.done is not none %}text-success-emphasis{% endif %}">
                     {% if show_icons %}<span class="wd-plan-icon">{{ icon_picture(row.exercise) }}</span>{% endif %}
-                    {{row.exercise}}
+                    {{ exercise_label(row.exercise) }}
                   </button>
                 </td>
                 <td>

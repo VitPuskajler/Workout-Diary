@@ -471,7 +471,7 @@
         {% set has_more_sessions = session_dates | length > 2 %}
         <div class="row mb-2">
           <div class="col-12 text-center">
-            <h5 class="text-success mb-1">{{ key }}</h5>
+            <h5 class="text-success mb-1">{{ exercise_label(key) }}</h5>
             {% if value %}
             <span
               class="wd-history-toggle {{ 'wd-history-has-more' if has_more_sessions else 'wd-history-none' }}"

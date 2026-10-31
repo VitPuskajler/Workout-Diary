@@ -226,7 +226,7 @@
               <tbody>
                 {% for item in day.exercises %}
                 <tr>
-                  <td>{{ item.exercise }}</td>
+                  <td>{{ exercise_label(item.exercise) }}</td>
                   <td>{{ item.sets }}</td>
                   <td>{{ item.rest }}</td>
                 </tr>

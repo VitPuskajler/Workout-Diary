@@ -84,6 +84,12 @@
       flex: 0 0 34px;
     }
 
+    /* A row's icon plays its rep: while the mouse is over it, or tapped on
+       a phone (tap again to stop). */
+    img[data-wd-moving] {
+      cursor: pointer;
+    }
+
     @media (max-width: 576px) {
       .table .col-2 {
         max-width: 50px;
@@ -281,7 +287,7 @@
           {% if w_names[x] is not none %}
 
           <input type="text" name="workout_name_{{x}}" class="form-control text-center w-50 mx-auto bg-success-subtle"
-            placeholder=" {{ _("{number}. Workout: {name}", number=x+1, name=w_names[x]) }}  " />
+            placeholder="{{ w_names[x] }}" aria-label="{{ _("Workout name") }}" />
 
           {% elif w_names is none or w_names[x] is none %}
 
@@ -319,9 +325,11 @@
                 <td class="wd-exercise-cell">
                   <div class="d-flex align-items-center gap-1">
                     {% set icon = exercise_icon(exe['exercise']) %}
-                    {% if icon %}<img src="{{ icon }}" class="wd-exercise-icon" alt="" aria-hidden="true">{% endif %}
+                    {% set moving = exercise_icon_moving(exe['exercise']) if icon else none %}
+                    {% if icon %}<img src="{{ icon }}" class="wd-exercise-icon" alt="" aria-hidden="true"
+                      {% if moving %}data-wd-moving="{{ moving }}"{% endif %}>{% endif %}
                     <input type="text" id="exercise_{{ exe['id'] }}" name="exercise_{{ exe['id'] }}"
-                      class="form-control text-center" value="{{ exe['exercise'] }}" autocomplete="off" />
+                      class="form-control text-center" value="{{ exercise_label(exe['exercise']) }}" autocomplete="off" />
                   </div>
                   <!-- Suggestions dropdown -->
                   <div class="dropdown">
@@ -478,6 +486,26 @@
       animated: {{ exercise_icon_animated_slugs|tojson }},
     };
 
+    // The plan's icons play their rep: hovered with a mouse, tapped on a
+    // touch screen - one at a time: tapping another stops the one playing,
+    // tapping the same one again stops it. Never with "reduce motion" on.
+    (function () {
+      if (!window.matchMedia("(prefers-reduced-motion: no-preference)").matches) return;
+      var tapped = null;                                  // the icon a tap set playing
+      function play(img, on) { img.src = on ? img.dataset.wdMoving : img.dataset.wdStill; }
+      document.querySelectorAll("img[data-wd-moving]").forEach(function (img) {
+        img.dataset.wdStill = img.getAttribute("src");
+        img.addEventListener("pointerenter", function (e) { if (e.pointerType === "mouse") play(img, true); });
+        img.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse") play(img, false); });
+        img.addEventListener("click", function (e) {
+          if (e.pointerType === "mouse") return;          // the hover already plays it
+          if (tapped && tapped !== img) play(tapped, false);
+          tapped = tapped === img ? null : img;
+          play(img, tapped === img);
+        });
+      });
+    })();
+
     // Wire one exercise text input to its own suggestions dropdown - paging,
     // icons, waiting out fast typing and dropping stale answers are all in
     // exerciseSuggestions.js; here is only what picking one does.
@@ -494,7 +522,7 @@
           if (suffix.indexOf("new_") === 0) syncTimedToggle(suffix.slice(4), exercise);
           // Picking from the dropdown IS the change, so it becomes the new
           // baseline - collapsing afterwards must not undo it.
-          input.dataset.wdOriginal = exercise;
+          input.dataset.wdOriginal = input.value;
           collapseExerciseRow(false);
         },
       });

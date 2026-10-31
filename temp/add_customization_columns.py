@@ -14,6 +14,11 @@ database: locally, and again on PythonAnywhere.
                                           Start tap; NULL for older sessions
   - exercise_entries.superset_of (NULL)   the set a superset set was done
                                           straight after (the SS button)
+  - users.translate_exercises (0/1, 0)    exercise names in the user's language
+  - exercises.name_sk / name_cs (NULL)    those names - filled from
+                                          data/exercise_names.json where empty,
+                                          so a name edited on /admin/exercises
+                                          is never overwritten
 
 Existing users get the defaults: icons on, not moving, stopwatch and set gaps
 on - how the app looked before the switches existed.
@@ -22,6 +27,7 @@ Safe to run twice; it checks before it changes anything.
 
     python temp/add_customization_columns.py
 """
+import json
 import os
 import sqlite3
 import sys
@@ -38,7 +44,12 @@ COLUMNS = [
     ("users", "language", "VARCHAR(5) NOT NULL DEFAULT 'en'"),
     ("sessions", "started_by_stopwatch", "BOOLEAN"),
     ("exercise_entries", "superset_of", "INTEGER REFERENCES exercise_entries(entry_id)"),
+    ("users", "translate_exercises", "BOOLEAN NOT NULL DEFAULT 0"),
+    ("exercises", "name_sk", "VARCHAR(100)"),
+    ("exercises", "name_cs", "VARCHAR(100)"),
 ]
+
+NAMES_PATH = os.path.join(os.path.dirname(DB_PATH), "..", "data", "exercise_names.json")
 
 
 def main():
@@ -54,6 +65,18 @@ def main():
             else:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
                 print(f"{table}.{name} column added ({definition})")
+
+        with open(NAMES_PATH, encoding="utf-8") as handle:
+            names = json.load(handle)
+        filled = 0
+        for english, translated in names.items():
+            for code in ("sk", "cs"):
+                if translated.get(code):
+                    filled += conn.execute(
+                        f"UPDATE exercises SET name_{code} = ? WHERE exercise_name = ? AND name_{code} IS NULL",
+                        (translated[code], english),
+                    ).rowcount
+        print(f"filled {filled} exercise name translations")
         conn.commit()
     finally:
         conn.close()

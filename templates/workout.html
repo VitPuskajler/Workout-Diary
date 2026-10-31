@@ -170,7 +170,7 @@
                   <tbody>
                     {% for exercise_name, details in exercises.items() %}
                     <tr>
-                      <td>{{ exercise_name }}</td>
+                      <td>{{ exercise_label(exercise_name) }}</td>
                       <td>{{ details.sets }}</td>
                       <td>{{ details.rest }}</td>
                     </tr>

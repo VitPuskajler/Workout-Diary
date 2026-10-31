@@ -94,7 +94,7 @@
         <form id="customizationForm" action="{{ url_for('save_customization') }}">
             <div class="border rounded p-4 mx-auto w-100" style="max-width: 340px;">
                 <!-- Each language in its own name, so it can be found whatever
-                     the page is in. Exercise names stay English in all three. -->
+                     the page is in. -->
                 <div class="wd-group mb-3">{{ _("Language") }}</div>
                 <div class="btn-group w-100" role="group" aria-label="{{ _("Language") }}">
                     {% for code, name in LANGUAGES.items() %}
@@ -103,7 +103,16 @@
                     <label class="btn btn-outline-primary" for="lang-{{ code }}" lang="{{ code }}">{{ name }}</label>
                     {% endfor %}
                 </div>
-                <div class="form-text">{{ _("Exercise names stay in English.") }}</div>
+
+                <!-- Exercise names follow the language only when asked to - many
+                     lifters know them in English. No translation in English. -->
+                <div class="form-check form-switch wd-switch mt-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="translateExercises"
+                        name="translate_exercises" value="1" {{ 'checked' if current_user.translate_exercises }}
+                        {{ 'disabled' if current_language() == 'en' }}>
+                    <label class="form-check-label" for="translateExercises">{{ _("Translated exercise names") }}</label>
+                    <div class="form-text">{{ _("Exercise names in your language, where a translation exists. Off: the English names.") }}</div>
+                </div>
 
                 <hr class="my-4">
                 <div class="wd-group mb-3">{{ _("Exercise icons") }}</div>

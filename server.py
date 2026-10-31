@@ -38,7 +38,7 @@ from wtforms.validators import DataRequired, EqualTo, NumberRange, ValidationErr
 from models.db_setup import db
 from translations.i18n import LANGUAGES, current_language, js_translations, plural_forms, translate as _, translate_plural as _n
 from models.models import Exercise, Users, WorkoutPlan, Mesocycles, load_user
-from workout_management.workout_management import  WorkoutManagement
+from workout_management.workout_management import  WorkoutManagement, english_exercise_name, localized_name_column
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -480,8 +480,8 @@ def exercise_suggestions():
     offset = max(request.args.get("offset", 0, type=int), 0)
     limit = min(max(request.args.get("limit", 10, type=int), 1), 50)
     # One more than asked for says whether there is a next page.
-    names = fetch_exercise_suggestions(search_term, offset=offset, limit=limit + 1)
-    return jsonify({"items": names[:limit], "has_more": len(names) > limit})
+    items = fetch_exercise_suggestions(search_term, offset=offset, limit=limit + 1, labelled=True)
+    return jsonify({"items": items[:limit], "has_more": len(items) > limit})
 
 
 # Here is created mesocycle workout
@@ -830,6 +830,27 @@ def exercise_icon_choices():
     return g.exercise_icon_choices
 
 
+def exercise_labels():
+    """{English name: the name shown} for the exercises translated into the
+    user's language, when they read them translated - else {}. Read once per
+    request."""
+    if not hasattr(g, "exercise_labels"):
+        column = localized_name_column() if current_user.is_authenticated else None
+        g.exercise_labels = {} if column is None else dict(
+            db.session.query(Exercise.exercise_name, column).filter(column.isnot(None)))
+    return g.exercise_labels
+
+
+def exercise_label(exercise_name):
+    """The name to show for an exercise: its translation, or the English one."""
+    return exercise_labels().get(exercise_name, exercise_name)
+
+
+@app.context_processor
+def inject_exercise_labels():
+    return {"exercise_label": exercise_label, "exercise_labels": exercise_labels}
+
+
 @app.context_processor
 def inject_exercise_icons():
     """exercise_icon("Pull-Up") -> the icon's URL, or None for an exercise that
@@ -1055,6 +1076,9 @@ def manage_exercises():
         exercise.muscle_group = muscle_group
         exercise.icon = icon
         exercise.is_timed = request.form.get("is_timed") == "1"
+        # Optional translations; empty means the English name shows.
+        for column in ("name_sk", "name_cs"):
+            setattr(exercise, column, " ".join((request.form.get(column) or "").split())[:100] or None)
         db.session.commit()
         flash(message, "success")
         return redirect(url_for("manage_exercises"))
@@ -1065,6 +1089,8 @@ def manage_exercises():
             "name": row.exercise_name,
             "group": row.muscle_group,
             "timed": bool(row.is_timed),
+            "name_sk": row.name_sk,
+            "name_cs": row.name_cs,
             "icon": row.icon if row.icon in _EXERCISE_ICON_SET else None,
             "deleted": bool(row.is_deleted),
         }
@@ -1131,7 +1157,8 @@ def change_password():
 
 
 # The switches on /customization -> Users columns.
-CUSTOMIZATION_SWITCHES = ("show_session_icons", "animate_session_icons", "show_stopwatch", "show_set_gaps")
+CUSTOMIZATION_SWITCHES = ("show_session_icons", "animate_session_icons", "show_stopwatch", "show_set_gaps",
+                          "translate_exercises")
 
 
 @app.route("/customization")
@@ -1452,6 +1479,8 @@ def period_statistics():
                 exercise_data, _(statistics_range_label(chosen_period)),
                 is_bodyweight=is_bodyweight_exercise(selected_value, chosen_period),
             )
+            # Only the chart's title shows it.
+            graph_data["exercise_name"] = exercise_label(graph_data["exercise_name"])
         elif selected_value:
             # Exercise is valid but has nothing inside the chosen window - say
             # so, rather than rendering a blank space.
@@ -1524,6 +1553,7 @@ def mesocycle_statistics():
                 graph_data = exercise_progress_chart_data(
                     exercise_data, chosen_mesocycle["name"], is_bodyweight=is_bodyweight
                 )
+                graph_data["exercise_name"] = exercise_label(graph_data["exercise_name"])
             else:
                 no_data_in_period = True
         else:
@@ -1667,9 +1697,10 @@ def intuitive_training():
                 # hand matched nothing and the set typed with it was dropped
                 # without a word. Resolve to the catalog's own spelling, and say
                 # so when there is no such exercise.
+                english = english_exercise_name(new_exercise)
                 catalog_name = next(
-                    (n for n in fetch_exercise_suggestions(new_exercise)
-                     if n.lower() == new_exercise.lower()),
+                    (n for n in fetch_exercise_suggestions(english)
+                     if n.lower() == english.lower()),
                     None,
                 )
                 if catalog_name is None:

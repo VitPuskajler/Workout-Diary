@@ -111,7 +111,7 @@
               {% for group in exercises_in_mesocycle %}
               <optgroup label="— {{ group.day_name|upper }} —" style="color: #000; font-weight: bold;">
                 {% for x in group.exercises %}
-                <option value="{{ x }}" {% if x==chosen_exercise %}selected{% endif %} style="font-weight: normal;">{{ x }}</option>
+                <option value="{{ x }}" {% if x==chosen_exercise %}selected{% endif %} style="font-weight: normal;">{{ exercise_label(x) }}</option>
                 {% endfor %}
               </optgroup>
               {% endfor %}
@@ -132,7 +132,7 @@
         {% elif no_data_in_period %}
         <div class="col-12">
           <p class="text-center text-muted mt-3">
-            {{ _("No sets logged for") }} <strong>{{ chosen_exercise }}</strong> {{ _("in this mesocycle.") }}
+            {{ _("No sets logged for") }} <strong>{{ exercise_label(chosen_exercise) }}</strong> {{ _("in this mesocycle.") }}
           </p>
         </div>
         {% endif %}

@@ -85,7 +85,7 @@
               <input type="text" id="exerciseSearch" class="form-control text-center"
                 placeholder="{{ _("Type or tap to choose exercise") }}" autocomplete="off"
                 role="combobox" aria-expanded="false" aria-autocomplete="list"
-                aria-controls="exerciseList" value="{{ chosen_exercise or '' }}"
+                aria-controls="exerciseList" value="{{ exercise_label(chosen_exercise) if chosen_exercise else '' }}"
                 {# 16px stops iOS/Android zooming the page on focus #}
                 style="font-size: 16px; min-height: 44px;">
 
@@ -112,6 +112,8 @@
                have logged, so it is small, and filtering it in the browser
                means no request per keystroke on gym wifi. -->
           <script type="application/json" id="exerciseData">{{ exercises | tojson }}</script>
+          <!-- {English name: translated name}, for users reading them translated. -->
+          <script type="application/json" id="exerciseLabels">{{ exercise_labels() | tojson }}</script>
           {% else %}
           <p class="text-center text-muted mb-1">{{ _("No logged exercises yet.") }}</p>
           {% endif %}
@@ -157,15 +159,22 @@
 
           var TOP_N = 10;
           var all = JSON.parse(dataTag.textContent);   // [{name, sets}, ...] already ranked
+          // The name shown - translated where the user reads them so; the
+          // English name is still the one submitted.
+          var labelsTag = document.getElementById("exerciseLabels");
+          var LABELS = labelsTag ? JSON.parse(labelsTag.textContent) : {};
+          function labelOf(name) { return LABELS[name] || name; }
+          // Lower case, accents dropped - "sikmy" finds "Šikmý".
+          function fold(text) { return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
           var showAll = false;
           var activeIndex = -1;
           var rows = [];        // what is currently rendered, in display order
 
           function matches(query) {
             if (!query) return all;
-            var needle = query.toLowerCase();
+            var needle = fold(query);
             return all.filter(function (e) {
-              return e.name.toLowerCase().indexOf(needle) !== -1;
+              return fold(e.name).indexOf(needle) !== -1 || fold(labelOf(e.name)).indexOf(needle) !== -1;
             });
           }
 
@@ -198,7 +207,7 @@
             var visible = limited ? found.slice(0, TOP_N) : found;
 
             visible.forEach(function (exercise) {
-              var li = makeItem(exercise.name, false);
+              var li = makeItem(labelOf(exercise.name), false);
               li.setAttribute("role", "option");
 
               var badge = document.createElement("span");
@@ -247,7 +256,7 @@
 
           function choose(name) {
             hidden.value = name;
-            input.value = name;
+            input.value = labelOf(name);
             close();
             form.submit();
           }

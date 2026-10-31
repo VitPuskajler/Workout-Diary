@@ -22,7 +22,7 @@
          choices: {{ exercise_icon_choices()|tojson }},
          animated: {{ exercise_icon_animated_slugs|tojson }},
        },
-       onPick: function (name) {},         // optional, after input.value = name
+       onPick: function (name) {},         // optional, after input.value = the label
        loadingText: "Loading…",            // optional, in the page's language
      });
 -------------------------------------------------------------------------- */
@@ -104,13 +104,17 @@
       list.style.display = "none";
     }
 
-    function item(name) {
+    // An item is {name, label}: the English name (the icon, onPick) and the
+    // name shown - translated for users who read exercise names in their
+    // language. The box gets the label; the server maps it back to English.
+    function item(entry) {
+      var name = entry.name, label = entry.label || entry.name;
       var li = document.createElement("li");
       li.classList.add("dropdown-item");
-      li.textContent = name;
+      li.textContent = label;
       if (icons) addIcon(icons, li, name, inView);
       li.onclick = function () {
-        input.value = name;
+        input.value = label;
         hide();
         if (options.onPick) options.onPick(name);
       };
@@ -153,7 +157,7 @@
           list.innerHTML = "";
           list.scrollTop = 0;
         }
-        data.items.forEach(function (name) { list.appendChild(item(name)); });
+        data.items.forEach(function (entry) { list.appendChild(item(entry)); });
         offset += data.items.length;
         hasMore = data.has_more;
 
