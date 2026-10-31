@@ -190,6 +190,13 @@
       tr.wd-editing > td.wd-exercise-cell {
         width: 100%;
       }
+
+      /* An exercise field open for typing: room below the page, so even the
+         last day's field can be scrolled up under the navbar - above the
+         phone keyboard, with its suggestions visible under it. */
+      body.wd-typing {
+        padding-bottom: 75vh;
+      }
     }
   </style>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -625,6 +632,27 @@
       row.classList.add("wd-editing");
     }
 
+    // The phone keyboard covers the lower half of the screen; a field near the
+    // bottom of the page (the last day's) stayed under it, suggestions and
+    // all, as there was no page left to scroll. So: room below the page, then
+    // the field scrolled up to just under the navbar - again once the keyboard
+    // is up, as opening it scrolls the page itself.
+    function revealExerciseField(input) {
+      document.body.classList.add("wd-typing");
+      const navbar = document.querySelector("nav.fixed-top");
+      function scrollUp() {
+        if (!document.body.classList.contains("wd-typing")) return;
+        const top = input.getBoundingClientRect().top + window.scrollY
+          - (navbar ? navbar.offsetHeight : 0) - 8;
+        window.scrollTo({ top: top, behavior: "smooth" });
+      }
+      requestAnimationFrame(scrollUp);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", scrollUp, { once: true });
+      }
+      setTimeout(scrollUp, 450);          // a keyboard that does not resize the viewport
+    }
+
     function collapseExerciseRow(revert) {
       const row = document.querySelector("tr.wd-editing");
       if (!row) return;
@@ -653,6 +681,7 @@
       }
 
       row.classList.remove("wd-editing");
+      document.body.classList.remove("wd-typing");
     }
 
     document.addEventListener("focusin", function (e) {
@@ -669,6 +698,7 @@
       if (!NARROW.matches || !row) return;
       input.dataset.wdOriginal = input.value;
       expandExerciseRow(row);
+      revealExerciseField(input);
     });
 
     // "Click on empty page or any other place and it collapses." pointerdown

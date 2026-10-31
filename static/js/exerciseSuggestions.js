@@ -46,8 +46,11 @@
     if (styled) return;
     styled = true;
     var css = document.createElement("style");
+    // Long names (Slovak and Czech ones especially) wrap onto a second line
+    // instead of running off the edge of the list.
     css.textContent = ".dropdown-item .wd-exercise-icon{width:28px;height:28px;" +
-      "flex:0 0 28px;margin-right:.35rem}";
+      "flex:0 0 28px;margin-right:.35rem}" +
+      ".wd-suggestions .dropdown-item{white-space:normal;overflow-wrap:anywhere;line-height:1.25}";
     document.head.appendChild(css);
   }
 
@@ -70,7 +73,8 @@
 
   function wire(input, list, options) {
     options = options || {};
-    if (options.icons) addStyle();
+    addStyle();
+    list.classList.add("wd-suggestions");
     var icons = options.icons && {
       base: options.icons.base,
       slugs: new Set(options.icons.slugs),
