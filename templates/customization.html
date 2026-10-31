@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="{{ current_language() }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Periodization - Customization</title>
+    <link rel="icon" href="/static/title/barbell_title.jpg">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
+
+    <style>
+        /* Page heading: the same quiet section label as "Menu" on /profile. */
+        .wd-label {
+            font-size: 1.05rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.35em;
+            color: var(--bs-secondary-color, #6c757d);
+            padding-left: 0.35em;
+        }
+
+        /* Switches bigger than Bootstrap's default, so they are easy to hit
+           with a thumb. The label sits level with the switch. */
+        .wd-switch {
+            padding-left: 3.25em;
+        }
+
+        .wd-switch .form-check-input {
+            width: 2.6em;
+            height: 1.4em;
+            margin-left: -3.25em;
+            margin-top: 0;
+            cursor: pointer;
+        }
+
+        .wd-switch .form-check-label {
+            line-height: 1.4em;
+            cursor: pointer;
+        }
+
+        /* A group of switches: "Training session", "Stopwatch"... */
+        .wd-group {
+            font-size: .8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--bs-secondary-color, #6c757d);
+        }
+    </style>
+  {% include "partials/_js_translations.html" %}
+</head>
+
+<body>
+    <div class="p-5 mb-5">
+        <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="{{ _("Main navigation") }}">
+          <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
+            <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
+              aria-controls="navbarCollapse" aria-expanded="false" aria-label="{{ _("Toggle navigation") }}">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarCollapse">
+                    <ul class="navbar-nav me-auto mb-2 mb-md-0">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('training_session_redirect')}}">{{ _("Training Session") }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('workout_plan_page')}}">{{ _("Workout Plan") }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('intuitive_training') }}">{{ _("Intuitive Training") }}</a>
+                        </li>
+                    </ul>
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('profile') }}">{{ current_user.username }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('logout') }}">{{ _("Logout") }}</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </div>
+    {% include "partials/_impersonation_banner.html" %}
+
+    <!-- How the app looks for this account. Each switch saves the moment it is
+         flipped (save_customization in server.py) - no Save button. -->
+    <main class="container my-4">
+        <h1 class="wd-label text-center mb-4">{{ _("Customization") }}</h1>
+
+        <form id="customizationForm" action="{{ url_for('save_customization') }}">
+            <div class="border rounded p-4 mx-auto w-100" style="max-width: 340px;">
+                <!-- Each language in its own name, so it can be found whatever
+                     the page is in. Exercise names stay English in all three. -->
+                <div class="wd-group mb-3">{{ _("Language") }}</div>
+                <div class="btn-group w-100" role="group" aria-label="{{ _("Language") }}">
+                    {% for code, name in LANGUAGES.items() %}
+                    <input type="radio" class="btn-check" name="language" id="lang-{{ code }}" value="{{ code }}"
+                        autocomplete="off" {{ 'checked' if current_language() == code }}>
+                    <label class="btn btn-outline-primary" for="lang-{{ code }}" lang="{{ code }}">{{ name }}</label>
+                    {% endfor %}
+                </div>
+                <div class="form-text">{{ _("Exercise names stay in English.") }}</div>
+
+                <hr class="my-4">
+                <div class="wd-group mb-3">{{ _("Exercise icons") }}</div>
+
+                <div class="form-check form-switch wd-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="showSessionIcons"
+                        name="show_session_icons" value="1" {{ 'checked' if current_user.show_session_icons }}>
+                    <label class="form-check-label" for="showSessionIcons">{{ _("Icons in training session") }}</label>
+                    <div class="form-text">{{ _("The exercise's drawing in the exercise list.") }}</div>
+                </div>
+
+                <!-- Only means something with the icons on, so it is greyed out
+                     while they are off - but keeps its own position for later. -->
+                <div class="form-check form-switch wd-switch mt-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="animateSessionIcons"
+                        name="animate_session_icons" value="1" {{ 'checked' if current_user.animate_session_icons }}
+                        {{ 'disabled' if not current_user.show_session_icons }}>
+                    <label class="form-check-label" for="animateSessionIcons">{{ _("Moving icons") }}</label>
+                    <div class="form-text">{{ _("The icons play the exercise's rep. Not with “reduce motion” on.") }}</div>
+                </div>
+
+                <hr class="my-4">
+                <div class="wd-group mb-3">{{ _("Timing") }}</div>
+
+                <!-- Locked while this device's stopwatch is running (Start tapped,
+                     Finish not yet) - see the script below. -->
+                <div class="form-check form-switch wd-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="showStopwatch"
+                        name="show_stopwatch" value="1" {{ 'checked' if current_user.show_stopwatch }}>
+                    <label class="form-check-label" for="showStopwatch">{{ _("Stopwatch") }}</label>
+                    <div class="form-text" id="showStopwatchHelp">{{ _("The bar on Training Session and Intuitive Training. Off, workouts are timed from the first set.") }}</div>
+                </div>
+
+                <div class="form-check form-switch wd-switch mt-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="showSetGaps"
+                        name="show_set_gaps" value="1" {{ 'checked' if current_user.show_set_gaps }}>
+                    <label class="form-check-label" for="showSetGaps">{{ _("Time between sets") }}</label>
+                    <div class="form-text">{{ _('"+2:35" under each logged set: the time since the one before.') }}</div>
+                </div>
+
+                <div class="small text-center mt-3" id="customizationStatus" aria-live="polite">&nbsp;</div>
+            </div>
+        </form>
+
+        <div class="text-center mt-4">
+            <a href="{{ url_for('profile') }}" class="btn btn-outline-secondary btn-sm">{{ _("Back to Menu") }}</a>
+        </div>
+    </main>
+
+    <script>
+        // Every flip sends all the switches. "Moving icons" is greyed out while
+        // the icons are off. A failed save flips the switch back, so it never
+        // shows a setting that was not kept.
+        (function () {
+            var form = document.getElementById("customizationForm");
+            var show = document.getElementById("showSessionIcons");
+            var animate = document.getElementById("animateSessionIcons");
+            var stopwatch = document.getElementById("showStopwatch");
+            var status = document.getElementById("customizationStatus");
+            var timer = null;
+
+            // The stopwatch cannot be switched off mid-workout. Its run lives
+            // in this browser (partials/_stopwatch.html, same key and same 30
+            // minutes idle rule), so this only knows about this device.
+            try {
+                var run = JSON.parse(localStorage.getItem("wd_sw_{{ current_user.user_id }}"));
+                var last = run && (run.setAt || run.seen || run.start);
+                if (stopwatch.checked && last && Date.now() - last <= 30 * 60 * 1000) {
+                    stopwatch.disabled = true;
+                    var help = document.getElementById("showStopwatchHelp");
+                    help.textContent = {{ _("Running now - finish the workout on the stopwatch first.")|tojson }};
+                    help.classList.add("text-warning-emphasis");
+                }
+            } catch (e) { }
+
+            function say(text, ok) {
+                clearTimeout(timer);
+                status.textContent = text;
+                status.className = "small text-center mt-3 " + (ok ? "text-success" : "text-danger");
+                if (ok) {
+                    timer = setTimeout(function () { status.innerHTML = "&nbsp;"; }, 1500);
+                }
+            }
+
+            form.addEventListener("submit", function (event) { event.preventDefault(); });
+
+            // A new language reloads the page, to show it in that language.
+            var language = form.querySelector("input[name=language]:checked");
+
+            form.addEventListener("change", function (event) {
+                var flipped = event.target;
+                var languageChange = flipped.name === "language";
+                animate.disabled = !show.checked;
+                var data = new FormData();
+                form.querySelectorAll("input[type=checkbox]").forEach(function (box) {
+                    data.append(box.name, box.checked ? "1" : "0");
+                });
+                if (languageChange) { data.append("language", flipped.value); }
+                fetch(form.action, { method: "POST", body: data })
+                    .then(function (response) {
+                        if (!response.ok) { throw new Error(response.status); }
+                        if (languageChange) { window.location.reload(); return; }
+                        say({{ _("Saved")|tojson }}, true);
+                    })
+                    .catch(function () {
+                        if (languageChange) {
+                            language.checked = true;
+                        } else {
+                            flipped.checked = !flipped.checked;
+                        }
+                        animate.disabled = !show.checked;
+                        say({{ _("Not saved - try again.")|tojson }}, false);
+                    });
+            });
+        })();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+</body>
+
+</html>

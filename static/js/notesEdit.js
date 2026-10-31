@@ -2,10 +2,14 @@
    notesEdit.js - room to actually write a note
 
    The Notes column in the set table is about 97px wide on a phone, roughly
-   nine characters. Tapping it grows the cell IN PLACE, covering the Kg /
-   Reps / RPE cells of the same row (they're hidden, not lost - their inputs
-   still submit normally, display:none has no effect on form submission),
-   instead of pushing a whole new row underneath.
+   nine characters. Tapping it lays the field over the Kg / Reps / RPE cells
+   of the same row, instead of pushing a whole new row underneath.
+
+   Over them, not instead of them: those cells stay where they are, visible
+   to the browser, only covered. The iPhone keyboard's up/down arrows step
+   through the fields the browser can see - with the cells hidden, "up" from
+   a note skipped this row's RPE and landed in the set above it. Covered,
+   "up" goes to RPE, and moving there closes the note.
 
    It stays exactly one row tall even while open - a long note scrolls
    inside that one row (mouse wheel, or arrow keys once the caret reaches
@@ -42,7 +46,6 @@
 
   var field = null;              // the [data-note] textarea currently open, or null
   var notesTd = null;            // its containing <td>
-  var hiddenCells = [];          // the Kg/Reps/RPE <td>s hidden while it's open
 
   function injectCss() {
     var css = document.createElement("style");
@@ -53,8 +56,8 @@
       SEL + "{cursor:pointer;resize:none;overflow:hidden;white-space:nowrap;" +
         "height:calc(1.5em + .75rem + 2px);min-height:0;" +
         "padding-top:0;padding-bottom:0;line-height:calc(1.5em + .75rem)}" +
-      // Open state: same one-row BOX height as closed - width comes from the
-      // colSpan below, not height. But a normal line-height for the actual
+      // Open state: same one-row BOX height as closed - width comes from
+      // open() below, not height. But a normal line-height for the actual
       // text, not the closed state's (line-height == box height, to centre
       // one line in it) - inheriting that made every wrapped line sit in its
       // own oversized slot, all gap. Normal line-height packs them close, so
@@ -80,7 +83,8 @@
       SEL + ".wd-note-open{cursor:text;white-space:pre-wrap;overflow-y:auto;" +
         "line-height:1.3;text-align:left!important}" +
       SEL + ".wd-note-open[placeholder=\"...\"]:placeholder-shown{text-align:center!important}" +
-      "td.wd-note-open{border:" + EDGE + ";background:#fff}";
+      SEL + ".wd-note-open{position:absolute;z-index:3;background:#fff;border:" + EDGE + "}" +
+      "td.wd-note-open{position:relative}";
     document.head.appendChild(css);
   }
 
@@ -90,15 +94,11 @@
     var closing = field;
     field.classList.remove("wd-note-open");
 
-    if (notesTd) {
-      notesTd.colSpan = 1;
-      notesTd.classList.remove("wd-note-open");
-    }
-    hiddenCells.forEach(function (cell) { cell.style.display = ""; });
+    ["top", "left", "width"].forEach(function (side) { closing.style[side] = ""; });
+    if (notesTd) { notesTd.classList.remove("wd-note-open"); }
 
     field = null;
     notesTd = null;
-    hiddenCells = [];
 
     // Explicit: clicking blank page content doesn't itself move focus away
     // from a focused field (nothing else claims it), so without this the
@@ -115,21 +115,21 @@
     var td = input.closest("td");
     if (!row || !td) { return; }
 
-    // Every <td> before the Notes cell in this row - Kg, Reps, RPE - hidden
-    // (not removed) so the Notes cell can colSpan across their fixed-layout
-    // width. Their inputs keep submitting; display:none doesn't touch that.
-    var toHide = [];
-    var sib = td.previousElementSibling;
-    while (sib) { toHide.unshift(sib); sib = sib.previousElementSibling; }
-    toHide.forEach(function (cell) { cell.style.display = "none"; });
+    // From the row's first cell (Kg) to the Notes cell's right edge, inside
+    // the same padding the closed field has - measured before it moves.
+    var first = row.cells[0].getBoundingClientRect();
+    var box = input.getBoundingClientRect();
+    var cell = td.getBoundingClientRect();
+    var pad = box.left - cell.left;
 
-    td.colSpan = toHide.length + 1;
     td.classList.add("wd-note-open");
     input.classList.add("wd-note-open");
+    input.style.top = (box.top - cell.top) + "px";
+    input.style.left = (first.left - cell.left + pad) + "px";
+    input.style.width = (box.right - first.left - pad) + "px";
 
     field = input;
     notesTd = td;
-    hiddenCells = toHide;
 
     // The closed field is one clipped, unwrapped line showing maybe the
     // first ten characters - a tap on it lands the caret wherever that
@@ -140,7 +140,7 @@
     //
     // Deferred a frame: set immediately, it would still be positioned
     // against the OLD narrow single-line layout, an instant before the
-    // colSpan/hide-siblings above widen it - the browser doesn't recompute
+    // lay-over above widens it - the browser doesn't recompute
     // where that caret renders just because the layout changed under it.
     // One frame later, the wider layout has settled and it renders correctly.
     var pos = input.value.length;
@@ -171,6 +171,10 @@
     document.addEventListener("click", function (e) {
       if (isOutside(e.target)) { close(); }
     });
+
+    // The open field is placed in pixels over its row - turning the phone
+    // changes the row, so it closes rather than sit in the wrong place.
+    window.addEventListener("orientationchange", close);
 
     // Enter must make a newline while typing a note, not reach the page's
     // Enter-triggers-Confirm binding (bound on document, see

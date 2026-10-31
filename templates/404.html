@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ current_language() }}">
 
 <head>
   <meta charset="UTF-8">
@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/404.css') }}">
 
 
+  {% include "partials/_js_translations.html" %}
 </head>
 
 <body>
@@ -29,9 +30,9 @@
 
   <div class="error">
     <div class="error__title">404</div>
-    <div class="error__subtitle">Hmmm...</div>
-    <div class="error__description">It looks like one of the developers fell asleep</div>
-    <button class="error__button error__button--active" onclick="window.location.href='{{ url_for('index_page') }}';">Let's get back home...</button>
+    <div class="error__subtitle">{{ _("Hmmm...") }}</div>
+    <div class="error__description">{{ _("It looks like one of the developers fell asleep") }}</div>
+    <button class="error__button error__button--active" onclick="window.location.href='{{ url_for('index_page') }}';">{{ _("Let's get back home...") }}</button>
   </div>
 
   <div class="astronaut">

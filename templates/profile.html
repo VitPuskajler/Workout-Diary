@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ current_language() }}">
 
 <head>
     <meta charset="UTF-8">
@@ -67,6 +67,7 @@
         }
     </style>
 
+  {% include "partials/_js_translations.html" %}
 </head>
 
 <body>
@@ -95,21 +96,24 @@
     </svg>
 
     <div class="p-5 mb-5">
-        <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
+        <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="{{ _("Main navigation") }}">
           <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
             <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
-              aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+              aria-controls="navbarCollapse" aria-expanded="false" aria-label="{{ _("Toggle navigation") }}">
               <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarCollapse">
                     <ul class="navbar-nav me-auto mb-2 mb-md-0">
                         <li class="nav-item">
                             <a class="nav-link" aria-current="page"
-                                href="{{ url_for('training_session_redirect')}}">Training Session</a>
+                                href="{{ url_for('training_session_redirect')}}">{{ _("Training Session") }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('workout_plan_page')}}">Workout Plan</a>
+                            <a class="nav-link" href="{{ url_for('workout_plan_page')}}">{{ _("Workout Plan") }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('intuitive_training') }}">{{ _("Intuitive Training") }}</a>
                         </li>
                     </ul>
                     <!-- Login and register buttons on the right -->
@@ -120,14 +124,14 @@
                             <a class="nav-link active" href="#">{{ current_user.username }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                            <a class="nav-link" href="{{ url_for('logout') }}">{{ _("Logout") }}</a>
                         </li>
                         {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                            <a class="nav-link" href="{{ url_for('login') }}">{{ _("Login") }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+                            <a class="nav-link" href="{{ url_for('register') }}">{{ _("Register") }}</a>
                         </li>
                         {% endif %}
                     </ul>
@@ -144,7 +148,7 @@
          a desktop the box hung halfway down an empty screen. Stacked in flow
          they cannot collide at any width, whatever either one grows to. -->
     <main class="container my-4">
-        <h1 class="wd-label text-center mb-4">Menu</h1>
+        <h1 class="wd-label text-center mb-4">{{ _("Menu") }}</h1>
 
         <!-- ------------------------ Table-like Container for Buttons ------------------------- -->
         <form method="post" action="{{ url_for('profile')}}">
@@ -161,20 +165,22 @@
                 <!-- Modify Current Mesocycle Button -->
                 <div class="d-grid gap-2 mb-3">
                     <button type="submit" class="btn btn-primary btn-block" name="action"
-                        value="change_mesocycle" title="Switch to a different mesocycle plan">Change Current Mesocycle</button>
+                        value="change_mesocycle" title="{{ _("Switch to a different mesocycle plan") }}">{{ _("Change Current Mesocycle") }}</button>
                     <!-- Show Progress Button -->
                     <button type="submit" class="btn btn-primary btn-block" name="action" value="show_progress"
-                        title="View and edit your logged sets">Show
-                        Progress</button>
+                        title="{{ _("View and edit your logged sets") }}">{{ _("Show Progress") }}</button>
 
                     <button type="submit" class="btn btn-primary btn-block" name="action"
-                        value="statistics" title="See progress charts for your exercises">Statistics</button>
+                        value="statistics" title="{{ _("See progress charts for your exercises") }}">{{ _("Statistics") }}</button>
 
                     <button type="button" class="btn btn-primary btn-block" data-bs-toggle="modal"
-                        data-bs-target="#changePasswordModal" title="Update your account password">Change Password</button>
+                        data-bs-target="#changePasswordModal" title="{{ _("Update your account password") }}">{{ _("Change Password") }}</button>
+
+                    <a href="{{ url_for('customization') }}" class="btn btn-primary btn-block"
+                        title="{{ _("Icons, stopwatch and what the training pages show") }}">{{ _("Customization") }}</a>
 
                     <button type="submit" class="btn btn-primary btn-block" name="action"
-                        value="mesocycle_management" title="Delete old mesocycle plans">Manage Mesocycles</button>
+                        value="mesocycle_management" title="{{ _("Delete old mesocycle plans") }}">{{ _("Manage Mesocycles") }}</button>
 
                     {% if current_user.is_admin and not impersonator %}
                     <button type="button"
@@ -209,7 +215,7 @@
                      nothing here to hit by accident while reaching for
                      "Manage Mesocycles" or "Sign in as user" above it. -->
                 <div class="d-grid" style="margin-top: 30px;">
-                    <a href="{{ url_for('logout') }}" class="btn btn-danger btn-block" title="Sign out of your account">Logout</a>
+                    <a href="{{ url_for('logout') }}" class="btn btn-danger btn-block" title="{{ _("Sign out of your account") }}">{{ _("Logout") }}</a>
                 </div>
             </div>
         </form>
@@ -220,7 +226,7 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="changePasswordLabel">Change password</h5>
+                    <h5 class="modal-title" id="changePasswordLabel">{{ _("Change password") }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
 
@@ -237,13 +243,13 @@
                         <div class="mb-3">
                             <label for="currentPassword" class="form-label">
                                 {% if impersonator %}Your admin password ({{ impersonator.username }})
-                                {% else %}Current password{% endif %}
+                                {% else %}{{ _("Current password") }}{% endif %}
                             </label>
                             <div class="input-group">
                                 <input type="password" class="form-control" id="currentPassword"
                                     name="current_password" required autocomplete="current-password">
                                 <button class="btn btn-outline-secondary js-toggle-password" type="button"
-                                    data-target="currentPassword" aria-label="Show password">
+                                    data-target="currentPassword" aria-label="{{ _("Show password") }}">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
                                         viewBox="0 0 16 16" aria-hidden="true">
                                         <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
@@ -254,12 +260,12 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="newPassword" class="form-label">New password</label>
+                            <label for="newPassword" class="form-label">{{ _("New password") }}</label>
                             <div class="input-group">
                                 <input type="password" class="form-control" id="newPassword" name="new_password"
                                     required minlength="8" autocomplete="new-password">
                                 <button class="btn btn-outline-secondary js-toggle-password" type="button"
-                                    data-target="newPassword" aria-label="Show password">
+                                    data-target="newPassword" aria-label="{{ _("Show password") }}">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
                                         viewBox="0 0 16 16" aria-hidden="true">
                                         <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
@@ -267,16 +273,16 @@
                                     </svg>
                                 </button>
                             </div>
-                            <div class="form-text">At least 8 characters.</div>
+                            <div class="form-text">{{ _("At least 8 characters.") }}</div>
                         </div>
 
                         <div class="mb-1">
-                            <label for="repeatPassword" class="form-label">Repeat new password</label>
+                            <label for="repeatPassword" class="form-label">{{ _("Repeat new password") }}</label>
                             <div class="input-group">
                                 <input type="password" class="form-control" id="repeatPassword"
                                     name="repeat_password" required minlength="8" autocomplete="new-password">
                                 <button class="btn btn-outline-secondary js-toggle-password" type="button"
-                                    data-target="repeatPassword" aria-label="Show password">
+                                    data-target="repeatPassword" aria-label="{{ _("Show password") }}">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
                                         viewBox="0 0 16 16" aria-hidden="true">
                                         <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
@@ -289,8 +295,8 @@
                     </div>
 
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Confirm</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                        <button type="submit" class="btn btn-primary">{{ _("Confirm") }}</button>
                     </div>
                 </form>
             </div>
@@ -369,7 +375,7 @@
     <!-- -------------------------------------------------------------------------- -->
     <div clas="p-3">
         <div class="fixed-bottom">
-            © {{ year }} | Created by Vít Puskajler
+            © {{ year }} | {{ _("Created by") }} Vít Puskajler
         </div>
     </div>
     <!-- -------------------------------------------------------------------------- -->
@@ -382,7 +388,7 @@
                 var showing = field.type === "text";
                 field.type = showing ? "password" : "text";
                 btn.classList.toggle("active", !showing);
-                btn.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+                btn.setAttribute("aria-label", showing ? {{ _("Show password")|tojson }} : {{ _("Hide password")|tojson }});
                 field.focus();
             });
         });
@@ -398,8 +404,8 @@
 
             function validate() {
                 var mismatch = repeat.value !== "" && pw.value !== repeat.value;
-                repeat.setCustomValidity(mismatch ? "Passwords do not match" : "");
-                note.textContent = mismatch ? "The two passwords do not match." : "";
+                repeat.setCustomValidity(mismatch ? {{ _("Passwords do not match")|tojson }} : "");
+                note.textContent = mismatch ? {{ _("The two passwords do not match.")|tojson }} : "";
             }
 
             pw.addEventListener("input", validate);

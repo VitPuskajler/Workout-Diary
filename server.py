@@ -36,6 +36,7 @@ from wtforms import FloatField, IntegerField, PasswordField, StringField, Submit
 from wtforms.validators import DataRequired, EqualTo, NumberRange, ValidationError
 
 from db_setup import db
+from i18n import LANGUAGES, current_language, js_translations, plural_forms, translate as _, translate_plural as _n
 from models.models import Exercise, Users, WorkoutPlan, Mesocycles, load_user
 from workout_management.workout_management import  WorkoutManagement
 
@@ -326,7 +327,7 @@ def workout_plan_page():
             report = mesocycle_report_to_excel(chosen_mesocycle, dropdown_menu_info)
 
             if report is None:
-                flash("No sets logged in this mesocycle yet - nothing to report.", "warning")
+                flash(_("No sets logged in this mesocycle yet - nothing to report."), "warning")
                 return redirect(url_for("workout_plan_page"))
 
             # All lower case, and no runs of underscores where the name had
@@ -370,10 +371,10 @@ def table_layout():
         if request.form.get("action") == "use_template":
             created = apply_mesocycle_template(request.form.get("template_id"))
             if not created:
-                flash("That template could not be loaded.", "warning")
+                flash(_("That template could not be loaded."), "warning")
                 return redirect(url_for("table_layout"))
 
-            flash(f"Created \"{created}\" - edit it below.", "success")
+            flash(_('Created "{name}" - edit it below.', name=created), "success")
             return redirect(url_for("create_workout"))
 
         meso_name = request.form.get("meso_name")
@@ -440,13 +441,13 @@ def mesocycle_management():
         # getlist, not get: one name carries every ticked box.
         chosen = request.form.getlist("mesocycle_id")
         if not chosen:
-            flash("Nothing was ticked, so nothing was deleted.", "warning")
+            flash(_("Nothing was ticked, so nothing was deleted."), "warning")
             return redirect(url_for("mesocycle_management"))
 
         deleted = delete_mesocycles(chosen)
 
         if not deleted:
-            flash("Nothing was deleted.", "warning")
+            flash(_("Nothing was deleted."), "warning")
         else:
             # /workout_plan_page and /progress remember a mesocycle by NAME in
             # the cookie session. Left pointing at a deleted one they render an
@@ -457,7 +458,7 @@ def mesocycle_management():
                 session.pop("training_day", None)
 
             names = ", ".join(f'"{name}"' for name in deleted)
-            flash(f"Deleted {names}. Your logged training was kept.", "success")
+            flash(_("Deleted {names}. Your logged training was kept.", names=names), "success")
 
         return redirect(url_for("mesocycle_management"))
 
@@ -515,14 +516,14 @@ def create_workout():
                 submitted_data.get("mesocycle_name")
             )
             if not ok:
-                flash(message or "That name could not be saved.", "warning")
+                flash(message or _("That name could not be saved."), "warning")
             else:
                 new_name = (submitted_data.get("mesocycle_name") or "").strip()[:100]
                 if new_name != old_name:
                     # The cookie remembers a mesocycle by name, not by id.
                     if session.get("chosen_mesocycle") == old_name:
                         session["chosen_mesocycle"] = new_name
-                    flash(f'Renamed to "{new_name}".', "success")
+                    flash(_('Renamed to "{name}".', name=new_name), "success")
             return redirect(url_for("create_workout"))
 
         # Name of workout is default set 1-x and user can change it
@@ -711,6 +712,7 @@ def training_session():
         exercises_to_display=exercises_in_workout,
         chosen_exercise=chosen_exercise,
         sets_for_jinja=sets_for_jinja,
+        set_gaps=db_operations.set_gaps(sets_for_jinja) if current_user.show_set_gaps else {},
         preview=preview,
         placeholders=exercise_placeholders,
         last_exercise =last_exercise,
@@ -798,12 +800,14 @@ EXERCISE_ICON_LABELS = _load_exercise_icons()
 EXERCISE_ICONS = list(EXERCISE_ICON_LABELS)
 _EXERCISE_ICON_SET = set(EXERCISE_ICONS)
 # The icons that also come moving (icons/exercises/anim, see ANIMATED in
-# make_exercise_icons.py) - the exercise dropdown plays them on hover.
+# make_exercise_icons.py) - the exercise dropdown plays the ones in view, the
+# training session table when the user switches it on in Customization.
 _EXERCISE_ICON_ANIM_DIR = os.path.join(EXERCISE_ICON_DIR, "anim")
 EXERCISE_ICONS_ANIMATED = sorted(
     name[:-4] for name in (os.listdir(_EXERCISE_ICON_ANIM_DIR) if os.path.isdir(_EXERCISE_ICON_ANIM_DIR) else [])
     if name.endswith(".svg") and name[:-4] in _EXERCISE_ICON_SET
 )
+_EXERCISE_ICON_ANIMATED_SET = set(EXERCISE_ICONS_ANIMATED)
 
 
 def exercise_icon_slug(exercise_name):
@@ -831,14 +835,24 @@ def inject_exercise_icons():
     """exercise_icon("Pull-Up") -> the icon's URL, or None for an exercise that
     has no drawing yet: the one picked on /admin/exercises, else the drawing
     named after the exercise. The others are the same data for page scripts."""
-    def exercise_icon(exercise_name):
+    def slug_for(exercise_name):
         slug = exercise_icon_choices().get(exercise_name) or exercise_icon_slug(exercise_name)
-        if slug not in _EXERCISE_ICON_SET:
+        return slug if slug in _EXERCISE_ICON_SET else None
+
+    def exercise_icon(exercise_name):
+        slug = slug_for(exercise_name)
+        return slug and url_for("static", filename=f"icons/exercises/{slug}.svg")
+
+    def exercise_icon_moving(exercise_name):
+        """The same drawing playing its rep, or None when it has no moving one."""
+        slug = slug_for(exercise_name)
+        if slug not in _EXERCISE_ICON_ANIMATED_SET:
             return None
-        return url_for("static", filename=f"icons/exercises/{slug}.svg")
+        return url_for("static", filename=f"icons/exercises/anim/{slug}.svg")
 
     return {
         "exercise_icon": exercise_icon,
+        "exercise_icon_moving": exercise_icon_moving,
         "exercise_icon_slugs": EXERCISE_ICONS,
         "exercise_icon_animated_slugs": EXERCISE_ICONS_ANIMATED,
         "exercise_icon_choices": exercise_icon_choices,
@@ -1094,15 +1108,15 @@ def change_password():
         verifier = current_user
 
     if not check_password_hash(verifier.password, current):
-        flash("That password is not right, nothing was changed.", "error")
+        flash(_("That password is not right, nothing was changed."), "error")
         return redirect(url_for("profile"))
 
     if len(new) < MIN_PASSWORD_LENGTH:
-        flash(f"The new password needs at least {MIN_PASSWORD_LENGTH} characters.", "error")
+        flash(_("The new password needs at least {count} characters.", count=MIN_PASSWORD_LENGTH), "error")
         return redirect(url_for("profile"))
 
     if new != repeat:
-        flash("The two new passwords do not match.", "error")
+        flash(_("The two new passwords do not match."), "error")
         return redirect(url_for("profile"))
 
     target = db.session.get(Users, current_user.user_id)
@@ -1112,8 +1126,42 @@ def change_password():
     if impersonator_id:
         flash(f"Password changed for {target.username}. Tell them what it is.", "success")
     else:
-        flash("Your password has been changed.", "success")
+        flash(_("Your password has been changed."), "success")
     return redirect(url_for("profile"))
+
+
+# The switches on /customization -> Users columns.
+CUSTOMIZATION_SWITCHES = ("show_session_icons", "animate_session_icons", "show_stopwatch", "show_set_gaps")
+
+
+@app.route("/customization")
+@login_required
+def customization():
+    """How the app looks for this account: icons, stopwatch, set gaps."""
+    return render_template("customization.html")
+
+
+@app.context_processor
+def inject_translations():
+    """The translators (_ and _n), the language and its helpers for templates -
+    see i18n.py."""
+    return {"_": _, "_n": _n, "current_language": current_language, "LANGUAGES": LANGUAGES,
+            "js_translations": js_translations, "plural_forms": plural_forms}
+
+
+@app.route("/customization/save", methods=["POST"])
+@login_required
+def save_customization():
+    """Save the Customization switches. The page sends all of them on every
+    flip, "1" for on; a switch left out is off. Answers JSON - the page stays
+    where it is."""
+    user = db.session.get(Users, current_user.user_id)
+    for name in CUSTOMIZATION_SWITCHES:
+        setattr(user, name, request.form.get(name) == "1")
+    if request.form.get("language") in LANGUAGES:
+        user.language = request.form["language"]
+    db.session.commit()
+    return jsonify({"ok": True})
 
 
 @app.route("/profile", methods=["GET", "POST"])
@@ -1401,7 +1449,7 @@ def period_statistics():
         exercise_data = statistics_for_exercise(selected_value, chosen_period)
         if exercise_data:
             graph_data = exercise_progress_chart_data(
-                exercise_data, statistics_range_label(chosen_period),
+                exercise_data, _(statistics_range_label(chosen_period)),
                 is_bodyweight=is_bodyweight_exercise(selected_value, chosen_period),
             )
         elif selected_value:
@@ -1592,8 +1640,8 @@ def intuitive_training():
                 if removed_exercise == selected_exercise:
                     session.pop("chosen_exercise_by_user", None)
                     session.pop("new_exercise", None)
-                flash(f'Removed "{removed_exercise}" from today. Sets already logged '
-                      f'are kept in Training Progress.', "success")
+                flash(_('Removed "{name}" from today. Sets already logged are kept in Training Progress.',
+                        name=removed_exercise), "success")
             return redirect(url_for("intuitive_training"))
 
         if action == "choose_exercise":
@@ -1625,8 +1673,8 @@ def intuitive_training():
                     None,
                 )
                 if catalog_name is None:
-                    flash(f'"{new_exercise}" is not in the exercise list - pick one '
-                          f'of the suggestions. Nothing was saved.', "warning")
+                    flash(_('"{name}" is not in the exercise list - pick one of the suggestions. Nothing was saved.',
+                            name=new_exercise), "warning")
                     return redirect(url_for("intuitive_training"))
 
                 create_custom_workout_exercise(catalog_name)
@@ -1673,6 +1721,7 @@ def intuitive_training():
         saved_exercises = saved_exercises,
         selected_exercise = selected_exercise,
         sets_for_jinja = sets_for_jinja,
+        set_gaps=db_operations.set_gaps(sets_for_jinja) if current_user.show_set_gaps else {},
         placeholders= exercise_placeholders,
         preview = last_day,
         current_exercise_name = exercise_name_for_last_sets,

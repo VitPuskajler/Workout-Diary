@@ -17,6 +17,9 @@
 (function () {
   "use strict";
 
+  // The page's language - partials/_js_translations.html. English without it.
+  var wdT = window.wdT || function (text) { return text; };
+
   // Resolve the image relative to this script, so it works under any mount point.
   var src = (document.currentScript && document.currentScript.src) || "";
   var IMG = src.replace(/js\/loader\.js.*$/, "title/excercise_title.png");
@@ -51,7 +54,7 @@
     overlay = document.createElement("div");
     overlay.id = "wd-loader";
     overlay.setAttribute("aria-hidden", "true");
-    overlay.innerHTML = '<img src="' + IMG + '" alt="Loading">';
+    overlay.innerHTML = '<img src="' + IMG + '" alt="">';
     document.body.appendChild(overlay);
   }
 

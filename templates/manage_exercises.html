@@ -85,6 +85,22 @@
       width: 48px;
       height: 48px;
     }
+
+    /* View exercises: the whole catalog. Tap a row and its icon plays. */
+    .wd-catalog .list-group-item {
+      cursor: pointer;
+    }
+
+    .wd-catalog img,
+    .wd-catalog .wd-icon-blank {
+      width: 44px;
+      height: 44px;
+      flex: 0 0 44px;
+    }
+
+    .wd-catalog .list-group-item.wd-playing {
+      background: var(--bs-primary-bg-subtle);
+    }
   </style>
 </head>
 
@@ -142,6 +158,7 @@
         </p>
 
         <div class="d-grid gap-3 wd-menu">
+          <button type="button" class="btn btn-primary" id="openView">View exercises</button>
           <button type="button" class="btn btn-success" id="openAdd">Add exercise</button>
           <button type="button" class="btn btn-warning" id="openEdit">Edit exercise</button>
           <button type="button" class="btn btn-danger" id="openDelete">Delete exercise</button>
@@ -251,6 +268,32 @@
     </div>
   </div>
 
+  {# The whole catalog to look through: icon, name, muscle group. #}
+  <div class="modal fade" id="exView" tabindex="-1" aria-hidden="true" aria-labelledby="exViewTitle">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="exViewTitle">Exercises</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body pt-2">
+          <div class="d-flex gap-2 mb-2 sticky-top bg-body pt-1 pb-2">
+            <input type="search" class="form-control" id="exViewSearch" autocomplete="off"
+              placeholder="Filter by name..." aria-label="Filter by name">
+            <select class="form-select w-auto" id="exViewGroup" aria-label="Muscle group">
+              <option value="">All groups</option>
+              {% for group in muscle_groups %}
+              <option value="{{ group }}">{{ group|replace('_', ' ')|capitalize }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <p class="text-body-secondary small mb-2" id="exViewCount"></p>
+          <div class="list-group wd-catalog" id="exViewList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   {# "Are you sure?" - one dialog for all three, filled in by the script. #}
   <div class="modal fade" id="exSummary" tabindex="-1" aria-hidden="true" aria-labelledby="exSummaryTitle"
     data-bs-backdrop="static">
@@ -318,6 +361,8 @@
       const ICON_LABELS = Object.fromEntries(ICON_PAIRS);
       const ICON_SET = new Set(ICONS);
       const ICON_BASE = "{{ url_for('static', filename='icons/exercises/') }}";
+      // The drawings that also come moving (icons/exercises/anim).
+      const MOVING = new Set({{ exercise_icon_animated_slugs|tojson }});
 
       const $ = (id) => document.getElementById(id);
       const modal = (id) => bootstrap.Modal.getOrCreateInstance($(id));
@@ -589,6 +634,61 @@
       }
 
       $("exSummaryBack").addEventListener("click", () => swap("exSummary", backTo));
+
+      // ---- View exercises ------------------------------------------------
+      // Built once, on the first open; the filters only hide rows. Tapping a
+      // row swaps its icon for the moving one, tapping again stops it.
+      const viewRows = [];
+
+      function buildView() {
+        const list = $("exViewList");
+        EXERCISES.filter((ex) => !ex.deleted).forEach((ex) => {
+          const slug = shownIcon(ex.name, ex.icon);
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "list-group-item list-group-item-action d-flex align-items-center gap-3";
+          const img = iconImg(slug);
+          item.appendChild(img);
+          const text = document.createElement("span");
+          text.className = "flex-grow-1";
+          text.textContent = ex.name;
+          item.appendChild(text);
+          const meta = document.createElement("small");
+          meta.className = "text-body-secondary text-end";
+          meta.textContent = groupLabel(ex.group) + (ex.timed ? " · timed" : "");
+          item.appendChild(meta);
+          if (slug && MOVING.has(slug)) {
+            item.title = "Tap to play the movement";
+            item.addEventListener("click", () => {
+              const playing = item.classList.toggle("wd-playing");
+              img.src = ICON_BASE + (playing ? "anim/" : "") + slug + ".svg";
+            });
+          }
+          list.appendChild(item);
+          viewRows.push({ ex, item });
+        });
+      }
+
+      function filterView() {
+        const words = tidy($("exViewSearch").value).toLowerCase().split(" ").filter(Boolean);
+        const group = $("exViewGroup").value;
+        let shown = 0;
+        viewRows.forEach(({ ex, item }) => {
+          const name = ex.name.toLowerCase();
+          const match = (!group || ex.group === group) && words.every((w) => name.includes(w));
+          item.classList.toggle("d-none", !match);
+          if (match) shown++;
+        });
+        $("exViewCount").textContent = shown + (shown === 1 ? " exercise" : " exercises");
+      }
+
+      $("openView").addEventListener("click", () => {
+        if (!viewRows.length) buildView();
+        filterView();
+        modal("exView").show();
+      });
+      $("exViewSearch").addEventListener("input", filterView);
+      $("exViewGroup").addEventListener("change", filterView);
 
       // ---- Delete --------------------------------------------------------
       let toDelete = null;

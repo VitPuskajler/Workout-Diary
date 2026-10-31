@@ -39,7 +39,8 @@
   function setMode(scope, on) {
     scope.classList.toggle("wd-edit-on", on);
     scope.querySelectorAll("[data-wd-edit-toggle]").forEach(function (btn) {
-      btn.textContent = on ? "Done" : "Edit";
+      // data-label-on/off carry the page's language; English without them.
+      btn.textContent = on ? (btn.dataset.labelOn || "Done") : (btn.dataset.labelOff || "Edit");
       btn.classList.toggle("btn-primary", on);
       btn.classList.toggle("btn-outline-secondary", !on);
       btn.setAttribute("aria-pressed", on ? "true" : "false");

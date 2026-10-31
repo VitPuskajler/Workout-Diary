@@ -22,6 +22,9 @@
 (function () {
   "use strict";
 
+  // The page's language - partials/_js_translations.html. English without it.
+  var wdT = window.wdT || function (text) { return text; };
+
   var dataTag = document.getElementById("chartData");
   var canvas = document.getElementById("progressChart");
   if (!dataTag || !canvas || typeof Chart === "undefined") return;
@@ -47,8 +50,8 @@
   // exactly like a bodyweight exercise - just labelled in seconds.
   var isTimed = !!data.is_timed;
   var isBodyweight = !!data.is_bodyweight || isTimed;
-  var repsUnit = isTimed ? "s" : "reps";
-  var yLabel = isBodyweight ? (isTimed ? "Seconds" : "Reps") : "Weight (kg)";
+  var repsUnit = isTimed ? "s" : wdT("reps");
+  var yLabel = isBodyweight ? (isTimed ? wdT("Seconds") : wdT("Reps")) : wdT("Weight (kg)");
 
   new Chart(canvas.getContext("2d"), {
     type: "line",

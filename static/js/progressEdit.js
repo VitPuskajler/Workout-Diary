@@ -24,6 +24,9 @@
 (function () {
   "use strict";
 
+  // The page's language - partials/_js_translations.html. English without it.
+  var wdT = window.wdT || function (text) { return text; };
+
   var current = null;      // the one open, editable row - see buildViewToolbar()
   var pendingTarget = null; // element to re-click once a dirty edit is resolved
   var unsavedModal = null;
@@ -110,8 +113,8 @@
     var editBtn = document.createElement("button");
     editBtn.type = "button";
     editBtn.className = "btn btn-success btn-sm wd-edit-btn";
-    editBtn.setAttribute("aria-label", "Edit this set");
-    editBtn.title = "Edit your entry";
+    editBtn.setAttribute("aria-label", wdT("Edit this set"));
+    editBtn.title = wdT("Edit your entry");
     editBtn.textContent = "✎"; // pencil glyph - a plain character, not an
                                      // icon font/SVG, so it never fails to render
     editBtn.addEventListener("click", function () {
@@ -125,8 +128,8 @@
     var deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "btn btn-outline-danger btn-sm wd-edit-btn";
-    deleteBtn.setAttribute("aria-label", "Delete this set");
-    deleteBtn.title = "Delete this set";
+    deleteBtn.setAttribute("aria-label", wdT("Delete this set"));
+    deleteBtn.title = wdT("Delete this set");
     // Minus-in-a-circle rather than a plain X - keeps it visually distinct
     // from the X used to discard an in-progress edit (see buildEditToolbarButtons).
     deleteBtn.innerHTML =
@@ -159,8 +162,8 @@
     var fixUnitBtn = document.createElement("button");
     fixUnitBtn.type = "button";
     fixUnitBtn.className = "btn btn-outline-secondary btn-sm wd-fixunit-btn";
-    fixUnitBtn.setAttribute("aria-label", "Fix this set's unit");
-    fixUnitBtn.title = "Wrong unit? Fix it here";
+    fixUnitBtn.setAttribute("aria-label", wdT("Fix this set's unit"));
+    fixUnitBtn.title = wdT("Wrong unit? Fix it here");
     fixUnitBtn.innerHTML = fixUnitBtnHtml(cur.currentUnit);
     fixUnitBtn.addEventListener("click", function () {
       openFixUnitModal();
@@ -169,8 +172,8 @@
     var discardBtn = document.createElement("button");
     discardBtn.type = "button";
     discardBtn.className = "btn btn-outline-danger btn-sm wd-edit-btn";
-    discardBtn.setAttribute("aria-label", "Discard changes");
-    discardBtn.title = "Discard";
+    discardBtn.setAttribute("aria-label", wdT("Discard changes"));
+    discardBtn.title = wdT("Discard");
     discardBtn.textContent = "✕";
     discardBtn.addEventListener("click", function () {
       discardEdit(cur);
@@ -179,8 +182,8 @@
     var saveBtn = document.createElement("button");
     saveBtn.type = "button";
     saveBtn.className = "btn btn-success btn-sm wd-edit-btn";
-    saveBtn.setAttribute("aria-label", "Save changes");
-    saveBtn.title = "Confirm changes";
+    saveBtn.setAttribute("aria-label", wdT("Save changes"));
+    saveBtn.title = wdT("Confirm changes");
     saveBtn.textContent = "✓";
     saveBtn.addEventListener("click", function () {
       doSave(cur, function () {});
@@ -218,7 +221,7 @@
     notesInput.className = "form-control form-control-sm wd-note-edit";
     notesInput.rows = 2;
     notesInput.maxLength = 150;
-    notesInput.placeholder = "No note yet";
+    notesInput.placeholder = wdT("No note yet");
     notesInput.value = cur.snapshot.notes;
 
     repsTd.innerHTML = "";
@@ -328,7 +331,7 @@
       .then(function (data) {
         if (cur.saveBtn) cur.saveBtn.disabled = false;
         if (!data || !data.ok) {
-          showError(cur, (data && data.error) || "Could not save, try again.");
+          showError(cur, (data && data.error) || wdT("Could not save, try again."));
           done(false);
           return;
         }
@@ -338,7 +341,7 @@
       })
       .catch(function () {
         if (cur.saveBtn) cur.saveBtn.disabled = false;
-        showError(cur, "Could not save, try again.");
+        showError(cur, wdT("Could not save, try again."));
         done(false);
       });
   }
@@ -444,8 +447,8 @@
       btn.disabled = !!isCurrent; // converting a unit to itself is a no-op
     }
     var label = UNIT_LABELS[unit];
-    sessionBtn.textContent = "This exercise today → " + label;
-    entryBtn.textContent = "This set → " + label;
+    sessionBtn.textContent = wdT("This exercise today →") + " " + label;
+    entryBtn.textContent = wdT("This set →") + " " + label;
   }
 
   function openFixUnitModal() {
@@ -486,7 +489,7 @@
       .then(function (resp) { return resp.json(); })
       .then(function (data) {
         if (!data || !data.ok) {
-          errorEl.textContent = (data && data.error) || "Could not save, try again.";
+          errorEl.textContent = (data && data.error) || wdT("Could not save, try again.");
           errorEl.classList.remove("d-none");
           return;
         }
@@ -496,7 +499,7 @@
         fixUnitModal.hide();
       })
       .catch(function () {
-        errorEl.textContent = "Could not save, try again.";
+        errorEl.textContent = wdT("Could not save, try again.");
         errorEl.classList.remove("d-none");
       });
   }
@@ -554,7 +557,7 @@
       .then(function (data) {
         if (deleteBtn) deleteBtn.disabled = false;
         if (!data || !data.ok) {
-          errorEl.textContent = (data && data.error) || "Could not delete, try again.";
+          errorEl.textContent = (data && data.error) || wdT("Could not delete, try again.");
           errorEl.classList.remove("d-none");
           return;
         }
@@ -565,7 +568,7 @@
       })
       .catch(function () {
         if (deleteBtn) deleteBtn.disabled = false;
-        errorEl.textContent = "Could not delete, try again.";
+        errorEl.textContent = wdT("Could not delete, try again.");
         errorEl.classList.remove("d-none");
       });
   }

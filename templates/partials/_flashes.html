@@ -6,7 +6,7 @@
 <div class="alert alert-{{ 'danger' if category == 'error' else category or 'info' }}
             alert-dismissible fade show mb-3 py-2" role="alert">
   {{ message }}
-  <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+  <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="{{ _("Close") }}"></button>
 </div>
 {% endfor %}
 {% endif %}

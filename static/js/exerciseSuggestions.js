@@ -7,10 +7,11 @@
    fetches the next page when its end comes near. Typing on waits 150 ms
    before asking, so "squat" typed quickly is one request, not five.
 
-   With icons, each suggestion shows its stick-figure drawing, and the one
-   under the mouse plays its rep (icons/exercises/anim). A phone has no
-   hover, so there only the top suggestion - the best match - moves; a whole
-   list moving would be too busy to read. Nothing moves for "reduce motion".
+   With icons, each suggestion shows its stick-figure drawing, and every
+   suggestion in view plays its rep (icons/exercises/anim) - on a phone and
+   a computer alike. Rows scrolled out of the list go back to the still
+   drawing, so a long list does not keep dozens of icons moving unseen.
+   Nothing moves for "reduce motion".
 
    Usage:
      wireExerciseSuggestions(input, list, {
@@ -22,6 +23,7 @@
          animated: {{ exercise_icon_animated_slugs|tojson }},
        },
        onPick: function (name) {},         // optional, after input.value = name
+       loadingText: "Loading…",            // optional, in the page's language
      });
 -------------------------------------------------------------------------- */
 (function () {
@@ -30,7 +32,6 @@
   var DEBOUNCE = 150;
   var PHONE = window.matchMedia("(max-width: 576px)");
   var MOTION_OK = window.matchMedia("(prefers-reduced-motion: no-preference)");
-  var NO_HOVER = window.matchMedia("(hover: none)");
 
   // The drawing for an exercise - same rule as exercise_icon() in server.py:
   // the one picked on /admin/exercises, else the one named after it.
@@ -50,7 +51,7 @@
     document.head.appendChild(css);
   }
 
-  function addIcon(icons, li, name, first) {
+  function addIcon(icons, li, name, inView) {
     li.classList.add("d-flex", "align-items-center");
     var slug = iconSlug(icons, name);
     if (!slug) return;
@@ -61,14 +62,10 @@
     img.className = "wd-exercise-icon";
     li.prepend(img);
 
-    if (!icons.animated.has(slug) || !MOTION_OK.matches) return;
-    var moving = icons.base + "anim/" + slug + ".svg";
-    if (NO_HOVER.matches) {
-      if (first) img.src = moving;
-      return;
-    }
-    li.addEventListener("mouseenter", function () { img.src = moving; });
-    li.addEventListener("mouseleave", function () { img.src = still; });
+    if (!inView || !icons.animated.has(slug)) return;
+    img.dataset.still = still;
+    img.dataset.moving = icons.base + "anim/" + slug + ".svg";
+    inView.observe(img);
   }
 
   function wire(input, list, options) {
@@ -80,6 +77,13 @@
       choices: options.icons.choices,
       animated: new Set(options.icons.animated)
     };
+    // Plays the icons the list shows, stills the ones scrolled out of it.
+    var inView = icons && MOTION_OK.matches && new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var img = entry.target;
+        img.src = entry.isIntersecting ? img.dataset.moving : img.dataset.still;
+      });
+    }, { root: list });
     var query = "";
     var offset = 0;
     var hasMore = false;
@@ -100,11 +104,11 @@
       list.style.display = "none";
     }
 
-    function item(name, first) {
+    function item(name) {
       var li = document.createElement("li");
       li.classList.add("dropdown-item");
       li.textContent = name;
-      if (icons) addIcon(icons, li, name, first);
+      if (icons) addIcon(icons, li, name, inView);
       li.onclick = function () {
         input.value = name;
         hide();
@@ -117,7 +121,7 @@
       if (on && !spinner) {
         spinner = document.createElement("li");
         spinner.className = "dropdown-item-text text-muted small text-center";
-        spinner.textContent = "Loading…";
+        spinner.textContent = options.loadingText || "Loading…";
         list.appendChild(spinner);
       } else if (!on && spinner) {
         spinner.remove();
@@ -145,10 +149,11 @@
 
         var data = JSON.parse(xhr.responseText);
         if (first) {
+          if (inView) inView.disconnect();
           list.innerHTML = "";
           list.scrollTop = 0;
         }
-        data.items.forEach(function (name, i) { list.appendChild(item(name, first && i === 0)); });
+        data.items.forEach(function (name) { list.appendChild(item(name)); });
         offset += data.items.length;
         hasMore = data.has_more;
 

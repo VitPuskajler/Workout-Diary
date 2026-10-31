@@ -28,6 +28,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 from flask import request
+
+from i18n import translate as tr
 from datetime import datetime, date, timedelta, timezone
 from workout_management.units import lbs_to_kg
 
@@ -1010,15 +1012,24 @@ class WorkoutManagement:
 
     def _stamp_stopwatch(self, entry, session_id):
         """Copy the stopwatch's hidden fields onto a set that is about to be
-        added: `set_started` becomes entry.started_at, and `sw_start` (the
-        manual start) overwrites the session date when this is the session's
-        first set. Call it BEFORE db.session.add(entry), so the count below
-        does not see the new set."""
+        added: `set_started` becomes entry.started_at, `superset` links it to
+        the set before it, and `sw_start` (the manual start) overwrites the
+        session date when this is the session's first set. Call it BEFORE
+        db.session.add(entry), so the queries below do not see the new set."""
         entry.started_at = self._form_epoch_ms("set_started")
 
-        manual_start = self._form_epoch_ms("sw_start")
-        if manual_start is None:
-            return
+        # SS on the stopwatch: this set was done straight after the session's
+        # latest set - linked, as long as that was another exercise (SS on the
+        # same exercise is a mis-tap, not a superset).
+        if request.form.get("superset") == "1":
+            previous = (
+                db.session.query(ExerciseEntries)
+                .filter(ExerciseEntries.session_id == session_id)
+                .order_by(ExerciseEntries.logged_at.desc(), ExerciseEntries.entry_id.desc())
+                .first()
+            )
+            if previous is not None and previous.exercise_id != entry.exercise_id:
+                entry.superset_of = previous.entry_id
 
         has_sets = (
             db.session.query(ExerciseEntries.entry_id)
@@ -1030,11 +1041,20 @@ class WorkoutManagement:
 
         # session_date is local time (the "today" filters use date.today()), so
         # convert, and never let the overwrite push a session onto another day.
-        local_start = manual_start.replace(tzinfo=timezone.utc).astimezone().replace(tzinfo=None)
-        if local_start.date() != date.today():
-            return
+        local_start = None
+        manual_start = self._form_epoch_ms("sw_start")
+        if manual_start is not None:
+            local_start = manual_start.replace(tzinfo=timezone.utc).astimezone().replace(tzinfo=None)
+            if local_start.date() != date.today():
+                local_start = None
+
         session_row = db.session.get(Sessions, session_id)
-        if session_row is not None:
+        if session_row is None:
+            return
+        # Remembered for /progress: without a Start tap the duration can only
+        # be counted from the first set, and is marked "~" there.
+        session_row.started_by_stopwatch = local_start is not None
+        if local_start is not None:
             session_row.session_date = local_start
 
     def stopwatch_state(self, exercise_name, colored=True):
@@ -1393,6 +1413,11 @@ class WorkoutManagement:
                     else [submitted_data["delete"]]
                 )
 
+                # A superset partner of a deleted set stays, just unlinked.
+                db.session.query(ExerciseEntries).filter(
+                    ExerciseEntries.superset_of.in_(entry_ids_to_delete)
+                ).update({ExerciseEntries.superset_of: None}, synchronize_session=False)
+
                 # Execute the delete statement using SQLAlchemy
                 stmt = delete(ExerciseEntries).where(
                     ExerciseEntries.entry_id.in_(entry_ids_to_delete)
@@ -1578,7 +1603,7 @@ class WorkoutManagement:
             .first()
         )
         if not entry:
-            return {"ok": False, "error": "Set not found."}
+            return {"ok": False, "error": tr("Set not found.")}
 
         def parse_number(value, cast, minimum, maximum, label):
             if value is None or str(value).strip() == "":
@@ -1607,7 +1632,7 @@ class WorkoutManagement:
 
         notes_val = (notes or "").strip()
         if len(notes_val) > 150:
-            return {"ok": False, "error": "Notes can be at most 150 characters."}
+            return {"ok": False, "error": tr("Notes can be at most 150 characters.")}
 
         # /progress always shows weight already converted to kg (see
         # exercise_progress_data / custom_session_progress), so a value typed
@@ -1626,7 +1651,7 @@ class WorkoutManagement:
         except SQLAlchemyError as e:
             db.session.rollback()
             print(f"Saving progress entry {entry_id} failed because of {e}")
-            return {"ok": False, "error": "Could not save, try again."}
+            return {"ok": False, "error": tr("Could not save, try again.")}
 
         return {
             "ok": True,
@@ -1654,15 +1679,17 @@ class WorkoutManagement:
             .first()
         )
         if not entry:
-            return {"ok": False, "error": "Set not found."}
+            return {"ok": False, "error": tr("Set not found.")}
 
+        db.session.query(ExerciseEntries).filter(ExerciseEntries.superset_of == entry.entry_id).update(
+            {ExerciseEntries.superset_of: None}, synchronize_session=False)
         db.session.delete(entry)
         try:
             db.session.commit()
         except SQLAlchemyError as e:
             db.session.rollback()
             print(f"delete_progress_entry: rolling back, {e}")
-            return {"ok": False, "error": "Could not delete, try again."}
+            return {"ok": False, "error": tr("Could not delete, try again.")}
 
         return {"ok": True, "entry_id": entry_id}
 
@@ -1673,9 +1700,9 @@ class WorkoutManagement:
     # /progress's kg-converted display shows.
     def fix_entry_unit(self, entry_id, target_unit, scope):
         if target_unit not in WEIGHT_UNITS:
-            return {"ok": False, "error": "Unknown unit."}
+            return {"ok": False, "error": tr("Unknown unit.")}
         if scope not in ("entry", "session"):
-            return {"ok": False, "error": "Unknown scope."}
+            return {"ok": False, "error": tr("Unknown scope.")}
 
         current_user_id = self.current_user_id_db()
 
@@ -1689,7 +1716,7 @@ class WorkoutManagement:
             .first()
         )
         if not entry:
-            return {"ok": False, "error": "Set not found."}
+            return {"ok": False, "error": tr("Set not found.")}
 
         if scope == "entry":
             targets = [entry]
@@ -1717,7 +1744,7 @@ class WorkoutManagement:
         except SQLAlchemyError as e:
             db.session.rollback()
             print(f"fix_entry_unit: rolling back, {e} (line {inspect.currentframe().f_lineno})")
-            return {"ok": False, "error": "Could not save, try again."}
+            return {"ok": False, "error": tr("Could not save, try again.")}
 
         return {
             "ok": True,
@@ -2139,10 +2166,11 @@ class WorkoutManagement:
             .all()
         )
         durations = self.session_durations([row.session_id for row in rows])
+        from_first_set = self.sessions_without_start([row.session_id for row in rows])
         result = []
         for row in rows:
             label = f"{row.session_date.day}.{row.session_date.month}.{row.session_date.year}"
-            duration = self.format_duration(durations.get(row.session_id))
+            duration = self.format_duration(durations.get(row.session_id), row.session_id in from_first_set)
             result.append({
                 "session_id": row.session_id,
                 "label": label,
@@ -2216,6 +2244,7 @@ class WorkoutManagement:
             db.session.query(
                 Sessions.session_id,
                 Sessions.session_date,
+                Sessions.started_by_stopwatch,
                 func.min(func.coalesce(ExerciseEntries.started_at, ExerciseEntries.logged_at)),
                 func.max(ExerciseEntries.logged_at),
             )
@@ -2235,23 +2264,62 @@ class WorkoutManagement:
                 return None
 
         durations = {sid: None for sid in session_ids}
-        for session_id, session_date, first_set, last_set in rows:
+        for session_id, session_date, started_by_stopwatch, first_set, last_set in rows:
             first_set, last_set = as_datetime(first_set), as_datetime(last_set)
             if first_set is None or last_set is None:
                 continue
             start = first_set
-            if session_date is not None and timedelta(0) <= first_set - session_date <= self.LONGEST_WARM_UP:
+            # No Start tap: session_date is only when the session was created.
+            if started_by_stopwatch is not False and session_date is not None \
+                    and timedelta(0) <= first_set - session_date <= self.LONGEST_WARM_UP:
                 start = session_date
             durations[session_id] = max(0, round((last_set - start).total_seconds() / 60))
         return durations
 
+    def sessions_without_start(self, session_ids):
+        """The session_ids among these whose duration runs from the first set,
+        not a Start tap (stopwatch off or not started) - shown with "~".
+        Sessions from before this was recorded are not among them."""
+        if not session_ids:
+            return set()
+        return {
+            sid for (sid,) in db.session.query(Sessions.session_id)
+            .filter(Sessions.session_id.in_(session_ids), Sessions.started_by_stopwatch.is_(False))
+        }
+
     @staticmethod
-    def format_duration(minutes):
-        """58 -> "58 min", 72 -> "1 h 12 min", None -> None."""
+    def format_duration(minutes, from_first_set=False):
+        """58 -> "58 min", 72 -> "1 h 12 min", None -> None. from_first_set
+        prefixes "~": the warm-up before the first set is not in it."""
         if minutes is None:
             return None
         hours, mins = divmod(int(minutes), 60)
-        return f"{hours} h {mins} min" if hours else f"{mins} min"
+        text = f"{hours} h {mins} min" if hours else f"{mins} min"
+        return "~" + text if from_first_set else text
+
+    def set_gaps(self, entries):
+        """{entry_id: "+2:35"} - for each set, the time since the set logged
+        before it in the same session, whatever exercise that was: the rest
+        and the set itself, one number. The session's first set has none."""
+        session_ids = {entry.session_id for entry in entries or [] if entry.logged_at}
+        if not session_ids:
+            return {}
+        rows = (
+            db.session.query(ExerciseEntries.entry_id, ExerciseEntries.session_id, ExerciseEntries.logged_at)
+            .filter(ExerciseEntries.session_id.in_(session_ids), ExerciseEntries.logged_at.isnot(None))
+            .order_by(ExerciseEntries.session_id, ExerciseEntries.logged_at, ExerciseEntries.entry_id)
+            .all()
+        )
+        gaps = {}
+        previous = {}
+        for entry_id, session_id, logged_at in rows:
+            before = previous.get(session_id)
+            if before is not None:
+                hours, rest = divmod(max(0, int((logged_at - before).total_seconds())), 3600)
+                mins, secs = divmod(rest, 60)
+                gaps[entry_id] = f"+{hours}:{mins:02d}:{secs:02d}" if hours else f"+{mins}:{secs:02d}"
+            previous[session_id] = logged_at
+        return gaps
 
     def progress_session_summary(self, progress):
         """The sessions behind a /progress table set, newest first:
@@ -2280,10 +2348,12 @@ class WorkoutManagement:
             .all()
         )
         durations = self.session_durations([row[0] for row in sessions])
+        from_first_set = self.sessions_without_start([row[0] for row in sessions])
         return [
             {
                 "date": f"{date_.day}.{date_.month}.{date_.year}",
-                "duration": self.format_duration(durations.get(session_id)),
+                "duration": self.format_duration(durations.get(session_id), session_id in from_first_set),
+                "from_first_set": session_id in from_first_set,
                 "sets": sets,
             }
             for session_id, date_, sets in sessions
@@ -3837,7 +3907,9 @@ class WorkoutManagement:
                     "days": days,
                     "day_count": len(days),
                     "exercise_count": sum(len(d.get("exercises") or []) for d in days),
-                    "summary": f"{len(days)} days \u00b7 {split}",
+                    # Cached for every user, so no words in here - the page
+                    # writes "3 days" in the user's language from day_count.
+                    "split": split,
                 }
             )
 
@@ -3996,7 +4068,7 @@ class WorkoutManagement:
         """
         user_id = self.current_user_id_db()
         if not user_id:
-            return False, None, "Could not find your account."
+            return False, None, tr("Could not find your account.")
 
         name = (new_name or "").strip()
         if not name:
@@ -4012,7 +4084,7 @@ class WorkoutManagement:
             .first()
         )
         if not newest:
-            return False, None, "You have no mesocycle to rename yet."
+            return False, None, tr("You have no mesocycle to rename yet.")
 
         old_name = newest.name
         if old_name == name:
@@ -4030,7 +4102,7 @@ class WorkoutManagement:
             .first()
         )
         if clash:
-            return False, old_name, f'You already have a mesocycle called "{name}".'
+            return False, old_name, tr('You already have a mesocycle called "{name}".', name=name)
 
         try:
             newest.name = name
@@ -4038,7 +4110,7 @@ class WorkoutManagement:
         except SQLAlchemyError as e:
             db.session.rollback()
             print(f"rename_current_mesocycle: rolling back, {e}")
-            return False, old_name, "That name could not be saved."
+            return False, old_name, tr("That name could not be saved.")
 
         return True, old_name, None
 
@@ -4139,11 +4211,6 @@ class WorkoutManagement:
                     # to /create_workout, so deleting it changes what that page
                     # edits. The dialog says so before you go ahead.
                     "is_newest": position == 0,
-                    "summary": (
-                        f"{len(days)} day{'' if len(days) == 1 else 's'}"
-                        f" \u00b7 {exercise_count}"
-                        f" exercise{'' if exercise_count == 1 else 's'}"
-                    ),
                 }
             )
 

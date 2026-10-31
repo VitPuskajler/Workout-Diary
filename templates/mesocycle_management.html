@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ current_language() }}">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mesocycle management</title>
+  <title>{{ _("Mesocycle management") }}</title>
   <link rel="icon" href="/static/title/barbell_title.jpg">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
@@ -22,15 +22,16 @@
       cursor: pointer;
     }
   </style>
+  {% include "partials/_js_translations.html" %}
 </head>
 
 <body>
 
   <div class="p-3 mb-5">
-    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
+    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="{{ _("Main navigation") }}">
       <div class="container-fluid">
         <a href="{{ url_for('profile') }}" class="text-light me-2 d-flex align-items-center"
-          aria-label="Back to menu" title="Back to menu" style="text-decoration: none;">
+          aria-label="{{ _("Back to menu") }}" title="{{ _("Back to menu") }}" style="text-decoration: none;">
           <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path fill-rule="evenodd"
               d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z">
@@ -39,16 +40,19 @@
         </a>
         <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
         <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
-          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+          aria-controls="navbarCollapse" aria-expanded="false" aria-label="{{ _("Toggle navigation") }}">
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarCollapse">
           <ul class="navbar-nav me-auto mb-2 mb-md-0">
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('training_session_redirect') }}">Training Session</a>
+              <a class="nav-link" href="{{ url_for('training_session_redirect') }}">{{ _("Training Session") }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('workout_plan') }}">Workout Plan</a>
+              <a class="nav-link" href="{{ url_for('workout_plan') }}">{{ _("Workout Plan") }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('intuitive_training') }}">{{ _("Intuitive Training") }}</a>
             </li>
           </ul>
           <ul class="navbar-nav ms-auto">
@@ -57,11 +61,11 @@
               <a class="nav-link" href="{{ url_for('profile') }}">{{ current_user.username }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+              <a class="nav-link" href="{{ url_for('logout') }}">{{ _("Logout") }}</a>
             </li>
             {% else %}
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+              <a class="nav-link" href="{{ url_for('login') }}">{{ _("Login") }}</a>
             </li>
             {% endif %}
           </ul>
@@ -77,9 +81,9 @@
     <div class="row justify-content-center">
       <div class="col-12 col-lg-9">
 
-        <p class="h2 text-center mb-2">Mesocycle management</p>
+        <p class="h2 text-center mb-2">{{ _("Mesocycle management") }}</p>
         <p class="text-body-secondary small text-center mb-4">
-          Tap a name to see the plan. Tick what you want gone, then press Delete.
+          {{ _("Tap a name to see the plan. Tick what you want gone, then press Delete.") }}
         </p>
 
         {% if mesocycles %}
@@ -106,8 +110,8 @@
                     <button type="button" class="btn btn-link p-0 text-start text-decoration-none fw-medium"
                       data-meso-preview="{{ meso.id }}">{{ meso.name }}</button>
                     <span class="d-block text-body-secondary small">
-                      {{ meso.summary }}{% if meso.duration_weeks %} &middot; {{ meso.duration_weeks }} weeks{% endif %}
-                      <span class="d-inline d-sm-none">&middot; {{ meso.sessions_logged }} sessions</span>
+                      {{ _n(meso.day_count, "{count} day", "{count} days") }} &middot; {{ _n(meso.exercise_count, "{count} exercise", "{count} exercises") }}{% if meso.duration_weeks %} &middot; {{ _n(meso.duration_weeks, "{count} week", "{count} weeks") }}{% endif %}
+                      <span class="d-inline d-sm-none">&middot; {{ _n(meso.sessions_logged, "{count} session", "{count} sessions") }}</span>
                     </span>
                   </td>
                   <td class="text-center d-none d-sm-table-cell">{{ meso.sessions_logged }}</td>
@@ -117,7 +121,7 @@
                       data-meso-name="{{ meso.name }}"
                       data-sessions="{{ meso.sessions_logged }}"
                       data-newest="{{ 1 if meso.is_newest else 0 }}"
-                      aria-label="Select {{ meso.name }} for deletion" />
+                      aria-label="{{ _("Select {name} for deletion", name=meso.name) }}" />
                   </td>
                 </tr>
                 {% endfor %}
@@ -134,8 +138,8 @@
         </form>
         {% else %}
         <p class="text-center text-body-secondary my-5">
-          You have no mesocycles yet.
-          <a href="{{ url_for('table_layout') }}">Create one</a>.
+          {{ _("You have no mesocycles yet.") }}
+          <a href="{{ url_for('table_layout') }}">{{ _("Create one") }}</a>.
         </p>
         {% endif %}
 
@@ -154,7 +158,7 @@
         <div class="modal-header">
           <h5 class="modal-title" id="mesoPreviewTitle">Mesocycle</h5>
           <button type="button" class="btn btn-sm btn-outline-danger ms-auto" data-bs-dismiss="modal"
-            aria-label="Close">
+            aria-label="{{ _("Close") }}">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
               <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z" />
             </svg>
@@ -164,8 +168,9 @@
           {% for meso in mesocycles %}
           <div class="d-none" data-meso-detail="{{ meso.id }}" data-meso-name="{{ meso.name }}">
             <p class="text-body-secondary small text-center mb-4">
-              {{ meso.summary }} &middot; {{ meso.duration_weeks }} weeks &middot;
-              {{ meso.sessions_logged }} sessions logged
+              {{ _n(meso.day_count, "{count} day", "{count} days") }} &middot; {{ _n(meso.exercise_count, "{count} exercise", "{count} exercises") }} &middot;
+              {{ _n(meso.duration_weeks, "{count} week", "{count} weeks") }} &middot;
+              {{ _n(meso.sessions_logged, "{count} session logged", "{count} sessions logged") }}
             </p>
 
             {% for day in meso.days %}
@@ -189,7 +194,7 @@
               </tbody>
             </table>
             {% else %}
-            <p class="text-center text-body-secondary my-4">This mesocycle has no workout days.</p>
+            <p class="text-center text-body-secondary my-4">{{ _("This mesocycle has no workout days.") }}</p>
             {% endfor %}
           </div>
           {% endfor %}
@@ -208,31 +213,28 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title text-danger" id="confirmDeleteMesoTitle">Delete mesocycle?</h5>
+          <h5 class="modal-title text-danger" id="confirmDeleteMesoTitle">{{ _("Delete mesocycle?") }}</h5>
         </div>
         <div class="modal-body">
           <p class="mb-3">
-            Are you sure you want to delete
-            <span id="confirmDeleteCount">this mesocycle</span>?
-            <strong>This action is irreversible.</strong>
+            {{ _("Are you sure you want to delete") }}
+            <span id="confirmDeleteCount">{{ _("this mesocycle") }}</span>?
+            <strong>{{ _("This action is irreversible.") }}</strong>
           </p>
 
           <ul class="list-unstyled small mb-3" id="confirmDeleteList"></ul>
 
           <div class="alert alert-warning py-2 px-3 small mb-3 d-none" id="confirmDeleteNewest">
-            One of these is your newest mesocycle - the plan
-            <strong>Change Current Mesocycle</strong> opens for editing. Delete it and that
-            page falls back to the one before it.
+            {{ _("One of these is your newest mesocycle - the plan <strong>Change Current Mesocycle</strong> opens for editing. Delete it and that page falls back to the one before it.")|safe }}
           </div>
 
           <p class="text-body-secondary small mb-0">
-            The plan, its workout days and their exercises go. Every session and every
-            set you logged stays in the database, so Statistics still shows that training.
+            {{ _("The plan, its workout days and their exercises go. Every session and every set you logged stays in the database, so Statistics still shows that training.") }}
           </p>
         </div>
         <div class="modal-footer d-flex justify-content-between">
-          <button type="button" class="btn btn-success" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-danger" form="deleteMesoForm">Delete</button>
+          <button type="button" class="btn btn-success" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+          <button type="submit" class="btn btn-danger" form="deleteMesoForm">{{ _("Delete") }}</button>
         </div>
       </div>
     </div>
@@ -240,7 +242,7 @@
 
   <div class="p-3">
     <div class="fixed-bottom text-center py-2">
-      © {{ year }} | Created by Vít Puskajler
+      © {{ year }} | {{ _("Created by") }} Vít Puskajler
     </div>
   </div>
 
@@ -263,10 +265,19 @@
         return ticks.filter((t) => t.checked);
       }
 
+      // Counted in the browser, so the page hands over every form of the word:
+      // Slovak and Czech say 1 / 2-4 / 5+ differently (plural_forms in i18n.py).
+      const DELETE = {{ _("Delete")|tojson }};
+      const THESE_MESOCYCLES = {{ plural_forms("these {count} mesocycle", "these {count} mesocycles")|tojson }};
+      const SESSIONS_LOGGED = {{ plural_forms("{count} session logged", "{count} sessions logged")|tojson }};
+      function pick(forms, n) {
+        return forms[n === 1 ? 0 : n >= 2 && n <= 4 ? 1 : 2].replace("{count}", n);
+      }
+
       function refresh() {
         const n = ticked().length;
         openButton.disabled = n === 0;
-        openButton.textContent = n > 1 ? `Delete (${n})` : "Delete";
+        openButton.textContent = n > 1 ? DELETE + " (" + n + ")" : DELETE;
       }
 
       ticks.forEach((tick) => tick.addEventListener("change", refresh));
@@ -287,8 +298,8 @@
       // ("delete 2 mesocycles?") is not enough to catch a mis-tick.
       document.getElementById("confirmDeleteMeso").addEventListener("show.bs.modal", function () {
         const chosen = ticked();
-        countLabel.textContent =
-          chosen.length > 1 ? `these ${chosen.length} mesocycles` : "this mesocycle";
+        countLabel.textContent = chosen.length > 1
+          ? pick(THESE_MESOCYCLES, chosen.length) : {{ _("this mesocycle")|tojson }};
 
         list.innerHTML = "";
         let newest = false;
@@ -299,7 +310,7 @@
           name.textContent = tick.dataset.mesoName;
           item.appendChild(name);
           item.appendChild(document.createTextNode(
-            sessions === 1 ? " - 1 session logged" : ` - ${sessions} sessions logged`));
+            " - " + pick(SESSIONS_LOGGED, sessions)));
           list.appendChild(item);
           if (tick.dataset.newest === "1") newest = true;
         });

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ current_language() }}">
 
 <head>
   <meta charset="UTF-8">
@@ -16,6 +16,16 @@
     integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@3">
   <style>
+  /* "+2:35" under a logged set's Del box: time since the set before it
+     (Customization on /profile). Small and grey - a glance, not a column. */
+  .wd-set-gap {
+    font-size: .7rem;
+    line-height: 1;
+    margin-top: 3px;
+    white-space: nowrap;
+    color: var(--bs-secondary-color, #6c757d);
+  }
+
     .placeholder-red::placeholder {
       color: red;
     }
@@ -101,6 +111,7 @@
   </style>
 
 
+  {% include "partials/_js_translations.html" %}
 </head>
 
 <body>
@@ -129,21 +140,23 @@
   </svg>
 
   <div class="p-4 mb-5">
-    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
+    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="{{ _("Main navigation") }}">
       <div class="container-fluid">
         <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
         <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
-          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+          aria-controls="navbarCollapse" aria-expanded="false" aria-label="{{ _("Toggle navigation") }}">
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarCollapse">
           <ul class="navbar-nav me-auto mb-2 mb-md-0">
             <li class="nav-item">
-              <a class="nav-link active" aria-current="page" href="{{url_for('training_session')}}">Training
-                Session</a>
+              <a class="nav-link" href="{{url_for('training_session')}}">{{ _("Training Session") }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('workout_plan_page')}}">Workout Plan</a>
+              <a class="nav-link" href="{{ url_for('workout_plan_page')}}">{{ _("Workout Plan") }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="{{ url_for('intuitive_training') }}">{{ _("Intuitive Training") }}</a>
             </li>
 
           </ul>
@@ -155,14 +168,14 @@
               <a class="nav-link" href="{{ url_for('profile')}}">{{ current_user.username }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+              <a class="nav-link" href="{{ url_for('logout') }}">{{ _("Logout") }}</a>
             </li>
             {% else %}
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+              <a class="nav-link" href="{{ url_for('login') }}">{{ _("Login") }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+              <a class="nav-link" href="{{ url_for('register') }}">{{ _("Register") }}</a>
             </li>
             {% endif %}
           </ul>
@@ -186,9 +199,9 @@
         <!-- Cnfirm button to create today's session-->
         <form method="GET" action="{{ url_for('intuitive_training') }}">
           <div class="d-flex flex-column align-items-center justify-content-center mb-2">
-            <h3 class="mb-3 text-center">Are you aiming for free style workout?</h3>
+            <h3 class="mb-3 text-center">{{ _("Are you aiming for free style workout?") }}</h3>
             <button type="submit" name="confirm_freestyle" value="confirm_freestyle"
-              class="btn btn-success btn-lg col-8 col-lg-4 col-md-6">Yop</button>
+              class="btn btn-success btn-lg col-8 col-lg-4 col-md-6">{{ _("Yop") }}</button>
           </div>
         </form>
 
@@ -198,7 +211,7 @@
         <form action="{{ url_for('intuitive_training') }}" method="POST">
           <input type="hidden" name="action" value="choose_exercise">
           <div class="mb-3">
-            <select class="form-select text-center fw-bolder" aria-label="Select exercise" onchange="this.form.submit()"
+            <select class="form-select text-center fw-bolder" aria-label="{{ _("Select exercise") }}" onchange="this.form.submit()"
               name="chosen_exercise">
 
               {% if selected_exercise %}
@@ -207,7 +220,7 @@
 
               {% else %}
 
-              <option>Choose your exercise</option>
+              <option>{{ _("Choose your exercise") }}</option>
 
               {% endif %}
 
@@ -232,13 +245,13 @@
         <div class="d-flex justify-content-center mb-2 gap-2">
           <button class="btn btn-secondary btn-sm" type="button" data-bs-toggle="collapse"
             data-bs-target="#historyCollapse">
-            History
+            {{ _("History") }}
           </button>
         </div>
         <div class="d-flex justify-content-center">
           <div class="collapse" id="historyCollapse">
             <div class="card card-body">
-              <h5 class="text-center mb-3">Previous sets for <strong>{{current_exercise_name}}</strong></h5>
+              <h5 class="text-center mb-3">{{ _("Previous sets for") }} <strong>{{current_exercise_name}}</strong></h5>
               <table class="table table-striped text-center mb-1">
                 <thead class="table-striped ">
                   <tr>
@@ -285,7 +298,7 @@
                 <td style="position: relative;">
 
                   <input type="text" id="new_exercise" name="exercise" class="form-control text-center mb-3" value=""
-                    autocomplete="off" placeholder="Exercise Name" />
+                    autocomplete="off" placeholder="{{ _("Exercise Name") }}" />
 
                   <ul id="exercise_suggestions" class="dropdown-menu" style="width: 100%; display: none"></ul>
                 </td>
@@ -319,7 +332,7 @@
                     <th class="col-2">
                       <button type="button" id="weightUnitToggle" data-unit="{{ default_unit }}"
                         class="btn btn-sm btn-link p-0 fw-bold text-decoration-none text-reset"
-                        title="Click to switch the unit new sets are logged in">{% if default_unit == 'lbs'
+                        title="{{ _("Click to switch the unit new sets are logged in") }}">{% if default_unit == 'lbs'
                         %}Lbs{% elif default_unit == 'other' %}Other{% else %}Kg{% endif %}</button>
                     </th>
                     <th class="col-1">{{ 'Sec' if is_timed(selected_exercise) else 'Reps' }}</th>
@@ -349,6 +362,7 @@
 
                     <td class="w-auto">
                       <input class="form-check-input" type="checkbox" name="delete" value="{{ set.entry_id }}" />
+                      {% if set_gaps.get(set.entry_id) %}<div class="wd-set-gap" title="{{ _("Since the previous set") }}">{{ set_gaps[set.entry_id] }}</div>{% endif %}
                     </td>
 
                   </tr>
@@ -430,14 +444,14 @@
                 <button type="submit" name="previous_day"
                   class="btn p-0 border rounded-3 shadow-sm d-flex justify-content-center align-items-center"
                   style="width: 8%; max-width: 55px; aspect-ratio: 1.3; border-color: #bbb; background-color: #fff; transition: all 0.25s ease;">
-                  <img src="{{ url_for('static', filename='pictures/left_arrow.png') }}" alt="Previous Exercise"
+                  <img src="{{ url_for('static', filename='pictures/left_arrow.png') }}" alt="{{ _("Previous Exercise") }}"
                     style="width: 65%; height: auto;">
                 </button>
 
                 <button type="submit" name="next_day"
                   class="btn p-0 border rounded-3 shadow-sm d-flex justify-content-center align-items-center"
                   style="width: 8%; max-width: 55px; aspect-ratio: 1.3; border-color: #bbb; background-color: #fff; transition: all 0.25s ease;">
-                  <img src="{{ url_for('static', filename='pictures/right_arrow.png') }}" alt="Next Exercise"
+                  <img src="{{ url_for('static', filename='pictures/right_arrow.png') }}" alt="{{ _("Next Exercise") }}"
                     style="width: 65%; height: auto;">
                 </button>
               </div>
@@ -454,10 +468,10 @@
               {% endif %}
 
               <div class="d-flex justify-content-center mb-2 gap-2" style="padding-top: 1.5em;">
-                <button type="submit" class="btn btn-success btn-lg {% if selected_exercise is not none %}col-6{% else %}col-8{% endif %} col-lg-4 col-md-6">Confirm</button>
+                <button type="submit" class="btn btn-success btn-lg {% if selected_exercise is not none %}col-6{% else %}col-8{% endif %} col-lg-4 col-md-6">{{ _("Confirm") }}</button>
                 {% if selected_exercise is not none %}
                 <button type="submit" name="repeat_button"
-                  class="btn btn-primary btn-lg col-3 col-lg-2 col-md-3 d-flex justify-content-center align-items-center">Repeat</button>
+                  class="btn btn-primary btn-lg col-3 col-lg-2 col-md-3 d-flex justify-content-center align-items-center">{{ _("Repeat") }}</button>
                 {% endif %}
               </div>
             </div>
@@ -468,9 +482,10 @@
             <div class="row justify-content-center">
               <div class="col-12 col-md-9 p-4" data-wd-editable="intuitive">
                 <div class="d-flex align-items-center justify-content-center position-relative mb-3">
-                  <h5 class="text-center mb-0">Today's exercises</h5>
+                  <h5 class="text-center mb-0">{{ _("Today's exercises") }}</h5>
                   <button type="button" class="btn btn-sm btn-outline-secondary position-absolute end-0"
-                    data-wd-edit-toggle aria-pressed="false">Edit</button>
+                    data-wd-edit-toggle aria-pressed="false"
+                    data-label-on="{{ _("Done") }}" data-label-off="{{ _("Edit") }}">{{ _("Edit") }}</button>
                 </div>
                 {# Swipe a row left in Edit mode, then tap Delete. Only today's plan
                    loses the exercise - its logged sets stay (Training Progress). #}
@@ -515,14 +530,14 @@
                         </td>
                         <td class="wd-edit-only wd-swipe-cell p-0">
                           <button type="button" class="btn btn-link text-secondary p-1 wd-swipe-open"
-                            aria-label="Delete {{ item.exercise }}" title="Delete">
+                            aria-label="{{ _("Delete {name}", name=item.exercise) }}" title="{{ _("Delete") }}">
                             <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                               <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
                               <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
                             </svg>
                           </button>
                           <button type="submit" form="removeExerciseForm" name="exercise_name"
-                            value="{{ item.exercise }}" class="wd-swipe-del">Delete</button>
+                            value="{{ item.exercise }}" class="wd-swipe-del">{{ _("Delete") }}</button>
                         </td>
                       </tr>
                       {% endfor %}
@@ -549,6 +564,7 @@
             if (newExerciseInput) {
               wireExerciseSuggestions(newExerciseInput, document.getElementById('exercise_suggestions'), {
                 url: "{{ url_for('exercise_suggestions') }}",
+                loadingText: {{ _("Loading…")|tojson }},
                 icons: {
                   base: "{{ url_for('static', filename='icons/exercises/') }}",
                   slugs: {{ exercise_icon_slugs|tojson }},

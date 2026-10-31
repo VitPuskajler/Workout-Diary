@@ -29,6 +29,17 @@ class Users(UserMixin, db.Model):
     # to False for anyone signing up from here on - see add_approval_column.py
     # for backfilling accounts that predate this column.
     is_approved = Column(Boolean, nullable=False, default=False, server_default="0")
+    # Customization on /profile: the exercise's icon in each row of the
+    # training session table, and whether it plays its rep. See
+    # add_customization_columns.py.
+    show_session_icons = Column(Boolean, nullable=False, default=True, server_default="1")
+    animate_session_icons = Column(Boolean, nullable=False, default=False, server_default="0")
+    # The stopwatch bar on the training pages, and the "+2:35" since the
+    # previous set under each logged set.
+    show_stopwatch = Column(Boolean, nullable=False, default=True, server_default="1")
+    show_set_gaps = Column(Boolean, nullable=False, default=True, server_default="1")
+    # "en", "sk" or "cs" - see i18n.py.
+    language = Column(String(5), nullable=False, default="en", server_default="en")
 
     def __repr__(self):
         return f"<User {self.username}>"
@@ -116,6 +127,10 @@ class Sessions(UserMixin, db.Model):
     session_date = Column(DateTime, default=func.now())
     notes = Column(String(150), unique=False, nullable=True)
     session_end = Column(DateTime, unique=True, nullable=True)
+    # True: the duration runs from the stopwatch's Start tap. False: no Start
+    # tap (stopwatch off or not started), so it runs from the first set and
+    # /progress marks it "~". NULL for sessions from before this was recorded.
+    started_by_stopwatch = Column(Boolean, nullable=True)
 
     def __init__(self, user_id, workout_id, notes):
         self.user_id = user_id
@@ -143,6 +158,10 @@ class ExerciseEntries(UserMixin, db.Model):
     # See add_stopwatch_columns.py.
     logged_at = Column(DateTime, nullable=True, default=datetime.utcnow)
     started_at = Column(DateTime, nullable=True)
+    # Superset: the set (of another exercise) this one was done straight
+    # after, the stopwatch's SS button. NULL for an ordinary set. See
+    # add_customization_columns.py.
+    superset_of = Column(Integer, db.ForeignKey("exercise_entries.entry_id"), nullable=True)
 
     def __init__(self, session_id, exercise_id, set_number, reps, weight, rpe, notes, unit="kg"):
         self.session_id = session_id

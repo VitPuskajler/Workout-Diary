@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ current_language() }}">
 
 <head>
   <meta charset="UTF-8">
@@ -51,6 +51,7 @@
   </style>
 
 
+  {% include "partials/_js_translations.html" %}
 </head>
 
 <body>
@@ -79,20 +80,23 @@
   </svg>
 
   <div class="p-4 mb-5">
-    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
+    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="{{ _("Main navigation") }}">
       <div class="container-fluid">
         <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
         <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
-          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+          aria-controls="navbarCollapse" aria-expanded="false" aria-label="{{ _("Toggle navigation") }}">
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarCollapse">
           <ul class="navbar-nav me-auto mb-2 mb-md-0">
             <li class="nav-item">
-              <a class="nav-link active" aria-current="page" href="#">Training Session</a>
+              <a class="nav-link active" aria-current="page" href="#">{{ _("Training Session") }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('workout_plan_page')}}">Workout Plan</a>
+              <a class="nav-link" href="{{ url_for('workout_plan_page')}}">{{ _("Workout Plan") }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('intuitive_training') }}">{{ _("Intuitive Training") }}</a>
             </li>
 
           </ul>
@@ -104,14 +108,14 @@
               <a class="nav-link" href="{{ url_for('profile')}}">{{ current_user.username }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+              <a class="nav-link" href="{{ url_for('logout') }}">{{ _("Logout") }}</a>
             </li>
             {% else %}
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+              <a class="nav-link" href="{{ url_for('login') }}">{{ _("Login") }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+              <a class="nav-link" href="{{ url_for('register') }}">{{ _("Register") }}</a>
             </li>
             {% endif %}
           </ul>
@@ -125,7 +129,7 @@
   <!-- ------------------------ Load Dynamically Tables ------------------------- -->
   <div class="container text-center col-5 col-md-3 col-sm-5 mb-1 p-1">
     <form class="mb-1" action="{{ url_for('training_session') }}" method="get">
-      <select class="form-select mb-1 text-center" aria-label="Default select example" id="trainingSelect"
+      <select class="form-select mb-1 text-center" aria-label="{{ _("Training day") }}" id="trainingSelect"
         name="training_day" onchange="this.form.submit()">
 
         <option> {{chosen_day}}</option>
@@ -145,10 +149,10 @@
     <div class="row">
       <div class="col-md-9 col-sm-12 mx-auto">
         <form action="{{ url_for('training_session')}}" method="get">
-          <select class="form-select text-center fw-bolder" aria-label="Default select example text-center"
+          <select class="form-select text-center fw-bolder" aria-label="{{ _("Exercise") }}"
             onchange="this.form.submit()" name="chosen_exercise">
 
-            <option value="">{{ chosen_exercise if chosen_exercise else "Select an exercise" }}</option>
+            <option value="">{{ chosen_exercise if chosen_exercise else _("Select an exercise") }}</option>
 
             {% for exercise in exercises_to_display %}
             {% if chosen_exercise != exercise %}
@@ -166,7 +170,7 @@
   <div class="d-flex justify-content-center mb-2 gap-2">
     <button class="btn btn-secondary btn-sm" type="submit" name="preview_button" data-bs-toggle="collapse"
       data-bs-target="#collapseExample">
-      History
+      {{ _("History") }}
     </button>
   </div>
   <div class="d-flex justify-content-center">
@@ -208,6 +212,19 @@
   {% endif %}
 
 
+  <!-- Exercise icons in the plan table, as switched on in Customization.
+       Moving only if asked for too, and never with "reduce motion" on -
+       <picture> picks the still drawing then, no script needed. -->
+  {% set show_icons = current_user.show_session_icons %}
+  {% set animate_icons = show_icons and current_user.animate_session_icons %}
+  {% macro icon_picture(exercise) -%}
+    {%- set still = exercise_icon(exercise) -%}
+    {%- set moving = exercise_icon_moving(exercise) if still and animate_icons else none -%}
+    {%- if still %}<picture>
+      {%- if moving %}<source srcset="{{ moving }}" media="(prefers-reduced-motion: no-preference)">{% endif -%}
+      <img src="{{ still }}" alt=""></picture>{% endif -%}
+  {%- endmacro %}
+
   <form action="{{ url_for('training_session') }}" method="POST">
     <div class="container">
       <div class="row justify-content-center">
@@ -233,6 +250,16 @@
 
             .table-responsive th { width: 20%; }
 
+            /* "+2:35" under a logged set's Del box: time since the set before it
+               (Customization on /profile). Small and grey - a glance, not a column. */
+            .wd-set-gap {
+              font-size: .7rem;
+              line-height: 1;
+              margin-top: 3px;
+              white-space: nowrap;
+              color: var(--bs-secondary-color, #6c757d);
+            }
+
             /* the default .form-control side padding eats 24px of a 58px cell */
             .table-responsive .form-control {
               padding-left: .25rem;
@@ -246,7 +273,7 @@
                   <th>
                     <button type="button" id="weightUnitToggle" data-unit="{{ default_unit }}"
                       class="btn btn-sm btn-link p-0 fw-bold text-decoration-none text-reset"
-                      title="Click to switch the unit new sets are logged in">{% if default_unit == 'lbs'
+                      title="{{ _("Click to switch the unit new sets are logged in") }}">{% if default_unit == 'lbs'
                       %}Lbs{% elif default_unit == 'other' %}Other{% else %}Kg{% endif %}</button>
                   </th>
                   <th>{{ 'Sec' if is_timed(chosen_exercise) else 'Reps' }}</th>
@@ -276,6 +303,7 @@
 
                   <td class="w-auto">
                     <input class="form-check-input" type="checkbox" name="delete" value="{{ set.entry_id }}" />
+                    {% if set_gaps.get(set.entry_id) %}<div class="wd-set-gap" title="{{ _("Since the previous set") }}">{{ set_gaps[set.entry_id] }}</div>{% endif %}
                   </td>
 
                 </tr>
@@ -364,7 +392,7 @@
             <div class="d-flex justify-content-between align-items-start" style="margin-top: -2em;">
               {% if prev_exercise %}
               <button type="submit" name="previous_day" class="wd-nav-btn btn p-0 border rounded-3 shadow-sm"
-                title="Previous: {{ prev_exercise }}" aria-label="Previous exercise: {{ prev_exercise }}">
+                title="{{ _("Previous: {name}", name=prev_exercise) }}" aria-label="{{ _("Previous exercise: {name}", name=prev_exercise) }}">
                 <span class="wd-nav-chevron" aria-hidden="true">&lsaquo;</span>
                 <img src="{{ exercise_icon(prev_exercise) or nav_fallback_icon }}" alt="">
               </button>
@@ -374,7 +402,7 @@
 
               {% if next_exercise %}
               <button type="submit" name="next_day" class="wd-nav-btn btn p-0 border rounded-3 shadow-sm"
-                title="Next: {{ next_exercise }}" aria-label="Next exercise: {{ next_exercise }}">
+                title="{{ _("Next: {name}", name=next_exercise) }}" aria-label="{{ _("Next exercise: {name}", name=next_exercise) }}">
                 <img src="{{ exercise_icon(next_exercise) or nav_fallback_icon }}" alt="">
                 <span class="wd-nav-chevron" aria-hidden="true">&rsaquo;</span>
               </button>
@@ -420,9 +448,9 @@
 
             <div class="d-flex justify-content-center mb-2 gap-2" style="padding-top: 1.5em;">
               <button type="submit" name="confirm_button"
-                class="btn btn-success btn-lg col-6 col-lg-4 col-md-6 col-sm-6">Confirm</button>
+                class="btn btn-success btn-lg col-6 col-lg-4 col-md-6 col-sm-6">{{ _("Confirm") }}</button>
               <button type="submit" name="repeat_button"
-                class="btn btn-primary btn-lg col-3 col-lg-2 col-md-3 col-sm-2 d-flex justify-content-center align-items-center">Repeat</button>
+                class="btn btn-primary btn-lg col-3 col-lg-2 col-md-3 col-sm-2 d-flex justify-content-center align-items-center">{{ _("Repeat") }}</button>
 
             </div>
           </div> <!-- Closing div for col-12 col-md-7 -->
@@ -452,6 +480,7 @@
                 <td>
                   <button type="submit" name="chosen_exercise" value="{{row.exercise}}"
                     class="btn p-0 border-0 shadow-none w-100 {% if row.done is not none %}text-success-emphasis{% endif %}">
+                    {% if show_icons %}<span class="wd-plan-icon">{{ icon_picture(row.exercise) }}</span>{% endif %}
                     {{row.exercise}}
                   </button>
                 </td>
@@ -470,6 +499,16 @@
           </table>
 
           <style>
+            /* The icon sits above the name, inside the Exercise cell. A column
+               of its own would not stay narrow: the other headers take col-*
+               percentages, and the width they leave over went to the icons. */
+            .wd-plan-icon img {
+              width: 28px;
+              height: 28px;
+              display: block;
+              margin: 0 auto 2px;
+            }
+
             /* the whole row is a target for switching exercise, not just the name */
             #exercisePreview tbody tr { cursor: pointer; }
 
@@ -522,17 +561,11 @@
               var link = document.createElement("a");
               link.href = "{{ url_for('progress') }}";
               link.className = "align-self-center small fw-bold text-success text-decoration-none";
-              link.textContent = "Progress";
+              link.textContent = {{ _("Progress")|tojson }};
               container.appendChild(link);
             })();
           </script>
           {% endif %}
-
-          <div class="container">
-            <div class="d-flex justify-content-center">
-              <a href="{{ url_for('intuitive_training') }}" class="btn btn-danger">Intuitive Training</a>
-            </div>
-          </div>
 
         </div>
       </div>

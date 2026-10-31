@@ -467,6 +467,213 @@ ICONS = {
     ],
 }
 
+
+# ---- third batch: the logged exercises that shared a drawing with a sibling
+# get their own - the same movement, drawn with what tells them apart (grip,
+# handle, seat, machine, stance, what is held). Built from the drawing they
+# shared, so the family still looks like one.
+_PULLDOWN, _CURL, _DIP = ICONS["Machine Lat Pulldown"], ICONS["Dumbbell Bicep Curl"], ICONS["Dip"]
+_INCLINE, _SLD, _CRUNCH = ICONS["Dumbbell Incline Bench Press"], ICONS["Barbell Stiff-Leg Deadlift"], ICONS["Bench Crunch"]
+_SKULL, _BENCH, _PRESS = ICONS["EZ Bar Tricep Extension"], ICONS["Barbell Bench Press"], ICONS["Dumbbell Shoulder Press"]
+_LEG_PRESS, _MILITARY, _EZ_CURL = ICONS["Machine Leg Press"], ICONS["Barbell Military Press"], ICONS["EZ Bar Curl"]
+SEAT_F = [("e", [(20, 44), (44, 44)]), ("e", [(32, 44), (32, 60)])]
+SEATED_LEGS_F = [("b", [(32, 21), (32, 41), (24, 45), (24, 58)]), ("b", [(32, 41), (40, 45), (40, 58)])]
+STANDING_LEGS_F = [("b", [(32, 21), (32, 41), (27, 58)]), ("b", [(32, 41), (37, 58)])]
+SMITH_RAILS = [("e", [(5, 2), (5, 60)]), ("e", [(59, 2), (59, 60)])]
+
+ICONS.update({
+    "Cable Lat Pulldown (Wide Grip)": moved(_PULLDOWN, {
+        3: ("w", [(4, 20), (60, 20)]),
+        5: ("b", [(8, 20), (12, 33), (27, 25), (37, 25), (52, 33), (56, 20)]),
+    }),
+    "Cable Grip Lat Pulldown (Narrow Grip)": moved(_PULLDOWN, {
+        0: ("e", [(32, 2), (32, 22)]),
+        3: ("w", [(21, 22), (43, 22)]),
+        5: ("b", [(24, 22), (20, 33), (27, 25), (37, 25), (44, 33), (40, 22)]),
+    }),
+    "Cable Front Lat Pulldown (Close Grip)": moved(_PULLDOWN, {     # V-handle to the chest
+        0: ("e", [(32, 2), (32, 19)]),
+        3: ("w", [(28, 25), (32, 19), (36, 25)]),
+        5: ("b", [(29, 25), (21, 34), (27, 25), (37, 25), (43, 34), (35, 25)]),
+    }),
+    "Machine One-Arm Pulldown": [
+        ("e", [(46, 2), (46, 18)]), ("e", [(22, 50), (42, 50)]), ("e", [(32, 50), (32, 60)]),
+        ("w", [(43, 18), (49, 18)]),
+        ("h", (32, 13)),
+        ("b", [(23, 45), (21, 35), (27, 25), (37, 25), (45, 31), (46, 18)]),
+        ("b", [(32, 25), (32, 47), (25, 51), (25, 60)]), ("b", [(32, 47), (39, 51), (39, 60)]),
+    ],
+    "Cable Bicep Curl": [                                # bar on a cable from the floor
+        FLOOR, ("e", [(26, 58), (38, 58)]), ("e", [(32, 57), (32, 25)]),
+        ("h", (32, 12)),
+        ("b", [(27, 21), (37, 21)]),
+        ("b", [(27, 21), (24, 34), (22, 25)]), ("b", [(37, 21), (40, 34), (42, 25)]),
+        ("w", [(17, 25), (47, 25)]),
+        *STANDING_LEGS_F,
+    ],
+    "Dumbbell Hammer Curl": [                            # dumbbells upright: palms in
+        FLOOR,
+        ("h", (32, 12)),
+        ("b", [(23, 44), (24, 34), (27, 21), (37, 21), (40, 34), (44, 24)]),
+        *dumbbell(23, 48, horizontal=False), *dumbbell(44, 22, horizontal=False),
+        *STANDING_LEGS_F,
+    ],
+    "Dumbbell Seated Bicep Curl": [
+        *SEAT_F,
+        ("h", (32, 12)),
+        ("b", [(18, 40), (22, 32), (27, 21), (37, 21), (40, 34), (44, 24)]),
+        *dumbbell(18, 43), *dumbbell(44, 21),
+        *SEATED_LEGS_F,
+    ],
+    "Weighted Tricep Dip": _DIP + [("e", [(32, 40), (32, 47)]), ("c", (32, 51, 4))],
+    "Machine Dip": [("e", [(24, 52), (40, 52)]), ("e", [(32, 52), (32, 60)])] + _DIP,   # knee pad
+    "Machine Seated Tricep Dip": [
+        ("e", [(14, 44), (36, 44)]), ("e", [(26, 44), (26, 60)]), ("e", [(40, 12), (40, 44)]),
+        ("h", (32, 11)),
+        ("b", [(33, 19), (34, 42), (16, 44), (18, 58)]),
+        ("w", [(30, 40), (42, 40)]),
+        ("b", [(33, 21), (35, 30), (36, 40)]),
+    ],
+    "Barbell Incline Bench Press": _INCLINE[:5] + [("c", (25, 7, 6))],
+    "Machine Incline Chest Press": [
+        ("e", [(4, 2), (4, 60)]), ("e", [(17, 24), (36, 48), (50, 48)]), ("e", [(38, 48), (38, 60)]),
+        ("e", [(4, 6), (25, 10)]),
+        ("h", (17, 19)),
+        ("b", [(22, 27), (36, 44), (48, 42), (50, 59)]),
+        ("b", [(23, 28), (24, 19.5), (25, 11)]),
+        ("w", [(22, 10), (28, 10)]),
+    ],
+    "Cable Side Lateral Raise": [                        # one arm, cable from the far low pulley
+        FLOOR, ("e", [(60, 4), (60, 60)]), ("e", [(58, 56), (12, 23)]),
+        ("h", (32, 12)),
+        ("b", [(13, 23), (26, 21), (38, 21), (41, 34)]),
+        ("w", [(10, 21), (14, 25)]),
+        ("b", [(32, 21), (32, 40), (27, 58)]), ("b", [(32, 40), (37, 58)]),
+    ],
+    "Dumbbell Seated Side Lateral Raise": [
+        *SEAT_F,
+        ("h", (32, 12)),
+        ("b", [(13, 23), (26, 21), (38, 21), (51, 23)]),
+        *SEATED_LEGS_F,
+        *dumbbell(10, 23, horizontal=False), *dumbbell(54, 23, horizontal=False),
+    ],
+    "Chin-Up": [                                         # hands close together
+        ("e", [(8, 9), (56, 9)]),
+        ("b", [(26, 9), (21, 21), (27, 26), (37, 26), (43, 21), (38, 9)]),
+        ("h", (32, 17)),
+        ("b", [(32, 25), (32, 42)]),
+        ("b", [(32, 42), (28, 51), (31, 59)]), ("b", [(32, 42), (36, 51), (33, 59)]),
+    ],
+    "Assisted One-Arm Pull-Up": [                        # the other hand on a band
+        ("e", [(8, 9), (56, 9)]),
+        ("d", "M44 9 Q48 17 44 26"),
+        ("b", [(28, 9), (22, 21), (27, 26), (37, 26), (44, 25)]),
+        ("h", (32, 17)),
+        ("b", [(32, 25), (32, 42)]),
+        ("b", [(32, 42), (28, 51), (31, 59)]), ("b", [(32, 42), (36, 51), (33, 59)]),
+    ],
+    "Cable Tricep Pushdown (Rope)": [                    # the rope splits at the bottom
+        FLOOR, ("e", [(32, 2), (32, 26)]),
+        ("h", (32, 12)),
+        ("b", [(24, 44), (25, 32), (27, 21), (37, 21), (39, 32), (40, 44)]),
+        ("w", [(24, 44), (32, 26), (40, 44)]),
+        *STANDING_LEGS_F,
+    ],
+    "Cable Tricep Pushdown (V-Bar)": [
+        FLOOR, ("e", [(32, 2), (32, 38)]),
+        ("h", (32, 12)),
+        ("b", [(30, 44), (25, 33), (27, 21), (37, 21), (39, 33), (34, 44)]),
+        ("w", [(28, 46), (32, 38), (36, 46)]),
+        *STANDING_LEGS_F,
+    ],
+    "Barbell Romanian Deadlift": [                       # soft knees, bar only to the shins
+        FLOOR,
+        ("h", (10, 27)),
+        ("b", [(17, 31), (35, 34), (29, 46), (33, 58)]),
+        ("b", [(19, 32), (22, 44)]),
+        ("c", (22, 48, 6.5)),
+    ],
+    "Dumbbell Stiff-Leg Deadlift": _SLD[:4] + dumbbell(18, 51),
+    "Machine Ab Crunch": [
+        ("e", [(20, 46), (40, 46)]), ("e", [(30, 46), (30, 60)]), ("e", [(48, 8), (48, 60)]),
+        ("e", [(48, 14), (28, 30)]),
+        ("p", "M38 44 Q30 40 26 31", "b"),
+        ("h", (23, 26)),
+        ("b", [(38, 44), (20, 46), (22, 58)]),
+    ],
+    "Oblique Crunch": [                                  # knees dropped, elbow across
+        FLOOR,
+        ("p", "M34 56 Q24 54 21 45", "b"),
+        ("h", (19, 38)),
+        ("b", [(34, 56), (46, 48), (56, 57)]),
+        ("b", [(22, 46), (31, 44)]),
+        ("a", "M14 30 Q22 24 30 30"),
+    ],
+    "EZ Bar Tricep Extension (Close Grip)": _SKULL[:5] + [("b", [(21, 41), (22, 24), (14, 33)]), ("c", (12, 33, 4))],
+    "Barbell JM Press": _BENCH[:5] + [("b", [(20, 41), (29, 33), (23, 27)]), ("c", (23, 23, 6))],
+    "Hack Squat (Narrow Stance)": [                      # front view, feet together
+        ("e", [(14, 4), (14, 60)]), ("e", [(50, 4), (50, 60)]), ("e", [(18, 60), (46, 60)]),
+        ("h", (32, 18)),
+        ("e", [(22, 26), (42, 26)]),
+        ("b", [(22, 32), (25, 26), (39, 26), (42, 32)]),
+        ("b", [(32, 26), (32, 42)]),
+        ("b", [(32, 42), (25, 49), (29, 59)]), ("b", [(32, 42), (39, 49), (35, 59)]),
+    ],
+    "Machine Squat": [                                   # shoulder pads on a lever, no bar
+        FLOOR, ("e", [(56, 4), (56, 60)]), ("e", [(56, 10), (32, 23)]),
+        ("h", (27, 15)),
+        ("b", [(30, 23), (36, 42), (20, 44), (24, 58)]),
+        ("b", [(31, 25), (37, 30), (38, 23)]),
+    ],
+    "Machine Leg Press (Narrow Stance)": _LEG_PRESS[:5] + [   # both legs side by side, feet low
+        ("b", [(13, 30), (24, 49), (36, 34), (50, 40)]),
+        _LEG_PRESS[6],
+        ("b", [(24, 49), (38, 36), (51, 42)]),
+    ],
+    "Machine Single-Leg Press": _LEG_PRESS + [("b", [(24, 49), (35, 52), (36, 60)])],   # other foot down
+    "Machine Shoulder Press": [
+        ("e", [(8, 4), (8, 46)]), ("e", [(56, 4), (56, 46)]),
+        ("e", [(8, 34), (19, 9)]), ("e", [(56, 34), (45, 9)]),
+    ] + _PRESS[:6] + [("w", [(15, 9), (23, 9)]), ("w", [(41, 9), (49, 9)])],
+    "Barbell Squat with Narrow Stance": [                # front view, knees together
+        FLOOR,
+        ("w", [(12, 27), (52, 27)]), ("w", [(10, 21), (10, 33)]), ("w", [(54, 21), (54, 33)]),
+        ("h", (32, 20)),
+        ("b", [(19, 27), (21, 35), (27, 30), (37, 30), (43, 35), (45, 27)]),
+        ("b", [(32, 29), (32, 44)]),
+        ("b", [(32, 44), (25, 51), (29, 59)]), ("b", [(32, 44), (39, 51), (35, 59)]),
+    ],
+    "Smith Machine Shoulder Press": SMITH_RAILS + [("e", [(22, 48), (42, 48)]), ("e", [(32, 48), (32, 60)])]
+        + _MILITARY[1:6]
+        + [("b", [(32, 26), (32, 45), (24, 49), (24, 58)]), ("b", [(32, 45), (40, 49), (40, 58)])],
+    "EZ Bar Close Grip Curl": moved(_EZ_CURL, {
+        3: ("b", [(27, 21), (26, 34), (28, 25)]), 4: ("b", [(37, 21), (38, 34), (36, 25)]),
+        5: ("p", "M17 25 H22 L25 22 L29 27 L32 25 L35 22 L39 27 L42 25 H47", "w"),
+        6: ("w", [(15, 19), (15, 31)]), 7: ("w", [(49, 19), (49, 31)]),
+    }),
+    "Dumbbell Bench Press (Palms in)": ICONS["Dumbbell Bench Press"][:6] + dumbbell(20, 18, horizontal=False),
+    "Cable One-Arm Seated Row": ICONS["Cable Seated Row"] + [
+        ("b", [(19, 26), (13, 33), (21, 40)]),           # the free hand on the hip
+        ("w", [(26, 34), (26, 40)]),
+    ],
+    "Machine Bench Press": [("e", [(58, 4), (58, 46)]), ("e", [(58, 12), (23, 24)])]
+        + _BENCH[:6] + [("w", [(17, 24), (23, 24)])],
+    "Dumbbell Prone Deltoid Raise": [                    # face down on an incline bench
+        FLOOR, ("e", [(20, 28), (42, 50)]), ("e", [(36, 44), (36, 60)]),
+        ("h", (15, 22)),
+        ("b", [(20, 27), (38, 44), (47, 50), (54, 59)]),
+        ("b", [(21, 28), (10, 17)]),
+        *dumbbell(8, 15, horizontal=False),
+    ],
+    "Smith Machine Bulgarian Split Squat": SMITH_RAILS + ICONS["Barbell Bulgarian Split Squat"],
+    "Elevated Push-Up": [                                # hands on a low box
+        FLOOR, ("e", [(12, 60), (12, 50), (28, 50), (28, 60)]),
+        ("h", (13, 35)),
+        ("b", [(20, 50), (20.5, 44.5), (21, 39)]),
+        ("b", [(21, 39), (38, 47), (56, 57)]),
+    ],
+})
+
 # The other end of the rep for some ICONS: the same strokes, in the same order
 # and with as many points, moved. Each gets a second, animated file in
 # static/icons/exercises/anim, which the exercise dropdown plays on hover.
@@ -694,6 +901,162 @@ ANIMATED = {
         4: ("b", [(32, 47), (34, 55), (33, 61)]),
     }),
 }
+
+
+# The third batch's other ends - see the third batch in ICONS.
+ANIMATED.update({
+    "Cable Lat Pulldown (Wide Grip)": moved(ICONS["Cable Lat Pulldown (Wide Grip)"], {
+        0: ("e", [(32, 2), (32, 5)]), 3: ("w", [(4, 5), (60, 5)]),
+        5: ("b", [(8, 5), (16, 15), (27, 25), (37, 25), (48, 15), (56, 5)]),
+    }),
+    "Cable Grip Lat Pulldown (Narrow Grip)": moved(ICONS["Cable Grip Lat Pulldown (Narrow Grip)"], {
+        0: ("e", [(32, 2), (32, 5)]), 3: ("w", [(21, 5), (43, 5)]),
+        5: ("b", [(24, 5), (23, 15), (27, 25), (37, 25), (41, 15), (40, 5)]),
+    }),
+    "Cable Front Lat Pulldown (Close Grip)": moved(ICONS["Cable Front Lat Pulldown (Close Grip)"], {
+        0: ("e", [(32, 2), (32, 3)]), 3: ("w", [(28, 9), (32, 3), (36, 9)]),
+        5: ("b", [(29, 9), (25, 17), (27, 25), (37, 25), (39, 17), (35, 9)]),
+    }),
+    "Machine One-Arm Pulldown": moved(ICONS["Machine One-Arm Pulldown"], {
+        0: ("e", [(46, 2), (46, 4)]), 3: ("w", [(43, 4), (49, 4)]),
+        5: ("b", [(23, 45), (21, 35), (27, 25), (37, 25), (43, 14), (46, 4)]),
+    }),
+    "Cable Bicep Curl": moved(ICONS["Cable Bicep Curl"], {          # -> arms down
+        2: ("e", [(32, 57), (32, 43)]),
+        5: ("b", [(27, 21), (25, 32), (24, 43)]), 6: ("b", [(37, 21), (39, 32), (40, 43)]),
+        7: ("w", [(17, 43), (47, 43)]),
+    }),
+    "Dumbbell Hammer Curl": moved(ICONS["Dumbbell Hammer Curl"], {  # the arms swap
+        2: ("b", [(20, 24), (24, 34), (27, 21), (37, 21), (40, 34), (41, 44)]),
+        3: dumbbell(20, 22, horizontal=False), 6: dumbbell(41, 48, horizontal=False),
+    }),
+    "Dumbbell Seated Bicep Curl": moved(ICONS["Dumbbell Seated Bicep Curl"], {
+        3: ("b", [(20, 24), (23, 33), (27, 21), (37, 21), (42, 32), (46, 40)]),
+        4: dumbbell(20, 21), 7: dumbbell(46, 43),
+    }),
+    "Weighted Tricep Dip": ANIMATED["Dip"] + [("e", [(32, 46), (32, 53)]), ("c", (32, 57, 4))],
+    "Machine Dip": [("e", [(24, 56), (40, 56)]), ("e", [(32, 56), (32, 60)])] + ANIMATED["Dip"],
+    "Machine Seated Tricep Dip": moved(ICONS["Machine Seated Tricep Dip"], {   # -> handles up
+        5: ("w", [(30, 30), (42, 30)]), 6: ("b", [(33, 21), (42, 26), (36, 30)]),
+    }),
+    "Barbell Incline Bench Press": _INCLINE[:4] + [("b", [(23, 28), (31, 31), (27, 21)]), ("c", (27, 17, 6))],
+    "Machine Incline Chest Press": moved(ICONS["Machine Incline Chest Press"], {
+        3: ("e", [(4, 6), (27, 20)]), 6: ("b", [(23, 28), (31, 31), (27, 21)]), 7: ("w", [(24, 20), (30, 20)]),
+    }),
+    "Cable Side Lateral Raise": moved(ICONS["Cable Side Lateral Raise"], {     # -> arm down
+        2: ("e", [(58, 56), (23, 35)]),
+        4: ("b", [(22, 34), (26, 21), (38, 21), (41, 34)]),
+        5: ("w", [(21, 33), (25, 37)]),
+    }),
+    "Dumbbell Seated Side Lateral Raise": moved(ICONS["Dumbbell Seated Side Lateral Raise"], {
+        3: ("b", [(22, 34), (26, 21), (38, 21), (42, 34)]),
+        6: dumbbell(21, 37), 9: dumbbell(43, 37),
+    }),
+    "Chin-Up": moved(ICONS["Chin-Up"], {                 # top -> dead hang
+        1: ("b", [(26, 9), (25, 20), (26, 31), (38, 31), (39, 20), (38, 9)]),
+        2: ("h", (32, 23)),
+        3: ("b", [(32, 30), (32, 46)]),
+        4: ("b", [(32, 46), (29, 54), (31, 61)]), 5: ("b", [(32, 46), (35, 54), (33, 61)]),
+    }),
+    "Assisted One-Arm Pull-Up": moved(ICONS["Assisted One-Arm Pull-Up"], {
+        2: ("b", [(28, 9), (27, 20), (27, 31), (37, 31), (44, 27)]),
+        3: ("h", (32, 23)),
+        4: ("b", [(32, 30), (32, 46)]),
+        5: ("b", [(32, 46), (29, 54), (31, 61)]), 6: ("b", [(32, 46), (35, 54), (33, 61)]),
+    }),
+    "Cable Tricep Pushdown (Rope)": moved(ICONS["Cable Tricep Pushdown (Rope)"], {     # -> hands up
+        1: ("e", [(32, 2), (32, 20)]),
+        3: ("b", [(29, 27), (24, 34), (27, 21), (37, 21), (40, 34), (35, 27)]),
+        4: ("w", [(29, 27), (32, 20), (35, 27)]),
+    }),
+    "Cable Tricep Pushdown (V-Bar)": moved(ICONS["Cable Tricep Pushdown (V-Bar)"], {
+        1: ("e", [(32, 2), (32, 22)]),
+        3: ("b", [(30, 28), (24, 34), (27, 21), (37, 21), (40, 34), (34, 28)]),
+        4: ("w", [(28, 30), (32, 22), (36, 30)]),
+    }),
+    "Barbell Romanian Deadlift": moved(ICONS["Barbell Romanian Deadlift"], {   # -> standing
+        1: ("h", (30, 12)),
+        2: ("b", [(31, 20), (33, 36), (32, 47), (33, 58)]),
+        3: ("b", [(31, 21), (32, 35)]),
+        4: ("c", (32, 39, 6.5)),
+    }),
+    "Dumbbell Stiff-Leg Deadlift": ANIMATED["Barbell Stiff-Leg Deadlift"][:4] + dumbbell(32, 38),
+    "Machine Ab Crunch": moved(ICONS["Machine Ab Crunch"], {   # crunched -> upright
+        3: ("e", [(48, 14), (36, 24)]),
+        4: ("p", "M38 44 Q37 34 36 25", "b"),
+        5: ("h", (35, 19)),
+    }),
+    "Oblique Crunch": moved(ICONS["Oblique Crunch"], {   # up -> lying
+        1: ("p", "M34 56 Q24 57 15 56", "b"),
+        2: ("h", (8, 54)),
+        4: ("b", [(16, 55), (22, 51)]),
+    }),
+    "EZ Bar Tricep Extension (Close Grip)": _SKULL[:5] + [("b", [(21, 41), (22, 24), (23, 13)]), ("c", (23, 9, 4))],
+    "Barbell JM Press": _BENCH[:5] + [("b", [(20, 41), (20, 32.5), (20, 24)]), ("c", (20, 18, 6))],
+    "Hack Squat (Narrow Stance)": moved(ICONS["Hack Squat (Narrow Stance)"], {   # bottom -> up
+        3: ("h", (32, 9)),
+        4: ("e", [(22, 17), (42, 17)]),
+        5: ("b", [(22, 23), (25, 17), (39, 17), (42, 23)]),
+        6: ("b", [(32, 17), (32, 36)]),
+        7: ("b", [(32, 36), (30, 47), (29, 59)]), 8: ("b", [(32, 36), (34, 47), (35, 59)]),
+    }),
+    "Machine Squat": moved(ICONS["Machine Squat"], {     # bottom -> up
+        2: ("e", [(56, 10), (30, 15)]),
+        3: ("h", (25, 7)),
+        4: ("b", [(28, 15), (29, 32), (27, 45), (24, 58)]),
+        5: ("b", [(29, 17), (35, 22), (36, 15)]),
+    }),
+    "Machine Leg Press (Narrow Stance)": moved(ICONS["Machine Leg Press (Narrow Stance)"], {   # -> legs out
+        2: ("e", [(47, 24), (61, 42)]),
+        5: ("b", [(13, 30), (24, 49), (40, 40), (55, 34)]),
+        7: ("b", [(24, 49), (41, 42), (56, 36)]),
+    }),
+    "Machine Single-Leg Press": moved(ICONS["Machine Single-Leg Press"], {
+        2: ("e", [(47, 24), (61, 42)]),
+        5: ("b", [(13, 30), (24, 49), (38, 37), (52, 32)]),
+    }),
+    "Machine Shoulder Press": moved(ICONS["Machine Shoulder Press"], {     # -> handles down
+        2: ("e", [(8, 34), (17, 20)]), 3: ("e", [(56, 34), (47, 20)]),
+        7: ("b", [(17, 20), (16, 31), (27, 26), (37, 26), (48, 31), (47, 20)]),
+        10: ("w", [(13, 20), (21, 20)]), 11: ("w", [(43, 20), (51, 20)]),
+    }),
+    "Barbell Squat with Narrow Stance": moved(ICONS["Barbell Squat with Narrow Stance"], {   # -> standing
+        1: ("w", [(12, 19), (52, 19)]), 2: ("w", [(10, 13), (10, 25)]), 3: ("w", [(54, 13), (54, 25)]),
+        4: ("h", (32, 12)),
+        5: ("b", [(19, 19), (21, 27), (27, 22), (37, 22), (43, 27), (45, 19)]),
+        6: ("b", [(32, 21), (32, 40)]),
+        7: ("b", [(32, 40), (30, 50), (29, 59)]), 8: ("b", [(32, 40), (34, 50), (35, 59)]),
+    }),
+    "Smith Machine Shoulder Press": moved(ICONS["Smith Machine Shoulder Press"], {   # -> bar at the chin
+        4: ("w", [(10, 21), (54, 21)]), 5: ("w", [(10, 15), (10, 27)]), 6: ("w", [(54, 15), (54, 27)]),
+        8: ("b", [(21, 21), (20, 32), (27, 26), (37, 26), (44, 32), (43, 21)]),
+    }),
+    "EZ Bar Close Grip Curl": moved(ICONS["EZ Bar Close Grip Curl"], {     # -> arms down
+        3: ("b", [(27, 21), (27, 32), (28, 43)]), 4: ("b", [(37, 21), (37, 32), (36, 43)]),
+        5: ("p", "M17 43 H22 L25 40 L29 45 L32 43 L35 40 L39 45 L42 43 H47", "w"),
+        6: ("w", [(15, 37), (15, 49)]), 7: ("w", [(49, 37), (49, 49)]),
+    }),
+    "Dumbbell Bench Press (Palms in)": ICONS["Dumbbell Bench Press"][:5]
+        + [("b", [(20, 41), (28, 45), (22, 34)])] + dumbbell(22, 31, horizontal=False),
+    "Cable One-Arm Seated Row": ANIMATED["Cable Seated Row"] + [
+        ("b", [(23, 27), (17, 34), (22, 42)]),
+        ("w", [(44, 35), (44, 41)]),
+    ],
+    "Machine Bench Press": moved(ICONS["Machine Bench Press"], {   # -> handles at the chest
+        1: ("e", [(58, 12), (25, 34)]),
+        7: ("b", [(20, 41), (28, 45), (22, 34)]),
+        8: ("w", [(19, 34), (25, 34)]),
+    }),
+    "Dumbbell Prone Deltoid Raise": moved(ICONS["Dumbbell Prone Deltoid Raise"], {   # -> arm hanging
+        5: ("b", [(21, 28), (21, 42)]), 6: dumbbell(21, 45),
+    }),
+    "Smith Machine Bulgarian Split Squat": SMITH_RAILS + ANIMATED["Barbell Bulgarian Split Squat"],
+    "Elevated Push-Up": moved(ICONS["Elevated Push-Up"], {     # arms straight -> chest down
+        2: ("h", (14, 40)),
+        3: ("b", [(20, 50), (28, 47), (22, 44)]),
+        4: ("b", [(22, 44), (38, 50), (56, 57)]),
+    }),
+})
 
 
 def slug(name):
@@ -1166,6 +1529,297 @@ POSE_ENDS = {
                               6: ("b", [(26, 21), (12, 18)]), 7: ("b", [(38, 21), (52, 18)])}, []),
 }
 
+# ---- round 3: the core, leg raise, yoga / stretch, Olympic lift and rear
+# delt groups, which shared one or two drawings each - one pose per movement.
+# The holds move too: a slow ease deeper into the position and back.
+def shifted(strokes, dx=0, dy=0):
+    """strokes moved by (dx, dy) - a pose put up on a bench."""
+    out = []
+    for s in strokes:
+        if s[0] in ("b", "e", "w"):
+            out.append((s[0], [(x + dx, y + dy) for x, y in s[1]]))
+        elif s[0] == "h":
+            out.append(("h", (s[1][0] + dx, s[1][1] + dy)))
+        else:
+            out.append(s)
+    return out
+
+
+LIE_ARMS = ("b", [(16, 58), (28, 59)])                   # lying, arms along the floor
+_PULL_IN = [("h", (47, 32)), ("b", [(44, 39), (34, 54), (24, 42), (14, 50)]), ("b", [(44, 40), (46, 50), (42, 56)])]
+_PULL_IN_END = {0: ("h", (51, 36)), 1: ("b", [(47, 42), (34, 54), (22, 50), (8, 48)]),
+                2: ("b", [(47, 43), (47, 51), (42, 56)])}
+BENCH_LOW = [("e", [(26, 47), (56, 47)]), ("e", [(30, 47), (30, 60)]), ("e", [(52, 47), (52, 60)])]
+
+POSES.update({
+    # core
+    "crunch_floor": dict(label="Crunch", base="none", view="side",
+                         parts=[FLOOR, ("h", (14, 46)), ("b", [(19, 51), (34, 57), (44, 44), (54, 58)]),
+                                ("b", [(20, 51), (28, 47)])],
+                         anchors=[(28, 46)], cable=[(4, 50)]),
+    "crunch_cross": dict(label="Bicycle / cross-body crunch", base="none", view="side",
+                         parts=[FLOOR, ("h", (14, 45)), ("b", [(19, 50), (34, 56)]),
+                                ("b", [(34, 56), (30, 42), (40, 38)]), ("b", [(34, 56), (46, 50), (58, 48)]),
+                                ("b", [(20, 50), (27, 44)])],
+                         anchors=[(28, 43)], cable=[(4, 50)]),
+    "decline_crunch": dict(label="Decline crunch", base="none", view="side",
+                           parts=[("e", [(10, 50), (46, 38)]), ("e", [(40, 40), (40, 60)]), ("e", [(50, 31), (56, 36)]),
+                                  ("h", (22, 24)), ("b", [(26, 31), (36, 40), (44, 31), (52, 35)]),
+                                  ("b", [(27, 32), (33, 29)])],
+                           anchors=[(33, 28)]),
+    "ball_crunch": dict(label="Stability ball crunch", base="none", view="side",
+                        parts=[FLOOR, ("h", (17, 31)), ("b", [(22, 37), (36, 42), (48, 42), (48, 59)]),
+                               ("b", [(23, 38), (29, 34)])],
+                        anchors=[(29, 33)], ball=(30, 50, 9)),
+    "ball_tuck": dict(label="Stability ball knee tuck", base="none", view="side",
+                      parts=[FLOOR, ("h", (9, 37)), ("b", [(15, 41), (34, 36), (40, 44), (50, 43)]),
+                             ("b", [(15, 41), (14, 59)])],
+                      anchors=[(46, 44)], ball=(47, 51, 8)),
+    "leg_pull_in": dict(label="Seated leg pull-in", base="none", view="side",
+                        parts=[FLOOR] + _PULL_IN, anchors=[]),
+    "leg_pull_in_bench": dict(label="Bench leg pull-in", base="none", view="side",
+                              parts=[FLOOR] + BENCH_LOW + shifted(_PULL_IN, dy=-9), anchors=[]),
+    "leg_slide": dict(label="Leg slide", base="none", view="side",
+                      parts=[FLOOR, ("h", (8, 54)), ("b", [(15, 57), (34, 57), (42, 44), (50, 58)]),
+                             ("b", [(34, 57), (46, 57), (58, 57)]), LIE_ARMS],
+                      anchors=[]),
+    "heel_touch": dict(label="Heel touch", base="none", view="side",
+                       parts=[FLOOR, ("h", (13, 48)), ("b", [(18, 52), (34, 57), (44, 44), (50, 58)]),
+                              ("b", [(19, 53), (30, 56), (42, 58)])],
+                       anchors=[]),
+    "dragon_flag": dict(label="Dragon flag", base="none", view="side",
+                        parts=[FLOOR, ("e", [(6, 46), (36, 46)]), ("e", [(10, 46), (10, 60)]), ("e", [(32, 46), (32, 60)]),
+                               ("h", (12, 39)), ("b", [(17, 43), (34, 26), (52, 9)]), ("b", [(16, 43), (7, 40), (6, 45)])],
+                        anchors=[]),
+    "hip_roll": dict(label="Lying hip roll (from above)", base="none", view="front",
+                     parts=[("h", (32, 8)), ("b", [(32, 15), (32, 38)]), ("b", [(6, 20), (20, 17), (44, 17), (58, 20)]),
+                            ("b", [(32, 38), (29, 48), (31, 57)]), ("b", [(32, 38), (35, 48), (33, 57)])],
+                     anchors=[]),
+    "lying_twist": dict(label="Lying twist (from above)", base="none", view="front",
+                        parts=[("h", (32, 8)), ("b", [(32, 15), (32, 38)]), ("b", [(6, 20), (20, 17), (44, 17), (58, 20)]),
+                               ("b", [(32, 38), (28, 58)]), ("b", [(32, 38), (35, 48), (36, 58)])],
+                        anchors=[]),
+    "side_crunch": dict(label="Side jackknife", base="none", view="side",
+                        parts=[FLOOR, ("h", (12, 44)), ("b", [(16, 49), (32, 56), (56, 46)]),
+                               ("b", [(17, 48), (12, 38)]), ("b", [(17, 50), (22, 58)])],
+                        anchors=[]),
+    "roll_down": dict(label="Roll down", base="none", view="side",
+                      parts=[FLOOR, ("h", (48, 33)), ("b", [(46, 40), (40, 57), (26, 44), (16, 58)]),
+                             ("b", [(46, 41), (30, 42)])],
+                      anchors=[(30, 42)], ball=(50, 52, 8)),
+    "salute": dict(label="Overhead reach / salute", base="front_stand", view="front",
+                   parts=[("b", [(26, 21), (29, 3)]), ("b", [(38, 21), (35, 3)])], anchors=[]),
+    # leg raises
+    "hundreds": dict(label="Hundreds", base="none", view="side",
+                     parts=[FLOOR, ("h", (12, 47)), ("b", [(17, 51), (34, 57), (56, 40)]),
+                            ("b", [(18, 52), (32, 50)])],
+                     anchors=[(46, 47)], ball=(49, 45, 6)),
+    "flutter": dict(label="Flutter / scissor kick", base="none", view="side",
+                    parts=[FLOOR, ("h", (8, 54)), ("b", [(15, 57), (34, 57)]),
+                           ("b", [(34, 57), (58, 45)]), ("b", [(34, 57), (58, 54)]), LIE_ARMS],
+                    anchors=[]),
+    "knee_raise_lying": dict(label="Lying knee raise", base="none", view="side",
+                             parts=[FLOOR, ("h", (8, 54)), ("b", [(15, 57), (34, 57), (32, 42), (44, 40)]), LIE_ARMS],
+                             anchors=[(44, 39)], cable=[(60, 40)], ball=(47, 36, 6)),
+    "decline_leg_raise": dict(label="Decline bench leg raise", base="none", view="side",
+                              parts=[("e", [(8, 32), (50, 52)]), ("e", [(14, 35), (14, 60)]), ("e", [(44, 49), (44, 60)]),
+                                     ("h", (12, 23)), ("b", [(17, 30), (34, 39), (40, 17)]),
+                                     ("b", [(17, 29), (10, 26), (7, 32)])],
+                              anchors=[(40, 16)], cable=[(60, 4)]),
+    "leg_raise_thrust": dict(label="Leg raise with hip thrust", base="none", view="side",
+                             parts=[FLOOR, ("h", (8, 54)), ("b", [(15, 57), (34, 56), (34, 30)]), LIE_ARMS],
+                             anchors=[]),
+    # yoga and stretches
+    "boat": dict(label="Boat pose", base="none", view="side",
+                 parts=[FLOOR, ("h", (19, 34)), ("b", [(22, 41), (32, 57), (50, 38)]), ("b", [(23, 42), (38, 43)])],
+                 anchors=[]),
+    "bow": dict(label="Bow pose", base="none", view="side",
+                parts=[FLOOR, ("h", (12, 42)), ("b", [(17, 47), (34, 56), (48, 52), (42, 38)]),
+                       ("b", [(18, 47), (41, 39)])],
+                anchors=[]),
+    "locust": dict(label="Locust pose", base="none", view="side",
+                   parts=[FLOOR, ("h", (10, 48)), ("b", [(16, 52), (34, 58), (56, 52)]), ("b", [(17, 52), (30, 53)])],
+                   anchors=[]),
+    "camel": dict(label="Camel pose", base="none", view="side",
+                  parts=[FLOOR, ("h", (45, 25)), ("b", [(46, 59), (30, 59), (32, 40), (42, 31)]),
+                         ("b", [(42, 32), (46, 56)])],
+                  anchors=[]),
+    "hero": dict(label="Hero pose", base="none", view="side",
+                 parts=[FLOOR, ("h", (38, 28)), ("b", [(40, 59), (20, 58), (38, 54), (38, 36)]),
+                        ("b", [(38, 38), (28, 48), (24, 53)])],
+                 anchors=[]),
+    "wheel": dict(label="Wheel pose", base="none", view="side",
+                  parts=[FLOOR, ("h", (17, 47)), ("b", [(14, 59), (20, 40), (36, 30), (46, 42), (50, 59)])],
+                  anchors=[]),
+    "fish": dict(label="Fish pose", base="none", view="side",
+                 parts=[FLOOR, ("h", (10, 54)), ("b", [(15, 50), (24, 46), (34, 57), (58, 57)]),
+                        ("b", [(22, 48), (24, 58)])],
+                 anchors=[]),
+    "all_fours": dict(label="Cat-cow / table", base="none", view="side",
+                      parts=[FLOOR, ("h", (9, 40)), ("b", [(16, 42), (28, 42), (40, 42), (40, 59), (54, 59)]),
+                             ("b", [(16, 42), (15, 59)])],
+                      anchors=[]),
+    "crow": dict(label="Crow pose", base="none", view="side",
+                 parts=[FLOOR, ("h", (11, 46)), ("b", [(18, 44), (34, 34), (24, 44), (36, 50)]),
+                        ("b", [(19, 45), (22, 52), (22, 59)])],
+                 anchors=[]),
+    "staff": dict(label="Staff pose", base="none", view="side",
+                  parts=[FLOOR, ("h", (34, 30)), ("b", [(10, 58), (34, 58), (34, 38)]), ("b", [(34, 40), (38, 50), (38, 58)])],
+                  anchors=[]),
+    "seated_fold": dict(label="Seated forward fold", base="none", view="side",
+                        parts=[FLOOR, ("h", (16, 40)), ("b", [(10, 58), (34, 58), (20, 44)]), ("b", [(21, 45), (10, 54)])],
+                        anchors=[]),
+    "straddle": dict(label="Straddle stretch", base="none", view="front",
+                     parts=[FLOOR, ("h", (32, 22)), ("b", [(26, 31), (38, 31)]), ("b", [(32, 31), (32, 50)]),
+                            ("b", [(32, 50), (6, 58)]), ("b", [(32, 50), (58, 58)]),
+                            ("b", [(26, 31), (14, 50)]), ("b", [(38, 31), (50, 50)])],
+                     anchors=[]),
+    "triangle": dict(label="Triangle / side angle pose", base="none", view="front",
+                     parts=[FLOOR, ("h", (16, 23)), ("b", [(32, 40), (20, 28)]), ("b", [(32, 40), (14, 59)]),
+                            ("b", [(32, 40), (50, 59)]), ("b", [(14, 46), (22, 30), (30, 14)])],
+                     anchors=[]),
+    "chair_pose": dict(label="Chair pose", base="none", view="side",
+                       parts=[FLOOR, ("h", (24, 17)), ("b", [(28, 24), (36, 40), (24, 46), (26, 59)]),
+                              ("b", [(28, 25), (20, 6)])],
+                       anchors=[]),
+    "low_lunge": dict(label="Low lunge stretch", base="none", view="side",
+                      parts=[FLOOR, ("h", (12, 33)), ("b", [(14, 59), (14, 45), (30, 49), (46, 58), (60, 58)]),
+                             ("b", [(30, 49), (18, 37)]), ("b", [(18, 38), (18, 58)])],
+                      anchors=[]),
+    "calf_wall": dict(label="Wall calf stretch", base="none", view="side",
+                      parts=[FLOOR, ("e", [(6, 4), (6, 60)]), ("h", (14, 19)), ("b", [(18, 24), (30, 40)]),
+                             ("b", [(30, 40), (20, 48), (18, 59)]), ("b", [(30, 40), (46, 59)]),
+                             ("b", [(18, 25), (6, 24)])],
+                      anchors=[]),
+    "hinge_hold": dict(label="Supported hinge stretch", base="none", view="side",
+                       parts=[FLOOR, ("e", [(8, 34), (8, 60)]), ("h", (12, 40)), ("b", [(18, 36), (36, 38)]),
+                              ("b", [(36, 38), (35, 59)]), ("b", [(36, 38), (39, 59)]), ("b", [(19, 36), (8, 34)])],
+                       anchors=[]),
+    "chair_fold": dict(label="Seated chair fold", base="none", view="side",
+                       parts=[FLOOR, ("e", [(30, 44), (48, 44)]), ("e", [(46, 44), (46, 60)]), ("e", [(48, 44), (48, 22)]),
+                              ("h", (24, 57)), ("b", [(28, 52), (40, 43), (24, 43), (24, 59)]),
+                              ("b", [(29, 52), (27, 60)])],
+                       anchors=[]),
+    "supine_leg_up": dict(label="Lying hamstring stretch", base="none", view="side",
+                          parts=[FLOOR, ("h", (8, 54)), ("b", [(15, 57), (34, 57), (58, 57)]),
+                                 ("b", [(34, 57), (38, 33)]), ("b", [(16, 56), (34, 40)])],
+                          anchors=[]),
+    # Olympic lifts: the catch, with the way up as an arrow (the moving one
+    # plays the pull from the floor instead)
+    "snatch": dict(label="Snatch (squat catch)", base="none", view="side",
+                   parts=[FLOOR, ("h", (25, 15)), ("b", [(30, 23), (36, 42), (20, 44), (24, 58)]),
+                          ("b", [(30, 23), (32, 5)]), ("a", "M48 56 Q56 30 42 6")],
+                   anchors=[(32, 4)]),
+    "power_snatch": dict(label="Power snatch", base="none", view="side",
+                         parts=[FLOOR, ("h", (28, 13)), ("b", [(30, 21), (34, 40), (24, 46), (26, 58)]),
+                                ("b", [(30, 21), (32, 4)]), ("a", "M48 56 Q56 30 42 6")],
+                         anchors=[(32, 3)]),
+    "hang_snatch": dict(label="Hang snatch", base="none", view="side",
+                        parts=[FLOOR, ("h", (15, 17)), ("b", [(21, 23), (33, 40), (27, 48), (29, 58)]),
+                               ("b", [(21, 24), (23, 40)]), ("a", "M12 40 Q4 20 20 4")],
+                        anchors=[(23, 42)]),
+    "snatch_pull": dict(label="Snatch pull / high pull", base="none", view="side",
+                        parts=[FLOOR, ("h", (27, 9)), ("b", [(29, 16), (31, 38), (30, 50), (34, 57)]),
+                               ("b", [(29, 18), (20, 22), (26, 28)])],
+                        anchors=[(26, 30)]),
+    "power_jerk": dict(label="Power jerk", base="none", view="side",
+                       parts=[FLOOR, ("h", (26, 13)), ("b", [(29, 21), (32, 40), (24, 47), (26, 58)]),
+                              ("b", [(29, 22), (31, 4)]), ("a", "M14 26 L14 8 M11 11 L14 7 L17 11")],
+                       anchors=[(31, 3)]),
+    # rear delts, supported
+    "rear_raise_prone": dict(label="Rear delt raise, prone on a bench", base="none", view="side",
+                             parts=[FLOOR, ("e", [(16, 26), (44, 46)]), ("e", [(36, 40), (36, 60)]),
+                                    ("h", (13, 21)), ("b", [(19, 27), (42, 44), (46, 59)]), ("b", [(20, 28), (19, 44)])],
+                             anchors=[(19, 47)]),
+    "rear_raise_seated": dict(label="Rear delt raise, seated", base="none", view="side",
+                              parts=[("e", [(30, 44), (46, 44)]), ("e", [(38, 44), (38, 60)]), FLOOR,
+                                     ("h", (15, 36)), ("b", [(22, 36), (40, 42), (24, 42), (24, 58)]),
+                                     ("b", [(23, 37), (22, 52)])],
+                              anchors=[(22, 55)]),
+})
+
+_PULL_IN_BENCH_END = {i + 4: s for i, s in
+                      enumerate(shifted([_PULL_IN_END[0], _PULL_IN_END[1], _PULL_IN_END[2]], dy=-9))}
+_FROM_FLOOR = {1: ("h", (12, 31)), 2: ("b", [(18, 34), (34, 40), (26, 48), (26, 58)]),
+               3: ("b", [(18, 35), (20, 52)])}         # the bar at the shins, where a snatch starts
+
+POSE_ENDS.update({
+    "crunch_floor": end_of("crunch_floor", {1: ("h", (9, 53)), 2: ("b", [(15, 57), (34, 57), (44, 44), (54, 58)]),
+                                            3: ("b", [(16, 56), (24, 53)])}, [(24, 52)]),
+    "crunch_cross": end_of("crunch_cross", {1: ("h", (13, 47)), 3: ("b", [(34, 56), (46, 50), (58, 48)]),
+                                            4: ("b", [(34, 56), (30, 42), (40, 38)]),
+                                            5: ("b", [(20, 51), (27, 47)])}, [(28, 46)]),
+    "decline_crunch": end_of("decline_crunch", {3: ("h", (10, 44)), 4: ("b", [(17, 46), (36, 40), (44, 31), (52, 35)]),
+                                                5: ("b", [(18, 46), (25, 44)])}, [(25, 43)]),
+    "ball_crunch": end_of("ball_crunch", {1: ("h", (13, 46)), 2: ("b", [(20, 45), (36, 42), (48, 42), (48, 59)]),
+                                          3: ("b", [(21, 45), (28, 42)])}, [(28, 41)]),
+    "ball_tuck": end_of("ball_tuck", {2: ("b", [(15, 41), (32, 42), (44, 43), (54, 45)])}, [(46, 44)]),
+    "leg_pull_in": end_of("leg_pull_in", {i + 1: s for i, s in _PULL_IN_END.items()}, []),
+    "leg_pull_in_bench": end_of("leg_pull_in_bench", _PULL_IN_BENCH_END, []),
+    "leg_slide": end_of("leg_slide", {3: ("b", [(34, 57), (44, 50), (54, 57)])}, []),
+    "heel_touch": end_of("heel_touch", {1: ("h", (11, 49)), 3: ("b", [(19, 53), (27, 54), (35, 55)])}, []),
+    "dragon_flag": end_of("dragon_flag", {5: ("b", [(17, 43), (36, 38), (56, 32)])}, []),
+    "hip_roll": end_of("hip_roll", {3: ("b", [(32, 38), (42, 44), (40, 55)]),
+                                    4: ("b", [(32, 38), (45, 42), (46, 53)])}, []),
+    "lying_twist": end_of("lying_twist", {4: ("b", [(32, 38), (20, 36), (10, 28)])}, []),
+    "side_crunch": end_of("side_crunch", {1: ("h", (8, 54)), 2: ("b", [(14, 57), (32, 57), (58, 57)]),
+                                          3: ("b", [(15, 56), (14, 48)]), 4: ("b", [(15, 57), (22, 59)])}, []),
+    "roll_down": end_of("roll_down", {1: ("h", (55, 41)), 2: ("b", [(51, 47), (40, 57), (26, 44), (16, 58)]),
+                                      3: ("b", [(51, 48), (36, 44)])}, [(36, 44)]),
+    "salute": end_of("salute", {0: ("b", [(26, 21), (16, 5)]), 1: ("b", [(38, 21), (48, 5)])}, []),
+    "hundreds": end_of("hundreds", {3: ("b", [(18, 52), (32, 55)])}, [(46, 47)]),
+    "flutter": end_of("flutter", {3: ("b", [(34, 57), (58, 54)]), 4: ("b", [(34, 57), (58, 45)])}, []),
+    "knee_raise_lying": end_of("knee_raise_lying", {2: ("b", [(15, 57), (34, 57), (46, 53), (58, 52)])}, [(58, 51)]),
+    "decline_leg_raise": end_of("decline_leg_raise", {4: ("b", [(17, 30), (34, 39), (54, 48)])}, [(54, 47)]),
+    "leg_raise_thrust": end_of("leg_raise_thrust", {2: ("b", [(15, 57), (36, 49), (38, 22)])}, []),
+    "boat": end_of("boat", {1: ("h", (16, 37)), 2: ("b", [(20, 43), (32, 57), (51, 41)]),
+                            3: ("b", [(21, 44), (36, 45)])}, []),
+    "bow": end_of("bow", {1: ("h", (11, 39)), 2: ("b", [(16, 44), (34, 56), (48, 50), (44, 34)]),
+                          3: ("b", [(17, 44), (43, 35)])}, []),
+    "locust": end_of("locust", {1: ("h", (9, 44)), 2: ("b", [(15, 48), (34, 58), (57, 48)]),
+                                3: ("b", [(16, 48), (30, 49)])}, []),
+    "camel": end_of("camel", {1: ("h", (48, 30)), 2: ("b", [(46, 59), (30, 59), (30, 40), (44, 33)]),
+                              3: ("b", [(44, 34), (47, 57)])}, []),
+    "hero": end_of("hero", {1: ("h", (38, 26)), 2: ("b", [(40, 59), (20, 58), (38, 54), (38, 34)]),
+                            3: ("b", [(38, 36), (28, 47), (24, 53)])}, []),
+    "wheel": end_of("wheel", {1: ("h", (18, 45)), 2: ("b", [(14, 59), (21, 38), (36, 26), (46, 41), (50, 59)])}, []),
+    "fish": end_of("fish", {2: ("b", [(15, 50), (24, 43), (34, 57), (58, 57)]), 3: ("b", [(22, 46), (24, 58)])}, []),
+    "all_fours": end_of("all_fours", {1: ("h", (11, 46)),
+                                      2: ("b", [(16, 42), (28, 34), (40, 42), (40, 59), (54, 59)])}, []),
+    "crow": end_of("crow", {1: ("h", (9, 48)), 2: ("b", [(16, 46), (33, 32), (24, 44), (36, 46)]),
+                            3: ("b", [(17, 47), (22, 53), (22, 59)])}, []),
+    "staff": end_of("staff", {1: ("h", (34, 28)), 2: ("b", [(10, 58), (34, 58), (34, 36)])}, []),
+    "seated_fold": end_of("seated_fold", {1: ("h", (11, 48)), 2: ("b", [(10, 58), (34, 58), (16, 50)]),
+                                          3: ("b", [(17, 51), (8, 56)])}, []),
+    "straddle": end_of("straddle", {1: ("h", (32, 32)), 2: ("b", [(26, 39), (38, 39)]), 3: ("b", [(32, 39), (32, 50)]),
+                                    6: ("b", [(26, 39), (10, 54)]), 7: ("b", [(38, 39), (54, 54)])}, []),
+    "triangle": end_of("triangle", {1: ("h", (13, 27)), 2: ("b", [(32, 40), (18, 31)]),
+                                    5: ("b", [(11, 48), (19, 32), (27, 16)])}, []),
+    "chair_pose": end_of("chair_pose", {1: ("h", (25, 20)), 2: ("b", [(29, 27), (38, 43), (24, 48), (26, 59)]),
+                                        3: ("b", [(29, 28), (20, 9)])}, []),
+    "low_lunge": end_of("low_lunge", {1: ("h", (13, 36)), 2: ("b", [(14, 59), (13, 46), (31, 52), (47, 58), (60, 58)]),
+                                      3: ("b", [(31, 52), (19, 40)]), 4: ("b", [(19, 41), (18, 58)])}, []),
+    "calf_wall": end_of("calf_wall", {2: ("h", (12, 21)), 3: ("b", [(16, 26), (28, 42)]),
+                                      4: ("b", [(28, 42), (18, 49), (18, 59)]), 5: ("b", [(28, 42), (46, 59)]),
+                                      6: ("b", [(16, 27), (6, 26)])}, []),
+    "hinge_hold": end_of("hinge_hold", {2: ("h", (12, 44)), 3: ("b", [(18, 40), (36, 38)]),
+                                        6: ("b", [(19, 40), (8, 35)])}, []),
+    "chair_fold": end_of("chair_fold", {4: ("h", (26, 49)), 5: ("b", [(30, 46), (40, 43), (24, 43), (24, 59)]),
+                                        6: ("b", [(31, 46), (27, 56)])}, []),
+    "supine_leg_up": end_of("supine_leg_up", {3: ("b", [(34, 57), (32, 33)]), 4: ("b", [(16, 56), (30, 40)])}, []),
+    "snatch": end_of("snatch", _FROM_FLOOR, [(20, 54)]),
+    "power_snatch": end_of("power_snatch", _FROM_FLOOR, [(20, 54)]),
+    "hang_snatch": end_of("hang_snatch", {1: ("h", (28, 13)), 2: ("b", [(30, 21), (34, 40), (24, 46), (26, 58)]),
+                                          3: ("b", [(30, 21), (32, 4)])}, [(32, 3)]),
+    "snatch_pull": end_of("snatch_pull", {1: ("h", (14, 30)), 2: ("b", [(19, 33), (35, 40), (28, 48), (28, 58)]),
+                                          3: ("b", [(19, 34), (20, 42), (21, 50)])}, [(21, 52)]),
+    "power_jerk": end_of("power_jerk", {1: ("h", (26, 11)), 2: ("b", [(29, 19), (31, 40), (28, 50), (30, 58)]),
+                                        3: ("b", [(29, 21), (23, 20)])}, [(22, 19)]),
+    "rear_raise_prone": end_of("rear_raise_prone", {5: ("b", [(20, 28), (28, 21)])}, [(29, 19)]),
+    "rear_raise_seated": end_of("rear_raise_seated", {5: ("b", [(23, 37), (28, 28)])}, [(29, 26)]),
+})
+
+
 # Seated versions of the standing poses that have one.
 SEATED = {"curl": "front_seat", "press_overhead": "front_seat", "lateral": "front_seat",
           "shrug": "front_seat", "tricep_overhead": None, "front_raise": "side_seat"}
@@ -1277,7 +1931,7 @@ RULES = [
     (r"plank", "=plank"),
     (r"reverse crunch", "reverse_crunch"),
     (r"cable crunch|kneeling crunch", "=cable-crunch"),
-    (r"crunch", "=bench-crunch"),
+    (r"crunch", "crunch_floor"),
     (r"sit.?up|situp", "situp"),
     (r"russian twist|twist", "twist"),
     (r"v.?up|jackknife|jack knife|toe touch", "vup"),
@@ -1326,7 +1980,7 @@ RULES = [
     (r"preacher|scott|spider curl", "preacher"),
     (r"concentration", "concentration"),
     (r"curl", "curl"),
-    (r"reverse fly|rear delt|rear fly|reverse flye|prone deltoid|face away|y raise|t raise|rear lateral", "rear_raise"),
+    (r"reverse fly|rear delt|rear fly|reverse flye|prone deltoid|face away|\by raise|\bt raise|rear lateral", "rear_raise"),
     (r"bent.?over.*raise|bent.?over lateral", "rear_raise"),
     (r"fly|flye|crossover|pec deck", None),              # fly_pose()
     (r"front raise", "front_raise"),
@@ -1342,6 +1996,60 @@ RULES = [
     (r"carry|farmer|walk|hold|hang\b|hanging", "carry"),
     (r"extension", "back_ext"),
 ]
+
+# Round 3: the movements of the groups that shared one drawing, ahead of the
+# general rules below (which would give them the shared one).
+RULES[:0] = [
+    # yoga and stretches
+    (r"hare pose|shell stretch", "child"),
+    (r"boat pose", "boat"), (r"upward facing bow|wheel pose", "wheel"), (r"\bbow pose", "bow"),
+    (r"locust", "locust"), (r"camel", "camel"), (r"fish pose", "fish"), (r"hero pose", "hero"),
+    (r"crow pose", "crow"), (r"staff pose", "staff"), (r"mighty pose|chair pose", "chair_pose"),
+    (r"triangle|side angle", "triangle"), (r"straddle|wide leg stretch|turtle pose", "straddle"),
+    (r"cat stretch|table pose|kneeling back stretch|dynamic back stretch|cat.?cow", "all_fours"),
+    (r"runner'?s stretch|world'?s greatest|^hip stretch$|bench leg and hip", "low_lunge"),
+    (r"seated (floor )?hamstring", "seated_fold"),
+    (r"hamstring stretch \(supine\)|supine hamstring|big toe pose|90/90 hamstring", "supine_leg_up"),
+    (r"^(?!.*hamstring).*(calf|soleus|achilles|peroneal|tibialis|lower leg) stretch", "calf_wall"),
+    (r"low back chair", "chair_fold"), (r"upper body chair|^back stretch$", "hinge_hold"),
+    (r"iron cross stretch", "lying_twist"), (r"revolved abdomen|hip roll|pendulum", "hip_roll"),
+    (r"posterior capsule", "stretch_arm"),
+    (r"overhead stretch|upward stretch|sun salutation", "salute"),
+    (r"half moon", "stretch_side"), (r"cross.?leg(ged)? (forward fold|erector)", "stretch_seated"),
+    (r"single.?leg stance|opposition reach", "stork"),
+    # leg raises
+    (r"double leg stretch|hundreds", "hundreds"),
+    (r"flutter|scissor|alternating floor leg raise", "flutter"),
+    (r"roman chair", "=parallel-bar-leg-raise"),
+    (r"decline.*(leg|knee) raise|bench leg raise", "decline_leg_raise"),
+    (r"leg raise with hip thrust", "leg_raise_thrust"),
+    (r"(supine|lying).*knee raise|knee raise.*supine|single.?leg knee raise|knee to chest to leg|knee draw|ball leg lift",
+     "knee_raise_lying"),
+    # the rest of the core
+    (r"ball (knee tuck|pull.?in|rollover)", "ball_tuck"),
+    (r"bench leg pull", "leg_pull_in_bench"), (r"leg pull.?in|leg tuck|^rolling$", "leg_pull_in"),
+    (r"^(?!.*reverse).*ball.*crunch|ball incline ab", "ball_crunch"),
+    (r"ball roll down|^roll down$", "roll_down"), (r"ball head tilt", "neck"),
+    (r"hand and foot exchange", "vup"),
+    (r"leg slide|one.?knee to chest", "leg_slide"), (r"heel touch", "heel_touch"),
+    (r"dragon flag", "dragon_flag"), (r"side jack?knife", "side_crunch"),
+    (r"judo flip", "woodchop"), (r"figure eight", "swing"), (r"side touch", "side_bend"),
+    (r"^(?!.*reverse).*decline.*crunch", "decline_crunch"),
+    (r"^(?!.*reverse).*bench.*crunch", "=bench-crunch"),
+    (r"cable.*crunch.*kneeling|cable (rope|oblique) crunch", "=cable-crunch"),
+    (r"machine crunch|cable seated crunch", "=machine-ab-crunch"),
+    (r"^(?!.*reverse).*(cross.?body|rotational crunch|air bike|bicycle)", "crunch_cross"),
+    # Olympic lifts
+    (r"barbell.*(snatch (pull|shrug)|high snatch)", "snatch_pull"),
+    (r"barbell.*hang snatch", "hang_snatch"),
+    (r"barbell.*(power snatch|one.?arm snatch)", "power_snatch"),
+    (r"barbell.*(snatch|squat jerk)", "snatch"),
+    (r"barbell power jerk", "power_jerk"),
+    # rear delts on a bench or seated
+    (r"(reverse fly|rear delt|rear fly).*prone|prone.*(reverse fly|rear delt|rear fly)", "rear_raise_prone"),
+    (r"seated.*(reverse fly|rear delt|rear fly)", "rear_raise_seated"),
+]
+
 
 GROUP_FALLBACK = {"chest": "press_bench", "back": "row_bent", "shoulders": "press_overhead",
                   "triceps": "pushdown", "biceps": "curl", "upper_legs": "squat",

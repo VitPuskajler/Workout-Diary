@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ current_language() }}">
 
 <head>
   <meta charset="UTF-8">
@@ -39,6 +39,7 @@
       }
     }
   </script>
+  {% include "partials/_js_translations.html" %}
 </head>
 
 <body>
@@ -70,10 +71,10 @@
 
 
   <div class="p-3 mb-5">
-    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
+    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="{{ _("Main navigation") }}">
       <div class="container-fluid">
         <a href="{{ url_for('home') }}" class="text-light me-2 d-flex align-items-center"
-          aria-label="Back to main menu" title="Back to main menu" style="text-decoration: none;">
+          aria-label="{{ _("Back to main menu") }}" title="{{ _("Back to main menu") }}" style="text-decoration: none;">
           <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path fill-rule="evenodd"
               d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z">
@@ -82,18 +83,20 @@
         </a>
         <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
         <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
-          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+          aria-controls="navbarCollapse" aria-expanded="false" aria-label="{{ _("Toggle navigation") }}">
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarCollapse">
           <ul class="navbar-nav me-auto mb-2 mb-md-0">
             <li class="nav-item">
-              <a class="nav-link" aria-current="page" href="{{url_for('training_session_redirect')}}">Training
-                Session</a>
+              <a class="nav-link" aria-current="page" href="{{url_for('training_session_redirect')}}">{{ _("Training Session") }}</a>
             </li>
             <li class="nav-item active">
-              <a class="nav-link active" href="#">Workout Plan</a>
-
+              <a class="nav-link active" href="#">{{ _("Workout Plan") }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('intuitive_training') }}">{{ _("Intuitive Training") }}</a>
+            </li>
           </ul>
           <ul class="navbar-nav ms-auto">
             {% if current_user.is_authenticated %}
@@ -102,14 +105,14 @@
               <a class="nav-link" href="{{ url_for('profile')}}">{{ current_user.username }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+              <a class="nav-link" href="{{ url_for('logout') }}">{{ _("Logout") }}</a>
             </li>
             {% else %}
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+              <a class="nav-link" href="{{ url_for('login') }}">{{ _("Login") }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+              <a class="nav-link" href="{{ url_for('register') }}">{{ _("Register") }}</a>
             </li>
             {% endif %}
           </ul>
@@ -124,14 +127,14 @@
       <div class="d-flex text-body-secondary pt-3 text-center">
         <div class="container col-12">
           <form action="{{ url_for('workout_plan_page') }}" method="post">
-            <label for="mesocycleSelect">Mesocycle:</label>
-            <select class="form-select" aria-label="Default select example" id="mesocycleSelect" name="mesocycle"
+            <label for="mesocycleSelect">{{ _("Mesocycle:") }}</label>
+            <select class="form-select" aria-label="{{ _("Mesocycle") }}" id="mesocycleSelect" name="mesocycle"
               onchange="this.form.submit()">
 
               {% if chosen_mesocycle is not none %}
               <option>{{chosen_mesocycle}}</option>
               {% else %}
-              <option>Choose Mesocycle</option>
+              <option>{{ _("Choose Mesocycle") }}</option>
               {% endif %}
 
               {% if dropdown is not none %}
@@ -143,7 +146,7 @@
               {% endif %}
               {% endfor %}
               {% else %}
-              <option value="{{ key }}">You have no Mesocycle yet</option>
+              <option value="{{ key }}">{{ _("You have no Mesocycle yet") }}</option>
               {% endif %}
             </select>
           </form>
@@ -185,7 +188,7 @@
           <div class="d-flex justify-content-center my-4">
             <button type="button" class="btn btn-success" data-bs-toggle="modal"
               data-bs-target="#downloadOptions">
-              Download to Excel
+              {{ _("Download to Excel") }}
             </button>
           </div>
 
@@ -194,9 +197,9 @@
             <div class="modal-dialog modal-dialog-centered">
               <div class="modal-content text-start">
                 <div class="modal-header">
-                  <h5 class="modal-title" id="downloadOptionsLabel">What would you like to download?</h5>
+                  <h5 class="modal-title" id="downloadOptionsLabel">{{ _("What would you like to download?") }}</h5>
                   <button type="button" class="btn-close" data-bs-dismiss="modal"
-                    aria-label="Close"></button>
+                    aria-label="{{ _("Close") }}"></button>
                 </div>
                 <div class="modal-body">
                   <!-- data-wd-no-loader: these submits return a file, so the page
@@ -209,22 +212,19 @@
                   <form method="POST" action="{{ url_for('workout_plan_page') }}"
                     data-wd-no-loader>
                     <p class="text-body-secondary mb-2">
-                      The plan as it stands &mdash; every exercise in each workout day,
-                      with its prescribed sets and rest.
+                      {{ _("The plan as it stands — every exercise in each workout day, with its prescribed sets and rest.") }}
                     </p>
                     <button type="submit" name="action" value="export_excel"
                       class="btn btn-success w-100 mb-4" data-bs-dismiss="modal">
-                      Current workout plan structure
+                      {{ _("Current workout plan structure") }}
                     </button>
 
                     <p class="text-body-secondary mb-2">
-                      Everything you actually lifted this mesocycle &mdash; one row per
-                      set with weight, reps, RPE, volume and estimated 1RM, split by
-                      workout day.
+                      {{ _("Everything you actually lifted this mesocycle — one row per set with weight, reps, RPE, volume and estimated 1RM, split by workout day.") }}
                     </p>
                     <button type="submit" name="action" value="mesocycle_report"
                       class="btn btn-success w-100" data-bs-dismiss="modal">
-                      Mesocycle report
+                      {{ _("Mesocycle report") }}
                     </button>
                   </form>
                 </div>
@@ -236,14 +236,14 @@
 
           <div class="d-flex justify-content-center align-items-center" style="height: 15vh;">
             <a class="btn btn-primary" href="{{ url_for('table_layout') }}" role="button">
-              Create new mesocycle plan
+              {{ _("Create new mesocycle plan") }}
             </a>
           </div>
 
 
           <div clas="p-3">
             <div class="fixed-bottom">
-              © {{ year }} | Created by Vít Puskajler
+              © {{ year }} | {{ _("Created by") }} Vít Puskajler
             </div>
           </div>
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ current_language() }}">
 
 <head>
   <meta charset="UTF-8">
@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <!-- Jus to so the page is not wider than screensize-->
 
+  {% include "partials/_js_translations.html" %}
 </head>
 
 <body>
@@ -44,21 +45,23 @@
 
 
   <div class="p-3 mb-3">
-    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
+    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="{{ _("Main navigation") }}">
       <div class="container-fluid">
         <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
-          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+          aria-controls="navbarCollapse" aria-expanded="false" aria-label="{{ _("Toggle navigation") }}">
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarCollapse">
           <ul class="navbar-nav me-auto mb-2 mb-md-0">
             <li class="nav-item">
-              <a class="nav-link" aria-current="page" href="{{ url_for('training_session_redirect')}}">Training
-                Session</a>
+              <a class="nav-link" aria-current="page" href="{{ url_for('training_session_redirect')}}">{{ _("Training Session") }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('workout_plan')}}">Workout Plan</a>
+              <a class="nav-link" href="{{ url_for('workout_plan')}}">{{ _("Workout Plan") }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('intuitive_training') }}">{{ _("Intuitive Training") }}</a>
             </li>
           </ul>
           <!-- Login and register buttons on the right -->
@@ -69,14 +72,14 @@
               <a class="nav-link" href="{{ url_for('profile')}}">{{ user }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+              <a class="nav-link" href="{{ url_for('logout') }}">{{ _("Logout") }}</a>
             </li>
             {% else %}
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+              <a class="nav-link" href="{{ url_for('login') }}">{{ _("Login") }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+              <a class="nav-link" href="{{ url_for('register') }}">{{ _("Register") }}</a>
             </li>
             {% endif %}
           </ul>
@@ -91,18 +94,16 @@
     <div class="row p-3 p-md-5 g-3 g-md-5">
       <div class="col-md-8">
         <article class="blog-post">
-          <h2 class="display-5 link-body-emphasis mb-1 p-2"><b>Quick overview</b></h2>
+          <h2 class="display-5 link-body-emphasis mb-1 p-2"><b>{{ _("Quick overview") }}</b></h2>
           <hr>
 
           <div class="flip-card mb-5 mb-md-3">
             <div class="flip-card-inner">
               <div class="flip-card-front">
-                <p class="fs-6 fs-md-3 "></br><b>Training Session:</b><br> Log your sets as you train, following the
-                  plan you already built - weight, reps and RPE for each exercise.</p>
+                <p class="fs-6 fs-md-3 "></br><b>{{ _("Training Session:") }}</b><br> {{ _("Log your sets as you train, following the plan you already built - weight, reps and RPE for each exercise.") }}</p>
               </div>
               <div class="flip-card-back">
-                <p class="fs-6 fs-md-5"><b>Example:</b><br> Upper Body Day: Bench Press - 3 sets of 10 reps @ 70kg
-                  (RPE 8), Barbell Row - 3 sets of 10 reps @ 60kg</p>
+                <p class="fs-6 fs-md-5"><b>{{ _("Example:") }}</b><br> {{ _("Upper Body Day: Bench Press - 3 sets of 10 reps @ 70kg (RPE 8), Barbell Row - 3 sets of 10 reps @ 60kg") }}</p>
               </div>
             </div>
           </div>
@@ -110,12 +111,10 @@
           <div class="flip-card mb-3 mb-md-3">
             <div class="flip-card-inner">
               <div class="flip-card-front">
-                <p class="fs-6 fs-md-5"><b>Workout Plan:</b><br> Every exercise and mesocycle you've logged, in one
-                  place - and the starting point for building your next one</p>
+                <p class="fs-6 fs-md-5"><b>{{ _("Workout Plan:") }}</b><br> {{ _("Every exercise and mesocycle you've logged, in one place - and the starting point for building your next one") }}</p>
               </div>
               <div class="flip-card-back">
-                <p class="fs-6 fs-md-5"><b>Example:</b><br> 8-week plan: Weeks 1-4 Upper/Lower split, Weeks 5-8
-                  Push/Pull/Legs, tracked as one mesocycle</p>.
+                <p class="fs-6 fs-md-5"><b>{{ _("Example:") }}</b><br> {{ _("8-week plan: Weeks 1-4 Upper/Lower split, Weeks 5-8 Push/Pull/Legs, tracked as one mesocycle") }}</p>.
               </div>
             </div>
           </div>
@@ -123,12 +122,10 @@
           <div class="flip-card mb-3 mb-md-3">
             <div class="flip-card-inner">
               <div class="flip-card-front">
-                <p><b class="fs-6 fs-md-5">Create New Mesocycle Plan:</b><br> Start a new training block - name it,
-                  set its length, and fill in each day's exercises</p>
+                <p><b class="fs-6 fs-md-5">{{ _("Create New Mesocycle Plan:") }}</b><br> {{ _("Start a new training block - name it, set its length, and fill in each day's exercises") }}</p>
               </div>
               <div class="flip-card-back">
-                <p class="fs-6 fs-md-5"><b>Example:</b><br> "6-Week Hypertrophy Block" - 4 training days a week, 3-4
-                  sets of 8-12 reps per exercise</p>
+                <p class="fs-6 fs-md-5"><b>{{ _("Example:") }}</b><br> {{ _("\"6-Week Hypertrophy Block\" - 4 training days a week, 3-4 sets of 8-12 reps per exercise") }}</p>
               </div>
             </div>
           </div>
@@ -136,12 +133,10 @@
           <div class="flip-card mb-4 mb-md-3">
             <div class="flip-card-inner">
               <div class="flip-card-front">
-                <p class="fs-6 fs-md-5"><b>Profile:</b><br> Change your password, review pending sign-ups, and jump
-                  to any part of the app from here</p>
+                <p class="fs-6 fs-md-5"><b>{{ _("Profile:") }}</b><br> {{ _("Change your password, review pending sign-ups, and jump to any part of the app from here") }}</p>
               </div>
               <div class="flip-card-back">
-                <p class="fs-6 fs-md-5"><b>Example:</b><br> Deload week: editing Bench Press from 4 sets of 12 reps
-                  down to 2 sets of 10 reps</p>
+                <p class="fs-6 fs-md-5"><b>{{ _("Example:") }}</b><br> {{ _("Deload week: editing Bench Press from 4 sets of 12 reps down to 2 sets of 10 reps") }}</p>
               </div>
             </div>
           </div>
@@ -149,15 +144,15 @@
         </article>
 
         <article class="blog-post">
-          <h3 class="display-5 link-body-emphasis mb-1"><b>What you need to know</b></h2>
+          <h3 class="display-5 link-body-emphasis mb-1"><b>{{ _("What you need to know") }}</b></h2>
             <hr>
             <div class="flip-card">
               <div class="flip-card-inner">
                 <div class="flip-card-front">
-                  <p><b>RPE:</b><br> Rating of Perceived Exertion - how hard a set actually felt</p>
+                  <p><b>{{ _("RPE:") }}</b><br> {{ _("Rating of Perceived Exertion - how hard a set actually felt") }}</p>
                 </div>
                 <div class="flip-card-back">
-                  <p><b>Example:</b><br> RPE 8 on Squats means you had about 2 more reps left in the tank</p>
+                  <p><b>{{ _("Example:") }}</b><br> {{ _("RPE 8 on Squats means you had about 2 more reps left in the tank") }}</p>
                 </div>
               </div>
             </div>
@@ -165,10 +160,10 @@
             <div class="flip-card">
               <div class="flip-card-inner">
                 <div class="flip-card-front">
-                  <p><b>Sets:</b><br> How many rounds of an exercise you plan to do</p>
+                  <p><b>{{ _("Sets:") }}</b><br> {{ _("How many rounds of an exercise you plan to do") }}</p>
                 </div>
                 <div class="flip-card-back">
-                  <p><b>Example:</b><br> "3 sets" of Deadlift means three separate rounds at your chosen rep count</p>
+                  <p><b>{{ _("Example:") }}</b><br> {{ _("\"3 sets\" of Deadlift means three separate rounds at your chosen rep count") }}</p>
                 </div>
               </div>
             </div>
@@ -176,10 +171,10 @@
             <div class="flip-card">
               <div class="flip-card-inner">
                 <div class="flip-card-front">
-                  <p><b>Reps:</b><br> How many repetitions you completed in one set</p>
+                  <p><b>{{ _("Reps:") }}</b><br> {{ _("How many repetitions you completed in one set") }}</p>
                 </div>
                 <div class="flip-card-back">
-                  <p><b>Example:</b><br> "10 reps" of Leg Press means ten controlled repetitions in that set</p>
+                  <p><b>{{ _("Example:") }}</b><br> {{ _("\"10 reps\" of Leg Press means ten controlled repetitions in that set") }}</p>
                 </div>
               </div>
             </div>
@@ -187,10 +182,10 @@
             <div class="flip-card">
               <div class="flip-card-inner">
                 <div class="flip-card-front">
-                  <p><b>Pauses:</b><br> How long you rest between sets</p>
+                  <p><b>{{ _("Pauses:") }}</b><br> {{ _("How long you rest between sets") }}</p>
                 </div>
                 <div class="flip-card-back">
-                  <p><b>Example:</b><br> A 90-second pause after Bench Press lets you recover for a strong next set</p>
+                  <p><b>{{ _("Example:") }}</b><br> {{ _("A 90-second pause after Bench Press lets you recover for a strong next set") }}</p>
                 </div>
               </div>
             </div>
@@ -198,10 +193,10 @@
             <div class="flip-card">
               <div class="flip-card-inner">
                 <div class="flip-card-front">
-                  <p><b>Notes:</b><br> Anything worth remembering about that exercise or session</p>
+                  <p><b>{{ _("Notes:") }}</b><br> {{ _("Anything worth remembering about that exercise or session") }}</p>
                 </div>
                 <div class="flip-card-back">
-                  <p><b>Example:</b><br> "Left shoulder felt tight - dropped weight on the last set"</p>
+                  <p><b>{{ _("Example:") }}</b><br> {{ _("\"Left shoulder felt tight - dropped weight on the last set\"") }}</p>
                 </div>
               </div>
             </div>
@@ -209,30 +204,24 @@
             <div class="flip-card">
               <div class="flip-card-inner">
                 <div class="flip-card-front">
-                  <p><b>Units:</b><br> Tap the Kg/Lbs/Other button next to the weight field to change what a set is logged in</p>
+                  <p><b>{{ _("Units:") }}</b><br> {{ _("Tap the Kg/Lbs/Other button next to the weight field to change what a set is logged in") }}</p>
                 </div>
                 <div class="flip-card-back">
-                  <p><b>Example:</b><br> Tap it once to switch from Kg to Lbs - it remembers your choice per exercise next time</p>
+                  <p><b>{{ _("Example:") }}</b><br> {{ _("Tap it once to switch from Kg to Lbs - it remembers your choice per exercise next time") }}</p>
                 </div>
               </div>
             </div>
 
             <div class="p-3 mt-4 bg-body-tertiary rounded">
-              <p class="mb-2"><b>Stopwatch:</b> the dark bar at the bottom of Training Session and Freestyle Training
-                times your rests.</p>
+              <p class="mb-2">{{ _('<b>Stopwatch:</b> the dark bar at the bottom of Training Session and Freestyle Training times your rests.')|safe }}</p>
               <ol class="mb-2 ps-3">
-                <li><b>Start</b> when you arrive (optional - your first logged set starts it too). The clock shows
-                  your <i>warm-up</i>.</li>
-                <li><b>Go</b> right before a set, so the set time is saved. <b>Cancel</b> undoes a mistaken tap.</li>
-                <li><b>Confirm</b> or <b>Repeat</b> logs the set and the <i>rest</i> clock starts. It turns green
-                  within the planned pause for that exercise and red once you are over it (switching exercises and
-                  freestyle days stay uncoloured).</li>
-                <li><b>Tap the clock</b> to peek at your total time in the gym, tap again to go back.</li>
-                <li>The <b>power icon</b> (bottom left) asks "Finish the workout?". With no set for 30 minutes the
-                  stopwatch switches itself off and your next set starts a fresh one.</li>
+                <li>{{ _('<b>Start</b> when you arrive (optional - your first logged set starts it too). The clock shows your <i>warm-up</i>.')|safe }}</li>
+                <li>{{ _('<b>Go</b> right before a set, so the set time is saved. <b>Cancel</b> undoes a mistaken tap.')|safe }}</li>
+                <li>{{ _('<b>Confirm</b> or <b>Repeat</b> logs the set and the <i>rest</i> clock starts. It turns green within the planned pause for that exercise and red once you are over it (switching exercises and freestyle days stay uncoloured).')|safe }}</li>
+                <li>{{ _('<b>Tap the clock</b> to peek at your total time in the gym, tap again to go back.')|safe }}</li>
+                <li>{{ _('The <b>power icon</b> (bottom left) asks "Finish the workout?". With no set for 30 minutes the stopwatch switches itself off and your next set starts a fresh one.')|safe }}</li>
               </ol>
-              <p class="mb-0 small text-body-secondary">Go is optional. If you skip it, or the stopwatch altogether,
-                every set still stores when it was logged - you only lose the exact set time.</p>
+              <p class="mb-0 small text-body-secondary">{{ _("Go is optional. If you skip it, or the stopwatch altogether, every set still stores when it was logged - you only lose the exact set time.") }}</p>
             </div>
 
         </article>
@@ -242,26 +231,23 @@
         <div class="position-sticky" style="top: 2rem;">
           <div class="p-4 mb-3 bg-body-tertiary rounded">
 
-            <h4 class="fst-italic">About</h4>
-            <p class="mb-0">You can manage all your workouts in one place. After the end of your mesocycle, you can view
-              statistics (currently 'Workout Plan' tab) about
-              your progress and based on it plan a new training period. Aim of this web app is to help you periodize,
-              structure and manage your workouts.</p>
+            <h4 class="fst-italic">{{ _("About") }}</h4>
+            <p class="mb-0">{{ _("You can manage all your workouts in one place. After the end of your mesocycle, you can view statistics (currently 'Workout Plan' tab) about your progress and based on it plan a new training period. Aim of this web app is to help you periodize, structure and manage your workouts.") }}</p>
 
           </div>
 
 
           <div>
-            <h4 class="fst-italic">Best Features</h4>
+            <h4 class="fst-italic">{{ _("Best Features") }}</h4>
             <ul class="list-unstyled">
               <li>
                 <a class="d-flex flex-column flex-lg-row gap-3 align-items-center align-items-lg-start py-3 link-body-emphasis text-decoration-none border-top"
                   href="{{ url_for('training_session_redirect') }}">
                   <img src="{{ url_for('static', filename='pictures/notifications/notifications.jpg') }}"
-                    alt="Guided Training Session" style="width: 100px; height: 100px; object-fit: cover;" />
+                    alt="{{ _("Guided Training Session") }}" style="width: 100px; height: 100px; object-fit: cover;" />
                   <div class="col-lg-8 text-center text-lg-start">
-                    <h6 class="mb-0">Guided Training Session</h6>
-                    <small class="text-body-secondary">Follow your mesocycle plan with History and one-tap Repeat, so you're not retyping last time's numbers.</small>
+                    <h6 class="mb-0">{{ _("Guided Training Session") }}</h6>
+                    <small class="text-body-secondary">{{ _("Follow your mesocycle plan with History and one-tap Repeat, so you're not retyping last time's numbers.") }}</small>
                   </div>
                 </a>
               </li>
@@ -269,10 +255,10 @@
                 <a class="d-flex flex-column flex-lg-row gap-3 align-items-center align-items-lg-start py-3 link-body-emphasis text-decoration-none border-top b"
                   href="{{ url_for('intuitive_training') }}">
                   <img src="{{ url_for('static', filename='pictures/notifications/notifications.jpg') }}"
-                    alt="Freestyle Training" style="width: 100px; height: 100px; object-fit: cover;" />
+                    alt="{{ _("Freestyle Training") }}" style="width: 100px; height: 100px; object-fit: cover;" />
                   <div class="col-lg-8">
-                    <h6 class="mb-0">Freestyle Training</h6>
-                    <small class="text-body-secondary">Log any exercise on the fly, jump between today's exercises with arrows, and see your best set from last time inline.</small>
+                    <h6 class="mb-0">{{ _("Freestyle Training") }}</h6>
+                    <small class="text-body-secondary">{{ _("Log any exercise on the fly, jump between today's exercises with arrows, and see your best set from last time inline.") }}</small>
                   </div>
                 </a>
               </li>
@@ -280,10 +266,10 @@
                 <a class="d-flex flex-column flex-lg-row gap-3 align-items-center align-items-lg-start py-3 link-body-emphasis text-decoration-none border-top c"
                   href="{{ url_for('progress') }}">
                   <img src="{{ url_for('static', filename='pictures/notifications/notifications.jpg') }}"
-                    alt="Editable Progress and Graphs" style="width: 100px; height: 100px; object-fit: cover;" />
+                    alt="{{ _("Editable Progress and Graphs") }}" style="width: 100px; height: 100px; object-fit: cover;" />
                   <div class="col-lg-8">
-                    <h6 class="mb-0">Editable Progress + Graphs</h6>
-                    <small class="text-body-secondary">Track every lift over time with charts, and edit past sets directly from the same page.</small>
+                    <h6 class="mb-0">{{ _("Editable Progress + Graphs") }}</h6>
+                    <small class="text-body-secondary">{{ _("Track every lift over time with charts, and edit past sets directly from the same page.") }}</small>
                   </div>
                 </a>
               </li>
@@ -296,7 +282,7 @@
 
   <footer class="text-center p-3">
     <a href="https://www.github.com/vitpuskajler" target="_blank" rel="noopener noreferrer">
-      © {{ year }} | Created by Vít Puskajler
+      © {{ year }} | {{ _("Created by") }} Vít Puskajler
     </a>
   </footer>
 

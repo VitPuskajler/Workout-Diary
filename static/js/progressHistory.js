@@ -16,6 +16,9 @@
 (function () {
   "use strict";
 
+  // The page's language - partials/_js_translations.html. English without it.
+  var wdT = window.wdT || function (text) { return text; };
+
   function toggle(el) {
     if (!el.classList.contains("wd-history-has-more")) return;
 
@@ -24,7 +27,7 @@
     if (!table) return;
 
     var expanded = table.classList.toggle("wd-history-expanded");
-    el.textContent = expanded ? "Hide ▴" : "Show all ▾";
+    el.textContent = expanded ? wdT("Hide") + " ▴" : wdT("Show all") + " ▾";
     el.setAttribute("aria-expanded", expanded ? "true" : "false");
   }
 

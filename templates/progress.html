@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ current_language() }}">
 
 <head>
   <meta charset="UTF-8">
@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@3">
 
 
+  {% include "partials/_js_translations.html" %}
 </head>
 
 <body>
@@ -58,10 +59,10 @@
   </svg>
 
   <div class="p-3 mb-5">
-    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
+    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="{{ _("Main navigation") }}">
       <div class="container-fluid">
         <a href="{{ url_for('profile') }}" id="backArrow" class="text-light me-2 d-flex align-items-center"
-          aria-label="Back to menu" title="Back to menu" style="text-decoration: none;">
+          aria-label="{{ _("Back to menu") }}" title="{{ _("Back to menu") }}" style="text-decoration: none;">
           <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path fill-rule="evenodd"
               d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z">
@@ -70,16 +71,19 @@
         </a>
         <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
         <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
-          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+          aria-controls="navbarCollapse" aria-expanded="false" aria-label="{{ _("Toggle navigation") }}">
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarCollapse">
           <ul class="navbar-nav me-auto mb-2 mb-md-0">
             <li class="nav-item">
-              <a class="nav-link" aria-current="page" href="{{ url_for('training_session')}}">Training Session</a>
+              <a class="nav-link" aria-current="page" href="{{ url_for('training_session')}}">{{ _("Training Session") }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('workout_plan_page')}}">Workout Plan</a>
+              <a class="nav-link" href="{{ url_for('workout_plan_page')}}">{{ _("Workout Plan") }}</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('intuitive_training') }}">{{ _("Intuitive Training") }}</a>
             </li>
 
           </ul>
@@ -91,14 +95,14 @@
               <a class="nav-link active" href="{{ url_for('profile')}}">{{ current_user.username }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+              <a class="nav-link" href="{{ url_for('logout') }}">{{ _("Logout") }}</a>
             </li>
             {% else %}
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+              <a class="nav-link" href="{{ url_for('login') }}">{{ _("Login") }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+              <a class="nav-link" href="{{ url_for('register') }}">{{ _("Register") }}</a>
             </li>
             {% endif %}
           </ul>
@@ -115,9 +119,9 @@
         <!-- First Form -->
         <div class="col-md-6 col-sm-5 mb-1 p-1">
           <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="post">
-            <select class="form-select mb-1 mx-auto text-center" aria-label="Default select example"
+            <select class="form-select mb-1 mx-auto text-center" aria-label="{{ _("Mesocycle") }}"
               id="MesocycleSelect" name="mesocycle" onchange="this.form.submit()">
-              <option value="">Choose Mesocycle</option>
+              <option value="">{{ _("Choose Mesocycle") }}</option>
               {% if dropdown %}
               {% for key, value in dropdown.items() %}
               {% set mesocycle_name = value.keys()|first %}
@@ -125,7 +129,7 @@
                 mesocycle_name }}</option>
               {% endfor %}
               {% else %}
-              <option value="">You have no Mesocycle yet</option>
+              <option value="">{{ _("You have no Mesocycle yet") }}</option>
               {% endif %}
             </select>
           </form>
@@ -135,7 +139,7 @@
         <div class="col-md-7 col-sm-7 mb-5 p-1">
           {% if chosen_day == custom_sentinel %}
           <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="get">
-            <select class="form-select mb-1 mx-auto text-center" aria-label="Default select example"
+            <select class="form-select mb-1 mx-auto text-center" aria-label="{{ _("Workout date") }}"
               id="CustomDateSelect" name="custom_date" onchange="this.form.submit()">
               {% for item in custom_dates %}
               <option value="{{ item.session_id }}" {% if item.session_id==chosen_custom_session_id %}selected{% endif %}>
@@ -145,14 +149,14 @@
           </form>
           {% elif workouts_info or custom_dates %}
           <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="get">
-            <select class="form-select mb-1 mx-auto text-center" aria-label="Default select example"
+            <select class="form-select mb-1 mx-auto text-center" aria-label="{{ _("Training day") }}"
               id="WorkoutDaySelect" name="training_day" onchange="this.form.submit()">
-              <option value="">Choose Training Day</option>
+              <option value="">{{ _("Choose Training Day") }}</option>
               {% for key, value in workouts_info.items() %}
               <option value="{{ key }}" {% if key==session.get('chosen_day') %}selected{% endif %}>{{ key }}</option>
               {% endfor %}
               {% if custom_dates %}
-              <option value="{{ custom_sentinel }}">Custom Workouts</option>
+              <option value="{{ custom_sentinel }}">{{ _("Custom Workouts") }}</option>
               {% endif %}
             </select>
           </form>
@@ -178,7 +182,7 @@
               <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
               <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
             </svg>
-            <span id="copyProgressLabel">Copy all</span>
+            <span id="copyProgressLabel">{{ _("Copy all") }}</span>
           </button>
         </div>
       </div>
@@ -205,7 +209,7 @@
             btn.classList.add(cssClass);
             clearTimeout(resetTimer);
             resetTimer = setTimeout(function () {
-              label.textContent = "Copy all";
+              label.textContent = {{ _("Copy all")|tojson }};
               btn.classList.remove("btn-danger", "btn-secondary");
               btn.classList.add("btn-success");
             }, 1800);
@@ -245,16 +249,16 @@
             source.focus();
             source.select();
             source.setSelectionRange(0, source.value.length);
-            flash("Long-press, Copy", "btn-danger");
+            flash({{ _("Long-press, Copy")|tojson }}, "btn-danger");
           }
 
           btn.addEventListener("click", function () {
             if (legacyCopy()) {
-              flash("Copied!", "btn-secondary");
+              flash({{ _("Copied!")|tojson }}, "btn-secondary");
               return;
             }
             modernCopy().then(
-              function () { flash("Copied!", "btn-secondary"); },
+              function () { flash({{ _("Copied!")|tojson }}, "btn-secondary"); },
               showManual
             );
           });
@@ -437,7 +441,7 @@
         }
       </style>
       <details class="wd-durations">
-        <summary class="h5 text-success mb-0">Workout Durations</summary>
+        <summary class="h5 text-success mb-0">{{ _("Workout Durations") }}</summary>
         <div class="wd-durations-body">
           <table class="table table-sm table-striped text-center">
             <thead>
@@ -451,7 +455,7 @@
               {% for item in session_summary %}
               <tr>
                 <td>{{ item.date }}</td>
-                <td>{{ item.duration or '–' }}</td>
+                <td{% if item.from_first_set %} title="{{ _("No Start tap on the stopwatch - counted from the first set") }}"{% endif %}>{{ item.duration or '–' }}</td>
                 <td>{{ item.sets }}</td>
               </tr>
               {% endfor %}
@@ -472,7 +476,7 @@
             <span
               class="wd-history-toggle {{ 'wd-history-has-more' if has_more_sessions else 'wd-history-none' }}"
               {% if has_more_sessions %}role="button" tabindex="0" aria-expanded="false"{% endif %}
-              data-target="wd-hist-table-{{ loop.index }}">Show all{{ ' ▾' if has_more_sessions else '' }}</span>
+              data-target="wd-hist-table-{{ loop.index }}">{{ _("Show all") }}{{ ' ▾' if has_more_sessions else '' }}</span>
             {% endif %}
           </div>
         </div>
@@ -501,11 +505,11 @@
                   {% endfor %}
                 {% else %}
                 <tr>
-                  <td class="col-2">Never exercised</td>
-                  <td class="col-2">No {{ 'seconds' if is_timed(key) else 'reps' }}</td>
-                  <td class="col-2">No weight</td>
-                  <td class="col-2">No RPE</td>
-                  <td class="col-4">nothing written</td>                  
+                  <td class="col-2">{{ _("Never exercised") }}</td>
+                  <td class="col-2">{{ _("No seconds") if is_timed(key) else _("No reps") }}</td>
+                  <td class="col-2">{{ _("No weight") }}</td>
+                  <td class="col-2">{{ _("No RPE") }}</td>
+                  <td class="col-4">{{ _("nothing written") }}</td>                  
                 </tr>
                 {% endif %}
               </tbody>
@@ -524,7 +528,7 @@
 
       <div class="p-3">
         <div class="fixed-bottom text-center py-2">
-          © {{ year }} | Created by Vít Puskajler
+          © {{ year }} | {{ _("Created by") }} Vít Puskajler
         </div>
       </div>
     </div>
@@ -536,13 +540,13 @@
       <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content wd-unsaved-card">
           <div class="modal-body text-center p-4">
-            <p class="mb-4" id="progress_unsaved_title">You have unsaved changes.</p>
+            <p class="mb-4" id="progress_unsaved_title">{{ _("You have unsaved changes.") }}</p>
             <div class="d-flex justify-content-between gap-3">
               <button type="button" class="btn btn-success flex-fill" id="progress_unsaved_save">
-                Save
+                {{ _("Save") }}
               </button>
               <button type="button" class="btn btn-danger flex-fill" id="progress_unsaved_discard">
-                Discard
+                {{ _("Discard") }}
               </button>
             </div>
           </div>
@@ -557,10 +561,10 @@
         <div class="modal-content">
           <div class="modal-body text-center p-4">
             <p class="mb-1" id="progress_fix_unit_title">
-              This set is logged in <strong id="progress_fix_unit_current">Kg</strong>.
+              {{ _("This set is logged in") }} <strong id="progress_fix_unit_current">Kg</strong>.
             </p>
-            <p class="mb-2 text-secondary" style="font-size: .85rem;">Convert to:</p>
-            <div class="btn-group mb-3" role="group" aria-label="Target unit" id="progress_fix_unit_targets">
+            <p class="mb-2 text-secondary" style="font-size: .85rem;">{{ _("Convert to:") }}</p>
+            <div class="btn-group mb-3" role="group" aria-label="{{ _("Target unit") }}" id="progress_fix_unit_targets">
               <button type="button" class="btn btn-outline-secondary btn-sm" data-target-unit="kg">Kg</button>
               <button type="button" class="btn btn-outline-secondary btn-sm" data-target-unit="lbs">Lbs</button>
               <button type="button" class="btn btn-outline-secondary btn-sm" data-target-unit="other">Other</button>
@@ -568,7 +572,7 @@
             <div class="d-flex flex-column gap-2">
               <button type="button" class="btn btn-success" id="progress_fix_unit_session"></button>
               <button type="button" class="btn btn-outline-success" id="progress_fix_unit_entry"></button>
-              <button type="button" class="btn btn-link text-secondary" id="progress_fix_unit_cancel">Cancel</button>
+              <button type="button" class="btn btn-link text-secondary" id="progress_fix_unit_cancel">{{ _("Cancel") }}</button>
             </div>
             <div class="text-danger wd-edit-error d-none mt-2" id="progress_fix_unit_error"></div>
           </div>
@@ -582,13 +586,13 @@
       <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
           <div class="modal-body text-center p-4">
-            <p class="mb-4" id="progress_delete_confirm_title">Delete this set? This can't be undone.</p>
+            <p class="mb-4" id="progress_delete_confirm_title">{{ _("Delete this set? This can't be undone.") }}</p>
             <div class="d-flex justify-content-between gap-3">
               <button type="button" class="btn btn-outline-secondary flex-fill" id="progress_delete_confirm_cancel">
-                Cancel
+                {{ _("Cancel") }}
               </button>
               <button type="button" class="btn btn-danger flex-fill" id="progress_delete_confirm_delete">
-                Delete
+                {{ _("Delete") }}
               </button>
             </div>
             <div class="text-danger wd-edit-error d-none mt-2" id="progress_delete_confirm_error"></div>
