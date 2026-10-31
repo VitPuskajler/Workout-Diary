@@ -488,7 +488,8 @@
 
     // The plan's icons play their rep: hovered with a mouse, tapped on a
     // touch screen - one at a time: tapping another stops the one playing,
-    // tapping the same one again stops it. Never with "reduce motion" on.
+    // tapping the same one again or anywhere else on the page stops it.
+    // Never with "reduce motion" on.
     (function () {
       if (!window.matchMedia("(prefers-reduced-motion: no-preference)").matches) return;
       var tapped = null;                                  // the icon a tap set playing
@@ -503,6 +504,11 @@
           tapped = tapped === img ? null : img;
           play(img, tapped === img);
         });
+      });
+      document.addEventListener("click", function (e) {
+        if (!tapped || (e.target.closest && e.target.closest("img[data-wd-moving]"))) return;
+        play(tapped, false);
+        tapped = null;
       });
     })();
 

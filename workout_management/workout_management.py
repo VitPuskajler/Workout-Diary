@@ -1200,7 +1200,7 @@ class WorkoutManagement:
             if raw is None or str(raw).strip() == "":
                 return default
             try:
-                return cast(raw)
+                return cast(str(raw).strip().replace(",", "."))   # "82,5" from a comma keypad
             except (TypeError, ValueError):
                 return default
 
@@ -1606,9 +1606,10 @@ class WorkoutManagement:
             if key.startswith("update_"):
                 entry_id = key.split("_")[-1]
 
-                reps = submitted_data.get(f"update_reps_{entry_id}", None)
-                weight = submitted_data.get(f"update_weight_{entry_id}", None)
-                rpe = submitted_data.get(f"update_rpe_{entry_id}", None)
+                # "82,5" from a phone's comma keypad means 82.5.
+                reps = (submitted_data.get(f"update_reps_{entry_id}") or "").replace(",", ".") or None
+                weight = (submitted_data.get(f"update_weight_{entry_id}") or "").replace(",", ".") or None
+                rpe = (submitted_data.get(f"update_rpe_{entry_id}") or "").replace(",", ".") or None
                 notes = submitted_data.get(f"update_notes_{entry_id}", None)
 
                 entry = db.session.get(ExerciseEntries, entry_id)

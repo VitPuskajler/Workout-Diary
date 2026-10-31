@@ -1,4 +1,7 @@
 {
+  "Use steps of {step}, e.g. 7.5.": "Používaj kroky po {step}, napr. 7.5.",
+  "Enter a number of {min} or more.": "Zadaj číslo {min} alebo viac.",
+  "Enter a number from {min} to {max}.": "Zadaj číslo od {min} do {max}.",
   "\"+2:35\" under each logged set: the time since the one before.": "„+2:35“ pod každou zapísanou sériou: čas od tej predchádzajúcej.",
   "\"10 reps\" of Leg Press means ten controlled repetitions in that set": "„10 opakovaní“ na Leg Press znamená desať kontrolovaných opakovaní v jednej sérii",
   "\"3 sets\" of Deadlift means three separate rounds at your chosen rep count": "„3 série“ na Deadlift znamenajú tri samostatné kolá so zvoleným počtom opakovaní",
