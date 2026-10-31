@@ -38,7 +38,7 @@ from wtforms.validators import DataRequired, EqualTo, NumberRange, ValidationErr
 from models.db_setup import db
 from translations.i18n import LANGUAGES, current_language, js_translations, plural_forms, translate as _, translate_plural as _n
 from models.models import Exercise, Users, WorkoutPlan, Mesocycles, load_user
-from workout_management.workout_management import  WorkoutManagement, english_exercise_name, localized_name_column
+from workout_management.workout_management import  WorkoutManagement, english_exercise_name, fold_text, localized_name_column
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -482,6 +482,28 @@ def exercise_suggestions():
     # One more than asked for says whether there is a next page.
     items = fetch_exercise_suggestions(search_term, offset=offset, limit=limit + 1, labelled=True)
     return jsonify({"items": items[:limit], "has_more": len(items) > limit})
+
+
+@app.route("/exercise_catalog")
+@login_required
+def exercise_catalog():
+    """The whole exercise catalog for the "choose from the list" window on
+    Create Workout, fetched the first time it opens: the English name (what
+    the field sends), the name shown, and the muscle group."""
+    groups = {
+        "abs": _("Abs"), "back": _("Back"), "chest": _("Chest"), "forearm": _("Forearm"),
+        "glutes": _("Glutes"), "lower_legs": _("Lower legs"), "shoulders": _("Shoulders"),
+        "triceps": _("Triceps"), "upper_legs": _("Upper legs"),
+    }
+    labels = exercise_labels()
+    rows = db.session.query(Exercise.exercise_name, Exercise.muscle_group).filter(Exercise.is_deleted.is_(False))
+    items = sorted(({"name": name, "label": labels.get(name, name), "group": group} for name, group in rows),
+                   key=lambda item: fold_text(item["label"]))
+    return jsonify({
+        "items": items,
+        "groups": sorted(([key, groups.get(key, key.replace("_", " ").capitalize())]
+                          for key in {item["group"] for item in items}), key=lambda pair: fold_text(pair[1])),
+    })
 
 
 # Here is created mesocycle workout

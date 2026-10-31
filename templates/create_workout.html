@@ -84,6 +84,64 @@
       flex: 0 0 34px;
     }
 
+    /* "Choose from the list": a small button inside every exercise field.
+       Always there on a computer; on a phone only while the field is open
+       (tr.wd-editing), where there is room for it. */
+    .wd-ex-field {
+      position: relative;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .wd-ex-field .form-control {
+      padding-right: 2rem;
+    }
+
+    .wd-pick-btn {
+      position: absolute;
+      top: 50%;
+      right: .3rem;
+      transform: translateY(-50%);
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--bs-secondary-color);
+      padding: .3rem;
+      line-height: 0;
+    }
+
+    .wd-pick-btn:hover,
+    .wd-pick-btn:focus-visible {
+      color: var(--bs-primary);
+      background: var(--bs-primary-bg-subtle);
+    }
+
+    @media (max-width: 576px) {
+      .wd-pick-btn {
+        display: none;
+      }
+
+      .wd-ex-field .form-control {
+        padding-right: .25rem;
+      }
+
+      tr.wd-editing .wd-pick-btn {
+        display: block;
+      }
+
+      tr.wd-editing .wd-ex-field .form-control {
+        padding-right: 2rem;
+      }
+    }
+
+    /* The list itself */
+    .wd-catalog img,
+    .wd-catalog .wd-icon-blank {
+      width: 40px;
+      height: 40px;
+      flex: 0 0 40px;
+    }
+
     /* A row's icon plays its rep: while the mouse is over it, or tapped on
        a phone (tap again to stop). */
     img[data-wd-moving] {
@@ -328,8 +386,15 @@
                     {% set moving = exercise_icon_moving(exe['exercise']) if icon else none %}
                     {% if icon %}<img src="{{ icon }}" class="wd-exercise-icon" alt="" aria-hidden="true"
                       {% if moving %}data-wd-moving="{{ moving }}"{% endif %}>{% endif %}
-                    <input type="text" id="exercise_{{ exe['id'] }}" name="exercise_{{ exe['id'] }}"
-                      class="form-control text-center" value="{{ exercise_label(exe['exercise']) }}" autocomplete="off" />
+                    <div class="wd-ex-field">
+                      <input type="text" id="exercise_{{ exe['id'] }}" name="exercise_{{ exe['id'] }}"
+                        class="form-control text-center" value="{{ exercise_label(exe['exercise']) }}" autocomplete="off" />
+                      <button type="button" class="wd-pick-btn" data-wd-pick="exercise_{{ exe['id'] }}"
+                        aria-label="{{ _("Choose from the list") }}" title="{{ _("Choose from the list") }}">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+                          stroke-linecap="round" aria-hidden="true"><path d="M6 4h8M6 8h8M6 12h8"/><path d="M2.5 4h.01M2.5 8h.01M2.5 12h.01" stroke-width="2.4"/></svg>
+                      </button>
+                    </div>
                   </div>
                   <!-- Suggestions dropdown -->
                   <div class="dropdown">
@@ -363,8 +428,15 @@
 
               <tr>
                 <td class="wd-exercise-cell">
-                  <input type="text" id="exercise_new_{{ x }}" name="new_exercise_{{ x }}"
-                    class="form-control text-center bg-info-subtle" placeholder="{{ _("Select Exercise") }}" autocomplete="off" />
+                  <div class="wd-ex-field">
+                    <input type="text" id="exercise_new_{{ x }}" name="new_exercise_{{ x }}"
+                      class="form-control text-center bg-info-subtle" placeholder="{{ _("Select Exercise") }}" autocomplete="off" />
+                    <button type="button" class="wd-pick-btn" data-wd-pick="exercise_new_{{ x }}"
+                        aria-label="{{ _("Choose from the list") }}" title="{{ _("Choose from the list") }}">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+                          stroke-linecap="round" aria-hidden="true"><path d="M6 4h8M6 8h8M6 12h8"/><path d="M2.5 4h.01M2.5 8h.01M2.5 12h.01" stroke-width="2.4"/></svg>
+                      </button>
+                  </div>
                   <!-- Suggestions dropdown -->
                   <div class="dropdown">
                     <ul id="exercise_suggestions_new_{{ x }}" class="dropdown-menu show"
@@ -617,6 +689,125 @@
     });
 
     EXERCISE_FIELD_IDS.forEach(wireExerciseAutocomplete);
+
+    // ----------------------------------------------------------------
+    // "Choose from the list": the button in an exercise field opens every
+    // exercise in the catalog (fetched once, the first time); a tap on one
+    // puts it into that field, as picking a suggestion does. Wired once the
+    // page is read - the window's markup comes after this script.
+    // ----------------------------------------------------------------
+    document.addEventListener("DOMContentLoaded", function () {
+      const modalEl = document.getElementById("wd_picker");
+      const list = document.getElementById("wd_picker_list");
+      const search = document.getElementById("wd_picker_search");
+      const groupSelect = document.getElementById("wd_picker_group");
+      const count = document.getElementById("wd_picker_count");
+      const COUNT_TEXT = {{ _("Exercises: {count}")|tojson }};
+      const LOADING = {{ _("Loading…")|tojson }};
+      const SLUGS = new Set(EXERCISE_ICONS.slugs);
+      let target = null;          // the field the list was opened from
+      let rows = null;            // [{item, el, text}] once built
+      let loading = null;
+
+      // Lower case, accents dropped - "sikmy" finds "Šikmý".
+      const fold = (text) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+      // Same rule as exercise_icon() in server.py.
+      function iconSlug(name) {
+        const slug = EXERCISE_ICONS.choices[name] || (name.toLowerCase().match(/[a-z0-9]+/g) || []).join("-");
+        return SLUGS.has(slug) ? slug : null;
+      }
+
+      function build(data) {
+        data.groups.forEach(function (pair) {
+          const option = document.createElement("option");
+          option.value = pair[0];
+          option.textContent = pair[1];
+          groupSelect.appendChild(option);
+        });
+        const groupLabel = Object.fromEntries(data.groups);
+        list.innerHTML = "";
+        rows = data.items.map(function (item) {
+          const el = document.createElement("button");
+          el.type = "button";
+          el.className = "list-group-item list-group-item-action d-flex align-items-center gap-3";
+          const slug = iconSlug(item.name);
+          let icon;
+          if (slug) {
+            icon = document.createElement("img");
+            icon.loading = "lazy";
+            icon.src = EXERCISE_ICONS.base + slug + ".svg";
+            icon.alt = "";
+          } else {
+            icon = document.createElement("span");
+            icon.className = "wd-icon-blank";
+          }
+          const text = document.createElement("span");
+          text.className = "flex-grow-1";
+          text.textContent = item.label;
+          const meta = document.createElement("small");
+          meta.className = "text-body-secondary text-end";
+          meta.textContent = groupLabel[item.group] || item.group;
+          el.append(icon, text, meta);
+          el.addEventListener("click", function () { choose(item); });
+          list.appendChild(el);
+          return { item: item, el: el, text: fold(item.label + " " + item.name) };
+        });
+      }
+
+      function filter() {
+        if (!rows) return;
+        const words = fold(search.value.trim()).split(/\s+/).filter(Boolean);
+        const group = groupSelect.value;
+        let shown = 0;
+        rows.forEach(function (row) {
+          const match = (!group || row.item.group === group) && words.every((w) => row.text.includes(w));
+          row.el.classList.toggle("d-none", !match);
+          if (match) shown++;
+        });
+        count.textContent = COUNT_TEXT.replace("{count}", shown);
+      }
+
+      function load() {
+        if (!loading) {
+          count.textContent = LOADING;
+          loading = fetch("{{ url_for('exercise_catalog') }}", { credentials: "same-origin" })
+            .then((response) => response.json())
+            .then(function (data) { build(data); filter(); })
+            .catch(function () { loading = null; count.textContent = ""; });
+        }
+        return loading;
+      }
+
+      function choose(item) {
+        if (target) {
+          target.value = item.label;
+          if (target.id.indexOf("exercise_new_") === 0) syncTimedToggle(target.id.slice("exercise_new_".length), item.name);
+          if (window.wdRefreshSaveButtons) window.wdRefreshSaveButtons();
+        }
+        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+      }
+
+      document.addEventListener("click", function (e) {
+        const button = e.target.closest && e.target.closest("[data-wd-pick]");
+        if (!button) return;
+        e.preventDefault();
+        target = document.getElementById(button.dataset.wdPick);
+        search.value = "";
+        groupSelect.value = "";
+        filter();
+        load();
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+      });
+
+      // Typing straight away on a computer; on a phone that would only throw
+      // the keyboard over the list.
+      modalEl.addEventListener("shown.bs.modal", function () {
+        if (!NARROW.matches) search.focus();
+      });
+      search.addEventListener("input", filter);
+      groupSelect.addEventListener("change", filter);
+    });
   </script>
 
   <script>
@@ -707,6 +898,30 @@
       });
     }
   </script>
+
+  {# "Choose from the list": every exercise, with its icon and muscle group.
+     A tap puts it into the field the list was opened from. #}
+  <div class="modal fade" id="wd_picker" tabindex="-1" aria-hidden="true" aria-labelledby="wd_picker_title">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="wd_picker_title">{{ _("Choose exercise") }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
+        </div>
+        <div class="modal-body pt-2">
+          <div class="d-flex gap-2 mb-2 sticky-top bg-body pt-1 pb-2">
+            <input type="search" class="form-control" id="wd_picker_search" autocomplete="off"
+              placeholder="{{ _("Filter by name…") }}" aria-label="{{ _("Filter by name…") }}">
+            <select class="form-select w-auto" id="wd_picker_group" aria-label="{{ _("Muscle group") }}">
+              <option value="">{{ _("All groups") }}</option>
+            </select>
+          </div>
+          <p class="text-body-secondary small mb-2" id="wd_picker_count"></p>
+          <div class="list-group wd-catalog" id="wd_picker_list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="modal fade" id="wd_unsaved" tabindex="-1" aria-hidden="true"
     aria-labelledby="wd_unsaved_title">

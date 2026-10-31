@@ -285,5 +285,19 @@
   "{count} exercises": ["{count} cvik", "{count} cviky", "{count} cviků"],
   "{count} sessions": ["{count} trénink", "{count} tréninky", "{count} tréninků"],
   "{count} sessions logged": ["{count} zapsaný trénink", "{count} zapsané tréninky", "{count} zapsaných tréninků"],
-  "{count} weeks": ["{count} týden", "{count} týdny", "{count} týdnů"]
+  "{count} weeks": ["{count} týden", "{count} týdny", "{count} týdnů"],
+  "Abs": "Břicho",
+  "All groups": "Všechny skupiny",
+  "Back": "Záda",
+  "Chest": "Hrudník",
+  "Choose from the list": "Vybrat ze seznamu",
+  "Exercises: {count}": "Cviky: {count}",
+  "Filter by name…": "Hledej podle názvu…",
+  "Forearm": "Předloktí",
+  "Glutes": "Hýždě",
+  "Lower legs": "Lýtka",
+  "Muscle group": "Svalová skupina",
+  "Shoulders": "Ramena",
+  "Triceps": "Triceps",
+  "Upper legs": "Stehna"
 }
