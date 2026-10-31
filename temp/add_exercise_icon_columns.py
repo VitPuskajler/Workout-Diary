@@ -14,13 +14,13 @@ database: locally, and again on PythonAnywhere.
   - moves exercises onto a drawing of their own once they have one
     (OWN_DRAWINGS)
   - points variants at a shared drawing (ICON_ALIASES), then every other
-    exercise at the icon make_exercise_icons.py generated for it
+    exercise at the icon tools/make_exercise_icons.py generated for it
     (data/exercise_icons.json) - only where the exercise has no icon chosen
     yet, so a pick made on /admin/exercises wins
 
 Safe to run twice; it checks before it changes anything.
 
-    python add_exercise_icon_columns.py
+    python temp/add_exercise_icon_columns.py
 """
 import json
 import os
@@ -28,7 +28,7 @@ import re
 import sqlite3
 import sys
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                        "instance", "workout.db")
 
 # (name, muscle_group, is_timed)
@@ -42,7 +42,7 @@ ICON_ALIASES = {
 }
 
 # Exercises that shared a sibling's drawing and now have their own (the third
-# batch in make_exercise_icons.py): exercise -> the drawing it used to share.
+# batch in tools/make_exercise_icons.py): exercise -> the drawing it used to share.
 # Moved only while it still has that one - a pick made on /admin/exercises
 # since is left alone.
 OWN_DRAWINGS = {
@@ -87,7 +87,7 @@ OWN_DRAWINGS = {
 }
 
 
-# Generated icons the fourth batch in make_exercise_icons.py split into one
+# Generated icons the fourth batch in tools/make_exercise_icons.py split into one
 # drawing per movement (core, leg raises, yoga / stretches, Olympic lifts,
 # rear delts). An exercise still on one of these is moved to the icon the
 # generator gives it now; a pick made on /admin/exercises since is left alone
@@ -136,7 +136,7 @@ def main():
 
         icon_dir = os.path.join(os.path.dirname(DB_PATH), "..", "static", "icons", "exercises")
 
-        # An icon whose drawing make_exercise_icons.py no longer makes (the
+        # An icon whose drawing tools/make_exercise_icons.py no longer makes (the
         # exercise was moved to a better one) is not a pick worth keeping -
         # cleared, so the steps below give it its current drawing.
         drawings = {f[:-4] for f in os.listdir(icon_dir) if f.endswith(".svg")}
@@ -171,8 +171,8 @@ def main():
         conn.commit()
         print(f"\npointed {linked} exercises at a shared drawing")
 
-        # Everything else gets the icon make_exercise_icons.py built for it.
-        map_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "exercise_icons.json")
+        # Everything else gets the icon tools/make_exercise_icons.py built for it.
+        map_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "exercise_icons.json")
         if os.path.exists(map_path):
             with open(map_path, encoding="utf-8") as handle:
                 generated = json.load(handle)
@@ -199,7 +199,7 @@ def main():
             conn.commit()
             print(f"moved {regrouped} exercises from a shared drawing onto their movement's own")
         else:
-            print("no data/exercise_icons.json - run make_exercise_icons.py first")
+            print("no data/exercise_icons.json - run tools/make_exercise_icons.py first")
 
         missing = conn.execute(
             "SELECT count(*) FROM exercises WHERE icon IS NULL"

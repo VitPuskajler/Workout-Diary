@@ -35,8 +35,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from wtforms import FloatField, IntegerField, PasswordField, StringField, SubmitField
 from wtforms.validators import DataRequired, EqualTo, NumberRange, ValidationError
 
-from db_setup import db
-from i18n import LANGUAGES, current_language, js_translations, plural_forms, translate as _, translate_plural as _n
+from models.db_setup import db
+from translations.i18n import LANGUAGES, current_language, js_translations, plural_forms, translate as _, translate_plural as _n
 from models.models import Exercise, Users, WorkoutPlan, Mesocycles, load_user
 from workout_management.workout_management import  WorkoutManagement
 
@@ -778,7 +778,7 @@ EXERCISE_ICON_DIR = os.path.join(basedir, "static", "icons", "exercises")
 
 def _load_exercise_icons():
     """{file name: label} of the icon library, in picker order (hand-drawn
-    first). icons.json comes from make_exercise_icons.py; an icon file without
+    first). icons.json comes from tools/make_exercise_icons.py; an icon file without
     an entry there still counts, labelled by its file name."""
     files = sorted(
         name[:-4] for name in (os.listdir(EXERCISE_ICON_DIR) if os.path.isdir(EXERCISE_ICON_DIR) else [])
@@ -800,7 +800,7 @@ EXERCISE_ICON_LABELS = _load_exercise_icons()
 EXERCISE_ICONS = list(EXERCISE_ICON_LABELS)
 _EXERCISE_ICON_SET = set(EXERCISE_ICONS)
 # The icons that also come moving (icons/exercises/anim, see ANIMATED in
-# make_exercise_icons.py) - the exercise dropdown plays the ones in view, the
+# tools/make_exercise_icons.py) - the exercise dropdown plays the ones in view, the
 # training session table when the user switches it on in Customization.
 _EXERCISE_ICON_ANIM_DIR = os.path.join(EXERCISE_ICON_DIR, "anim")
 EXERCISE_ICONS_ANIMATED = sorted(
@@ -1144,7 +1144,7 @@ def customization():
 @app.context_processor
 def inject_translations():
     """The translators (_ and _n), the language and its helpers for templates -
-    see i18n.py."""
+    see translations/i18n.py."""
     return {"_": _, "_n": _n, "current_language": current_language, "LANGUAGES": LANGUAGES,
             "js_translations": js_translations, "plural_forms": plural_forms}
 

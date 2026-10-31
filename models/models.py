@@ -1,5 +1,5 @@
 from datetime import datetime
-from db_setup import db
+from models.db_setup import db
 from flask_login import UserMixin
 from sqlalchemy import (
     Boolean,
@@ -26,19 +26,19 @@ class Users(UserMixin, db.Model):
     # that already had rows, so existing users need a value at the SQL level.
     role = Column(String(20), nullable=False, default="user", server_default="user")
     # False until an admin approves the registration from /profile. Defaults
-    # to False for anyone signing up from here on - see add_approval_column.py
+    # to False for anyone signing up from here on - see temp/add_approval_column.py
     # for backfilling accounts that predate this column.
     is_approved = Column(Boolean, nullable=False, default=False, server_default="0")
     # Customization on /profile: the exercise's icon in each row of the
     # training session table, and whether it plays its rep. See
-    # add_customization_columns.py.
+    # temp/add_customization_columns.py.
     show_session_icons = Column(Boolean, nullable=False, default=True, server_default="1")
     animate_session_icons = Column(Boolean, nullable=False, default=False, server_default="0")
     # The stopwatch bar on the training pages, and the "+2:35" since the
     # previous set under each logged set.
     show_stopwatch = Column(Boolean, nullable=False, default=True, server_default="1")
     show_set_gaps = Column(Boolean, nullable=False, default=True, server_default="1")
-    # "en", "sk" or "cs" - see i18n.py.
+    # "en", "sk" or "cs" - see translations/i18n.py.
     language = Column(String(5), nullable=False, default="en", server_default="en")
 
     def __repr__(self):
@@ -64,14 +64,14 @@ class Exercise(UserMixin, db.Model):
     exercise_name = Column(String(100), unique=True, nullable=False)
     muscle_group = Column(String(100), unique=False, nullable=False)
     # Holds (planks, levers, yoga poses): the "reps" column stores seconds and
-    # every page says "Seconds" instead. See add_timed_column.py.
+    # every page says "Seconds" instead. See temp/add_timed_column.py.
     is_timed = Column(Boolean, nullable=False, default=False, server_default="0")
     # File name (no .svg) of a drawing in static/icons/exercises. NULL means
     # "the drawing named after the exercise, if there is one".
     icon = Column(String(100), nullable=True)
     # Deleted from /admin/exercises: hidden from every exercise picker, but the
     # row stays so the sets logged with it keep their name.
-    # See add_exercise_icon_columns.py.
+    # See temp/add_exercise_icon_columns.py.
     is_deleted = Column(Boolean, nullable=False, default=False, server_default="0")
 
     def __init__(self, exercise, muscle_group):
@@ -155,12 +155,12 @@ class ExerciseEntries(UserMixin, db.Model):
     # Stopwatch: when the set was logged, and (optionally) when the "Set" button
     # was tapped. Naive UTC, so the browser can turn them into epoch time without
     # knowing the server's timezone. NULL on sets logged before the stopwatch.
-    # See add_stopwatch_columns.py.
+    # See temp/add_stopwatch_columns.py.
     logged_at = Column(DateTime, nullable=True, default=datetime.utcnow)
     started_at = Column(DateTime, nullable=True)
     # Superset: the set (of another exercise) this one was done straight
     # after, the stopwatch's SS button. NULL for an ordinary set. See
-    # add_customization_columns.py.
+    # temp/add_customization_columns.py.
     superset_of = Column(Integer, db.ForeignKey("exercise_entries.entry_id"), nullable=True)
 
     def __init__(self, session_id, exercise_id, set_number, reps, weight, rpe, notes, unit="kg"):

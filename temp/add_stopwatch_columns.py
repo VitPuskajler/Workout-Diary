@@ -10,13 +10,13 @@ are naive UTC and NULL for every set logged before the stopwatch existed.
 
 Safe to run twice; it checks before it changes anything.
 
-    python add_stopwatch_columns.py
+    python temp/add_stopwatch_columns.py
 """
 import os
 import sqlite3
 import sys
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                        "instance", "workout.db")
 
 NEW_COLUMNS = ["logged_at", "started_at"]

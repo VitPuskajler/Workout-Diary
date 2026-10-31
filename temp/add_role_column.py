@@ -6,14 +6,14 @@ database: locally, and again on PythonAnywhere.
 
 Safe to run twice; it checks before it changes anything.
 
-    python add_role_column.py
+    python temp/add_role_column.py
 """
 import os
 import sqlite3
 import sys
 
 ADMIN_USERNAME = "Vito"
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                        "instance", "workout.db")
 
 

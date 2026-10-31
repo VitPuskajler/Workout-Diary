@@ -8,8 +8,8 @@ tr("...") in workout_management, wdT("...") in static/js, _n(count, "one",
   plural    a counted text whose translation is not the list of three forms
   unused    a translation no page asks for any more (safe to delete)
 
-    python check_translations.py            # report
-    python check_translations.py --list     # every text, one per line
+    python tools/check_translations.py            # report
+    python tools/check_translations.py --list     # every text, one per line
 """
 import ast
 import glob
@@ -18,7 +18,7 @@ import os
 import re
 import sys
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Texts translated through a variable, so no _("...") shows them: the ranges
 # of the statistics dropdown (STATISTICS_RANGES in workout_management.py).

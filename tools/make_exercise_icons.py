@@ -13,16 +13,16 @@ between its drawing and that pose (SMIL, ~1 KB more). Holds have none.
 
 The key is the icon's name; its file name is the slug of it. An exercise with
 exactly that name gets the icon on its own, any other exercise is pointed at it
-through exercises.icon (see add_exercise_icon_columns.py).
+through exercises.icon (see temp/add_exercise_icon_columns.py).
 
 To add a drawing: add an entry below, run it, restart the app.
 
-    python make_exercise_icons.py
+    python tools/make_exercise_icons.py
 """
 import json, os, re, sys
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "static", "icons", "exercises")
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "icons", "exercises")
 BODY, EQUIP, WEIGHT, ARROW = "#212529", "#9aa3ad", "#fd7e14", "#0d6efd"
 
 
@@ -1071,7 +1071,7 @@ def slug(name):
 #  parts instead: a POSE (body + where the hands are) and the EQUIPMENT named
 #  in the exercise, drawn at the hands. Exercises that come out the same share
 #  one file, and the mapping exercise -> file goes to data/exercise_icons.json
-#  for add_exercise_icon_columns.py to store in exercises.icon.
+#  for temp/add_exercise_icon_columns.py to store in exercises.icon.
 # ===========================================================================
 
 # ---- bodies the poses are built on (side views face left)
@@ -2149,7 +2149,7 @@ def generated_icon(name, group):
 
 
 def catalog_names():
-    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "instance", "workout.db")
+    db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "instance", "workout.db")
     if not os.path.exists(db_path):
         return []
     import sqlite3
@@ -2201,7 +2201,7 @@ def main():
     # The icon library, in picker order: the hand-drawn ones first.
     with open(os.path.join(OUT, "icons.json"), "w", encoding="utf-8", newline="") as f:
         json.dump(labels, f, ensure_ascii=False, indent=0)
-    map_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "exercise_icons.json")
+    map_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "exercise_icons.json")
     with open(map_path, "w", encoding="utf-8", newline="") as f:
         json.dump(dict(sorted(mapping.items())), f, ensure_ascii=False, indent=1)
 

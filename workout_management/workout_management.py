@@ -4,7 +4,7 @@ import os
 import io
 from types import SimpleNamespace
 import pandas as pd
-from db_setup import db
+from models.db_setup import db
 from flask_login import current_user
 from models.models import (
     Users,
@@ -29,7 +29,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import SQLAlchemyError
 from flask import request
 
-from i18n import translate as tr
+from translations.i18n import translate as tr
 from datetime import datetime, date, timedelta, timezone
 from workout_management.units import lbs_to_kg
 

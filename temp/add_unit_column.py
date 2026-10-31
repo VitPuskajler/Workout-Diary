@@ -10,13 +10,13 @@ no conversion needed, they already are kg.
 
 Safe to run twice; it checks before it changes anything.
 
-    python add_unit_column.py
+    python temp/add_unit_column.py
 """
 import os
 import sqlite3
 import sys
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                        "instance", "workout.db")
 
 

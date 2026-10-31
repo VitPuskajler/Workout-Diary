@@ -10,7 +10,7 @@ _("..."), which hands back the same text in the user's language:
 
 translations/sk.json and cs.json map the English text to the translation. A
 text missing there simply stays English, so a new button never breaks a page -
-check_translations.py lists what is missing.
+tools/check_translations.py lists what is missing.
 
 Exercise names are never translated - they stay English on purpose.
 
@@ -27,7 +27,7 @@ from flask_login import current_user
 LANGUAGES = {"en": "English", "sk": "Slovenčina", "cs": "Čeština"}
 DEFAULT_LANGUAGE = "en"
 
-_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "translations")
+_DIR = os.path.dirname(os.path.abspath(__file__))                  # translations/, beside this file
 
 
 def _load(code):
@@ -44,7 +44,7 @@ CATALOGS = {code: _load(code) for code in LANGUAGES if code != DEFAULT_LANGUAGE}
 
 def _js_texts():
     """The texts static/js asks for with wdT("...") - only these go to the page."""
-    js_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "js")
+    js_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "js")
     found = set()
     for name in os.listdir(js_dir) if os.path.isdir(js_dir) else []:
         if name.endswith(".js"):

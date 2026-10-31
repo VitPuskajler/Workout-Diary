@@ -12,13 +12,13 @@ column, only the labels change.
 Safe to run twice; it checks before it changes anything. More exercises can be
 flagged afterwards from the "Reps / Sec" button on /create_workout.
 
-    python add_timed_column.py
+    python temp/add_timed_column.py
 """
 import os
 import sqlite3
 import sys
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                        "instance", "workout.db")
 
 HOLD_EXERCISES = [

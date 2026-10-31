@@ -1,6 +1,6 @@
 {# wdT(English text) for the scripts in static/js: the same text in the
    user's language, or the English back when there is no translation. Only
-   the texts those scripts use are sent - see JS_TEXTS in i18n.py. #}
+   the texts those scripts use are sent - see JS_TEXTS in translations/i18n.py. #}
 <script>
   window.WD_T = {{ js_translations()|tojson }};
   window.wdT = function (text) { return window.WD_T[text] || text; };

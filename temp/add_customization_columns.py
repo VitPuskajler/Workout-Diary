@@ -9,7 +9,7 @@ database: locally, and again on PythonAnywhere.
   - users.animate_session_icons (0/1, 0)  those icons play their rep
   - users.show_stopwatch (0/1, 1)         the stopwatch bar on the training pages
   - users.show_set_gaps (0/1, 1)          "+2:35" since the previous set
-  - users.language ("en")                 "en", "sk" or "cs" (i18n.py)
+  - users.language ("en")                 "en", "sk" or "cs" (translations/i18n.py)
   - sessions.started_by_stopwatch (NULL)  whether the duration runs from a
                                           Start tap; NULL for older sessions
   - exercise_entries.superset_of (NULL)   the set a superset set was done
@@ -20,13 +20,13 @@ on - how the app looked before the switches existed.
 
 Safe to run twice; it checks before it changes anything.
 
-    python add_customization_columns.py
+    python temp/add_customization_columns.py
 """
 import os
 import sqlite3
 import sys
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                        "instance", "workout.db")
 
 # (table, column, SQL type and default)
