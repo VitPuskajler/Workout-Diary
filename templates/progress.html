@@ -446,9 +446,9 @@
           <table class="table table-sm table-striped text-center">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Duration</th>
-                <th>Sets</th>
+                <th>{{ _("Date") }}</th>
+                <th>{{ _("Duration") }}</th>
+                <th>{{ _("Sets") }}</th>
               </tr>
             </thead>
             <tbody>
@@ -485,11 +485,11 @@
             <table id="wd-hist-table-{{ loop.index }}" class="table table-striped text-center wd-rows wd-wide-note wd-editable">
               <thead class="thead-dark">
                 <tr>
-                  <th>Date</th>
-                  <th>{{ 'Seconds' if is_timed(key) else 'Reps' }}</th>
-                  <th>Weight</th>
+                  <th>{{ _("Date") }}</th>
+                  <th>{{ _('Seconds') if is_timed(key) else _('Reps') }}</th>
+                  <th>{{ _("Weight") }}</th>
                   <th>RPE</th>
-                  <th>Notes</th> <!-- Corrected this heading as well to align with data.notes -->
+                  <th>{{ _("Notes") }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -567,7 +567,7 @@
             <div class="btn-group mb-3" role="group" aria-label="{{ _("Target unit") }}" id="progress_fix_unit_targets">
               <button type="button" class="btn btn-outline-secondary btn-sm" data-target-unit="kg">Kg</button>
               <button type="button" class="btn btn-outline-secondary btn-sm" data-target-unit="lbs">Lbs</button>
-              <button type="button" class="btn btn-outline-secondary btn-sm" data-target-unit="other">Other</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-target-unit="other">{{ _("Other") }}</button>
             </div>
             <div class="d-flex flex-column gap-2">
               <button type="button" class="btn btn-success" id="progress_fix_unit_session"></button>

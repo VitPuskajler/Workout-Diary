@@ -181,9 +181,9 @@
 
           <thead>
             <th>Kg</th>
-            <th>{{ 'Sec' if is_timed(chosen_exercise) else 'Reps' }}</th>
+            <th>{{ _('Sec') if is_timed(chosen_exercise) else _('Reps') }}</th>
             <th>RPE</th>
-            <th>Notes</th>
+            <th>{{ _("Notes") }}</th>
 
           </thead>
           <tbody>
@@ -274,12 +274,12 @@
                     <button type="button" id="weightUnitToggle" data-unit="{{ default_unit }}"
                       class="btn btn-sm btn-link p-0 fw-bold text-decoration-none text-reset"
                       title="{{ _("Click to switch the unit new sets are logged in") }}">{% if default_unit == 'lbs'
-                      %}Lbs{% elif default_unit == 'other' %}Other{% else %}Kg{% endif %}</button>
+                      %}Lbs{% elif default_unit == 'other' %}{{ _("Other") }}{% else %}Kg{% endif %}</button>
                   </th>
-                  <th>{{ 'Sec' if is_timed(chosen_exercise) else 'Reps' }}</th>
+                  <th>{{ _('Sec') if is_timed(chosen_exercise) else _('Reps') }}</th>
                   <th>RPE</th>
-                  <th>Notes</th>
-                  <th>Del</th>
+                  <th>{{ _("Notes") }}</th>
+                  <th>{{ _("Del") }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -468,10 +468,10 @@
           <table class="table table-striped text-center mb-5" id="exercisePreview">
             <thead class="table-striped ">
               <tr>
-                <th class="col-2">Exercise</th>
-                <th class="col-1">Weight</th>
-                <th class="col-1">Sets</th>
-                <th class="col-1">Reps</th>
+                <th class="col-2">{{ _("Exercise") }}</th>
+                <th class="col-1">{{ _("Weight") }}</th>
+                <th class="col-1">{{ _("Sets") }}</th>
+                <th class="col-1">{{ _("Reps") }}</th>
               </tr>
             </thead>
             <tbody>
@@ -611,7 +611,7 @@
       if (!toggle || !unitField) { return; }
 
       const KG_PER_LB = 0.45359237;
-      const LABELS = { kg: "Kg", lbs: "Lbs", other: "Other" };
+      const LABELS = { kg: "Kg", lbs: "Lbs", other: {{ _("Other")|tojson }} };
       const NEXT_UNIT = { kg: "lbs", lbs: "other", other: "kg" };
       const MAX_BY_UNIT = { kg: 501, lbs: 1100, other: 50 };
 

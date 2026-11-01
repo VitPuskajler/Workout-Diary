@@ -98,9 +98,9 @@
             <table class="table table-striped align-middle mb-0">
               <thead>
                 <tr>
-                  <th scope="col">Mesocycle</th>
-                  <th scope="col" class="text-center d-none d-sm-table-cell">Sessions</th>
-                  <th scope="col" class="text-center">Delete?</th>
+                  <th scope="col">{{ _("Mesocycle") }}</th>
+                  <th scope="col" class="text-center d-none d-sm-table-cell">{{ _("Sessions") }}</th>
+                  <th scope="col" class="text-center">{{ _("Delete?") }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -133,7 +133,7 @@
              nothing is a button you learn to press without thinking. #}
           <div class="text-center my-4">
             <button type="button" class="btn btn-danger" id="deleteMesoOpen" disabled
-              data-bs-toggle="modal" data-bs-target="#confirmDeleteMeso">Delete</button>
+              data-bs-toggle="modal" data-bs-target="#confirmDeleteMeso">{{ _("Delete") }}</button>
           </div>
         </form>
         {% else %}
@@ -156,7 +156,7 @@
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="mesoPreviewTitle">Mesocycle</h5>
+          <h5 class="modal-title" id="mesoPreviewTitle">{{ _("Mesocycle") }}</h5>
           <button type="button" class="btn btn-sm btn-outline-danger ms-auto" data-bs-dismiss="modal"
             aria-label="{{ _("Close") }}">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -178,9 +178,9 @@
             <table class="table table-striped table-sm text-center mb-4">
               <thead>
                 <tr>
-                  <th class="text-center">Exercise</th>
-                  <th class="text-center">Sets</th>
-                  <th class="text-center">Rest</th>
+                  <th class="text-center">{{ _("Exercise") }}</th>
+                  <th class="text-center">{{ _("Sets") }}</th>
+                  <th class="text-center">{{ _("Rest") }}</th>
                 </tr>
               </thead>
               <tbody>

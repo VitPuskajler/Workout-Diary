@@ -100,22 +100,33 @@
 
         <p class="h2 text-center my-4">{{ _("New mesocycle") }}</p>
 
-        {# Two ways in. The caption above each button says what it does, so the
-           buttons themselves stay two words. #}
-        <div class="row g-3 text-center">
-          <div class="col-12 col-md-6">
-            <p class="text-body-secondary small mb-2">{{ _("Choose everything from scratch") }}</p>
-            <button type="button" class="btn btn-success w-100" data-bs-toggle="collapse"
-              data-bs-target="#fromScratch" aria-expanded="false" aria-controls="fromScratch">
-              {{ _("Create new mesocycle") }}
-            </button>
-          </div>
-          <div class="col-12 col-md-6">
-            <p class="text-body-secondary small mb-2">{{ _("Pick a template and customise it as you wish") }}</p>
-            <button type="button" class="btn btn-warning w-100" data-bs-toggle="modal"
-              data-bs-target="#templatePicker">
-              {{ _("Choose template") }}
-            </button>
+        {# Two ways in - three once you have a mesocycle of your own to copy.
+           Stacked in one narrow column on every screen, like the menus on the
+           other pages. No captions - the button names say what they do. #}
+        <div class="row justify-content-center">
+          <div class="col-12 col-md-6 col-lg-5">
+            <div class="d-grid gap-3 text-center">
+              <div>
+                <button type="button" class="btn btn-success w-100" data-bs-toggle="collapse"
+                  data-bs-target="#fromScratch" aria-expanded="false" aria-controls="fromScratch">
+                  {{ _("Create new mesocycle") }}
+                </button>
+              </div>
+              <div>
+                <button type="button" class="btn btn-warning w-100" data-bs-toggle="modal"
+                  data-bs-target="#templatePicker">
+                  {{ _("Choose from a template") }}
+                </button>
+              </div>
+              {% if own_mesocycles %}
+              <div>
+                <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal"
+                  data-bs-target="#copyPicker">
+                  {{ _("Choose from an existing mesocycle") }}
+                </button>
+              </div>
+              {% endif %}
+            </div>
           </div>
         </div>
 
@@ -164,13 +175,13 @@
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="btn btn-sm btn-outline-secondary d-none me-2"
-            id="templateBack" aria-label="{{ _("Back to the list") }}">
+            data-picker-back aria-label="{{ _("Back to the list") }}">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
               <path d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
             </svg>
           </button>
 
-          <h5 class="modal-title" id="templatePickerTitle">{{ _("Choose template") }}</h5>
+          <h5 class="modal-title" id="templatePickerTitle" data-picker-title>{{ _("Choose from a template") }}</h5>
 
           <button type="button" class="btn btn-sm btn-outline-danger ms-auto"
             data-bs-dismiss="modal" aria-label="{{ _("Close without changes") }}">
@@ -181,7 +192,7 @@
         </div>
 
         <div class="modal-body">
-          <div id="templateList">
+          <div data-picker-list>
             {% if templates %}
             <p class="text-body-secondary small text-center mb-3">{{ _("Click to preview") }}</p>
             <div class="list-group">
@@ -218,9 +229,9 @@
             <table class="table table-striped table-sm text-center mb-4">
               <thead>
                 <tr>
-                  <th class="text-center">Exercise</th>
-                  <th class="text-center">Sets</th>
-                  <th class="text-center">Rest</th>
+                  <th class="text-center">{{ _("Exercise") }}</th>
+                  <th class="text-center">{{ _("Sets") }}</th>
+                  <th class="text-center">{{ _("Rest") }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -241,6 +252,108 @@
     </div>
   </div>
 
+  {# ------------------------------------------------------------------
+     Copy picker: the template picker again, filled with your own
+     mesocycles, newest first. Only the plan is copied - days, exercises,
+     sets, rest and duration - never the training logged against it.
+     ------------------------------------------------------------------ #}
+  {% if own_mesocycles %}
+  <div class="modal fade" id="copyPicker" tabindex="-1" aria-hidden="true"
+    aria-labelledby="copyPickerTitle">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="btn btn-sm btn-outline-secondary d-none me-2"
+            data-picker-back aria-label="{{ _("Back to the list") }}">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+            </svg>
+          </button>
+
+          <h5 class="modal-title" id="copyPickerTitle" data-picker-title>{{ _("Choose from an existing mesocycle") }}</h5>
+
+          <button type="button" class="btn btn-sm btn-outline-danger ms-auto"
+            data-bs-dismiss="modal" aria-label="{{ _("Close without changes") }}">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div data-picker-list>
+            <p class="text-body-secondary small text-center mb-3">{{ _("Click to preview") }}</p>
+            <div class="list-group">
+              {% for meso in own_mesocycles %}
+              <button type="button"
+                class="list-group-item list-group-item-action text-start"
+                data-template="{{ meso.id }}">
+                <span class="fw-medium d-block">{{ meso.name }}</span>
+                <span class="text-body-secondary small d-block">
+                  {{ _n(meso.day_count, "{count} day", "{count} days") }} &middot;
+                  {{ _n(meso.duration_weeks, "{count} week", "{count} weeks") }}
+                  {% if meso.created %}&middot; {{ meso.created.strftime("%d.%m.%Y") }}{% endif %}
+                </span>
+              </button>
+              {% endfor %}
+            </div>
+          </div>
+
+          {% for meso in own_mesocycles %}
+          <div class="d-none" data-template-detail="{{ meso.id }}"
+            data-template-name="{{ meso.name }}">
+            <form action="{{ url_for('table_layout') }}" method="post" class="mb-4">
+              <input type="hidden" name="action" value="copy_mesocycle" />
+              <input type="hidden" name="mesocycle_id" value="{{ meso.id }}" />
+              <label for="copy_name_{{ meso.id }}" class="form-label"><b>{{ _("Name of the new mesocycle") }}</b></label>
+              <input type="text" id="copy_name_{{ meso.id }}" name="copy_name" class="form-control"
+                value="{{ meso.name }}" maxlength="100" required>
+              <p class="text-body-secondary small mt-1 mb-3">
+                {{ _("Keeping the same name is fine - the older mesocycle then gets the date it was created added to its name.") }}
+              </p>
+              <div class="text-center">
+                <button type="submit" class="btn btn-success">{{ _("Use this plan") }}</button>
+                <p class="text-body-secondary small mt-2 mb-0">
+                  {{ _n(meso.day_count, "{count} day", "{count} days") }} &middot;
+                  {{ _n(meso.duration_weeks, "{count} week", "{count} weeks") }} &middot;
+                  {{ _n(meso.exercise_count, "{count} exercise", "{count} exercises") }}
+                </p>
+              </div>
+            </form>
+
+            {% for day in meso.days %}
+            <h6 class="text-center text-success border-bottom pb-2 mb-3">{{ day.name }}</h6>
+            {% if day.exercises %}
+            <table class="table table-striped table-sm text-center mb-4">
+              <thead>
+                <tr>
+                  <th class="text-center">{{ _("Exercise") }}</th>
+                  <th class="text-center">{{ _("Sets") }}</th>
+                  <th class="text-center">{{ _("Rest") }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in day.exercises %}
+                <tr>
+                  <td>{{ exercise_label(item.exercise) }}</td>
+                  <td>{{ item.sets }}</td>
+                  <td>{{ item.rest }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% else %}
+            <p class="text-center text-body-secondary small mb-4">{{ _("No exercises on this day yet.") }}</p>
+            {% endif %}
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
 
   <div class="p-3">
     <div class="fixed-bottom text-center py-2">
@@ -255,15 +368,16 @@
     crossorigin="anonymous"></script>
 
   <script>
-    // Swap the dialog between its two views. Nothing is fetched: every plan's
-    // tables are already in the page, hidden.
-    (function () {
-      const dialog = document.getElementById("templatePicker");
+    // Swap a picker dialog between its two views: the list, and one plan's
+    // tables. Nothing is fetched - every plan is already in the page, hidden.
+    // Drives both the template picker and the copy picker.
+    function wirePicker(dialogId, listTitle) {
+      const dialog = document.getElementById(dialogId);
       if (!dialog) return;
 
-      const list = document.getElementById("templateList");
-      const back = document.getElementById("templateBack");
-      const title = document.getElementById("templatePickerTitle");
+      const list = dialog.querySelector("[data-picker-list]");
+      const back = dialog.querySelector("[data-picker-back]");
+      const title = dialog.querySelector("[data-picker-title]");
       const details = dialog.querySelectorAll("[data-template-detail]");
       const body = dialog.querySelector(".modal-body");
 
@@ -271,7 +385,7 @@
         details.forEach((d) => d.classList.add("d-none"));
         list.classList.remove("d-none");
         back.classList.add("d-none");
-        title.textContent = {{ _("Choose template")|tojson }};
+        title.textContent = listTitle;
         body.scrollTop = 0;
       }
 
@@ -292,7 +406,10 @@
       back.addEventListener("click", showList);
       // Reopening should always start at the list, never mid-preview.
       dialog.addEventListener("hidden.bs.modal", showList);
-    })();
+    }
+
+    wirePicker("templatePicker", {{ _("Choose from a template")|tojson }});
+    wirePicker("copyPicker", {{ _("Choose from an existing mesocycle")|tojson }});
   </script>
 
   <!-- waiting overlay -->

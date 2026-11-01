@@ -51,7 +51,7 @@
   var isTimed = !!data.is_timed;
   var isBodyweight = !!data.is_bodyweight || isTimed;
   var repsUnit = isTimed ? "s" : wdT("reps");
-  var yLabel = isBodyweight ? (isTimed ? wdT("Seconds") : wdT("Reps")) : wdT("Weight (kg)");
+  var yLabel = isBodyweight ? (isTimed ? wdT("Seconds") : wdT("Repetitions")) : wdT("Weight (kg)");
 
   new Chart(canvas.getContext("2d"), {
     type: "line",

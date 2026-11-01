@@ -143,6 +143,8 @@ delete_exercise = db_operations.delete_exercise
 reorder_exercises = db_operations.reorder_exercises
 load_mesocycle_templates = db_operations.load_mesocycle_templates
 apply_mesocycle_template = db_operations.apply_mesocycle_template
+mesocycles_for_copy = db_operations.mesocycles_for_copy
+copy_mesocycle = db_operations.copy_mesocycle
 mesocycles_for_management = db_operations.mesocycles_for_management
 delete_mesocycles = db_operations.delete_mesocycles
 current_mesocycle_name = db_operations.current_mesocycle_name
@@ -377,6 +379,27 @@ def table_layout():
             flash(_('Created "{name}" - edit it below.', name=created), "success")
             return redirect(url_for("create_workout"))
 
+        # Copy one of your own mesocycles - plan only, no logged training.
+        if request.form.get("action") == "copy_mesocycle":
+            created, renamed, error = copy_mesocycle(
+                request.form.get("mesocycle_id"), request.form.get("copy_name")
+            )
+            if not created:
+                flash(error, "warning")
+                return redirect(url_for("table_layout"))
+
+            # /workout_plan_page and /progress remember a mesocycle by NAME.
+            # Point them at the new copy - it is the plan you train in now.
+            session["chosen_mesocycle"] = created
+            if renamed:
+                flash(
+                    _('Your older "{name}" is now called "{renamed}".',
+                      name=created, renamed=", ".join(renamed)),
+                    "info",
+                )
+            flash(_('Created "{name}" - edit it below.', name=created), "success")
+            return redirect(url_for("create_workout"))
+
         meso_name = request.form.get("meso_name")
         meso_duration = request.form.get("mesocycle")
         # "Workouts Per Week" is no longer asked for. Four days is the default
@@ -422,7 +445,8 @@ def table_layout():
             return redirect(url_for("home"))
             
     return render_template(
-        "table_layout.html", year=YEAR, templates=load_mesocycle_templates()
+        "table_layout.html", year=YEAR, templates=load_mesocycle_templates(),
+        own_mesocycles=mesocycles_for_copy(),
     )
 
 # ----------------------------------------------------------------------
@@ -939,7 +963,7 @@ def impersonate():
     login_user(target)
     session[IMPERSONATOR_KEY] = admin_id
 
-    flash(f"You are now signed in as {target.username}.", "info")
+    flash(_("You are now signed in as {name}.", name=target.username), "info")
     return redirect(url_for("profile"))
 
 
@@ -962,7 +986,7 @@ def stop_impersonating():
     session.clear()
     login_user(admin)
 
-    flash("Back on your own account.", "success")
+    flash(_("Back on your own account."), "success")
     return redirect(url_for("profile"))
 
 
@@ -982,7 +1006,7 @@ def approve_user():
     target.is_approved = True
     db.session.commit()
 
-    flash(f"{target.username} can now log in.", "success")
+    flash(_("{name} can now log in.", name=target.username), "success")
     return redirect(url_for("profile"))
 
 
@@ -1009,7 +1033,7 @@ def decline_user():
     db.session.delete(target)
     db.session.commit()
 
-    flash(f"Declined and removed {username}.", "success")
+    flash(_("Declined and removed {name}.", name=username), "success")
     return redirect(url_for("profile"))
 
 
@@ -1058,41 +1082,41 @@ def manage_exercises():
             except (TypeError, ValueError):
                 exercise = None
             if exercise is None:
-                flash("That exercise was not found.", "warning")
+                flash(_("That exercise was not found."), "warning")
                 return redirect(url_for("manage_exercises"))
 
         if action == "delete":
             exercise.is_deleted = True
             db.session.commit()
-            flash(f'Deleted "{exercise.exercise_name}". Sets logged with it are kept; '
-                  f'Edit can bring it back.', "success")
+            flash(_('Deleted "{name}". Sets logged with it are kept; Edit can bring it back.',
+                    name=exercise.exercise_name), "success")
             return redirect(url_for("manage_exercises"))
 
         if action not in ("add", "edit"):
             abort(400)
         if not name:
-            flash("The exercise needs a name.", "warning")
+            flash(_("The exercise needs a name."), "warning")
             return redirect(url_for("manage_exercises"))
         if muscle_group not in catalog_muscle_groups():
-            flash("Pick one of the listed muscle groups.", "warning")
+            flash(_("Pick one of the listed muscle groups."), "warning")
             return redirect(url_for("manage_exercises"))
         taken = _catalog_name_taken(name, exercise.exercise_id if exercise else None)
         if taken:
-            flash(f'"{taken}" is already in the catalog - nothing was saved.', "warning")
+            flash(_('"{name}" is already in the catalog - nothing was saved.', name=taken), "warning")
             return redirect(url_for("manage_exercises"))
 
         if action == "add":
             exercise = Exercise(name, muscle_group)
             db.session.add(exercise)
-            message = f'Added "{name}".'
+            message = _('Added "{name}".', name=name)
         else:
             was_deleted = exercise.is_deleted
             exercise.is_deleted = request.form.get("is_deleted") == "1"
-            message = f'Saved "{name}".'
+            message = _('Saved "{name}".', name=name)
             if exercise.exercise_name != name:
-                message = f'Renamed "{exercise.exercise_name}" to "{name}".'
+                message = _('Renamed "{old}" to "{name}".', old=exercise.exercise_name, name=name)
             if was_deleted and not exercise.is_deleted:
-                message += " It is back in the exercise search."
+                message += " " + _("It is back in the exercise search.")
             exercise.exercise_name = name
 
         exercise.muscle_group = muscle_group
@@ -1172,7 +1196,7 @@ def change_password():
     db.session.commit()
 
     if impersonator_id:
-        flash(f"Password changed for {target.username}. Tell them what it is.", "success")
+        flash(_("Password changed for {name}. Tell them what it is.", name=target.username), "success")
     else:
         flash(_("Your password has been changed."), "success")
     return redirect(url_for("profile"))
@@ -1209,6 +1233,17 @@ def save_customization():
         setattr(user, name, request.form.get(name) == "1")
     if request.form.get("language") in LANGUAGES:
         user.language = request.form["language"]
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/customization/translate_exercises", methods=["POST"])
+@login_required
+def save_translate_exercises():
+    """Just the translated-names switch - the copy of it on /create_workout.
+    save_customization() would turn off every switch the request leaves out."""
+    user = db.session.get(Users, current_user.user_id)
+    user.translate_exercises = request.form.get("translate_exercises") == "1"
     db.session.commit()
     return jsonify({"ok": True})
 

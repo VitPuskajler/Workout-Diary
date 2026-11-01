@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Manage exercises</title>
+  <title>{{ _("Manage exercises") }}</title>
   <link rel="icon" href="/static/title/barbell_title.jpg">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
@@ -107,10 +107,10 @@
 <body>
 
   <div class="p-3 mb-5">
-    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="Main navigation">
+    <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="{{ _("Main navigation") }}">
       <div class="container-fluid">
         <a href="{{ url_for('profile') }}" class="text-light me-2 d-flex align-items-center"
-          aria-label="Back to menu" title="Back to menu" style="text-decoration: none;">
+          aria-label="{{ _("Back to menu") }}" title="{{ _("Back to menu") }}" style="text-decoration: none;">
           <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path fill-rule="evenodd"
               d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z">
@@ -119,16 +119,16 @@
         </a>
         <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
         <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
-          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+          aria-controls="navbarCollapse" aria-expanded="false" aria-label="{{ _("Toggle navigation") }}">
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarCollapse">
           <ul class="navbar-nav me-auto mb-2 mb-md-0">
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('training_session_redirect') }}">Training Session</a>
+              <a class="nav-link" href="{{ url_for('training_session_redirect') }}">{{ _("Training Session") }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('workout_plan') }}">Workout Plan</a>
+              <a class="nav-link" href="{{ url_for('workout_plan') }}">{{ _("Workout Plan") }}</a>
             </li>
           </ul>
           <ul class="navbar-nav ms-auto">
@@ -136,7 +136,7 @@
               <a class="nav-link" href="{{ url_for('profile') }}">{{ current_user.username }}</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+              <a class="nav-link" href="{{ url_for('logout') }}">{{ _("Logout") }}</a>
             </li>
           </ul>
         </div>
@@ -151,17 +151,18 @@
     <div class="row justify-content-center">
       <div class="col-12 col-md-6 col-lg-4">
 
-        <p class="h2 text-center mb-2">Manage exercises</p>
+        <p class="h2 text-center mb-2">{{ _("Manage exercises") }}</p>
         <p class="text-body-secondary small text-center mb-4">
-          {{ exercises|rejectattr('deleted')|list|length }} exercises in the catalog.
-          Every user's exercise search reads it.
+          {% set live_count = exercises|rejectattr('deleted')|list|length %}
+          {{ _n(live_count, "{count} exercise in the catalog.", "{count} exercises in the catalog.") }}
+          {{ _("Every user's exercise search reads it.") }}
         </p>
 
         <div class="d-grid gap-3 wd-menu">
-          <button type="button" class="btn btn-primary" id="openView">View exercises</button>
-          <button type="button" class="btn btn-success" id="openAdd">Add exercise</button>
-          <button type="button" class="btn btn-warning" id="openEdit">Edit exercise</button>
-          <button type="button" class="btn btn-danger" id="openDelete">Delete exercise</button>
+          <button type="button" class="btn btn-primary" id="openView">{{ _("View exercises") }}</button>
+          <button type="button" class="btn btn-success" id="openAdd">{{ _("Add exercise") }}</button>
+          <button type="button" class="btn btn-warning" id="openEdit">{{ _("Edit exercise") }}</button>
+          <button type="button" class="btn btn-danger" id="openDelete">{{ _("Delete exercise") }}</button>
         </div>
 
       </div>
@@ -176,77 +177,77 @@
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="exFormTitle">Add exercise</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <h5 class="modal-title" id="exFormTitle">{{ _("Add exercise") }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
         </div>
         <div class="modal-body">
 
           <div id="exPick" class="mb-3">
-            <label for="exPickSearch" class="form-label">Which exercise?</label>
+            <label for="exPickSearch" class="form-label">{{ _("Which exercise?") }}</label>
             <input type="search" class="form-control" id="exPickSearch" autocomplete="off"
-              placeholder="Start typing a name...">
+              placeholder="{{ _("Start typing a name...") }}">
             <div class="list-group mt-2 wd-results" id="exPickResults"></div>
           </div>
 
           <div id="exFields">
             <div class="mb-3">
-              <label for="exName" class="form-label">Name</label>
+              <label for="exName" class="form-label">{{ _("Name") }}</label>
               <input type="text" class="form-control" id="exName" maxlength="100" autocomplete="off"
                 placeholder="Explosive Pull-Up">
-              <div class="form-text">Use the singular: <em>Pull-Up</em>, not <em>Pull-Ups</em>.</div>
-              <div class="invalid-feedback">The exercise needs a name.</div>
+              <div class="form-text">{{ _("Use the singular: <em>Pull-Up</em>, not <em>Pull-Ups</em>.")|safe }}</div>
+              <div class="invalid-feedback">{{ _("The exercise needs a name.") }}</div>
             </div>
 
             <div class="mb-3">
-              <label for="exGroup" class="form-label">Muscle group</label>
+              <label for="exGroup" class="form-label">{{ _("Muscle group") }}</label>
               <select class="form-select" id="exGroup">
                 {% for group in muscle_groups %}
-                <option value="{{ group }}">{{ group|replace('_', ' ')|capitalize }}</option>
+                <option value="{{ group }}">{{ _(group|replace('_', ' ')|capitalize) }}</option>
                 {% endfor %}
               </select>
             </div>
 
             <div class="mb-3">
-              <label class="form-label d-block" for="exIconField">Icon</label>
+              <label class="form-label d-block" for="exIconField">{{ _("Icon") }}</label>
               <button type="button" class="form-control d-flex align-items-center gap-2 text-start wd-icon-preview"
                 id="exIconField" aria-expanded="false" aria-controls="exIconPanel">
                 <span id="exIconPreview"></span>
-                <span class="flex-grow-1" id="exIconLabel">No icon</span>
-                <small class="text-body-secondary">Choose</small>
+                <span class="flex-grow-1" id="exIconLabel">{{ _("No icon") }}</span>
+                <small class="text-body-secondary">{{ _("Choose") }}</small>
               </button>
               <div class="mt-2 d-none" id="exIconPanel">
                 <input type="search" class="form-control form-control-sm mb-2" id="exIconSearch"
-                  autocomplete="off" placeholder="Filter icons: curl, cable, squat...">
-                <div class="wd-icon-grid" id="exIconGrid" role="listbox" aria-label="Icons"></div>
+                  autocomplete="off" placeholder="{{ _("Filter icons: curl, cable, squat...") }}">
+                <div class="wd-icon-grid" id="exIconGrid" role="listbox" aria-label="{{ _("Icons") }}"></div>
               </div>
             </div>
 
             <!-- Shown instead of the English name to users who switch translated
                  exercise names on in Customization. Empty: English shows. -->
             <div class="mb-3">
-              <label class="form-label" for="exNameSk">Name in Slovak <small class="text-body-secondary">(optional)</small></label>
+              <label class="form-label" for="exNameSk">{{ _("Name in Slovak") }} <small class="text-body-secondary">{{ _("(optional)") }}</small></label>
               <input type="text" class="form-control" id="exNameSk" maxlength="100" autocomplete="off" lang="sk">
-              <label class="form-label mt-2" for="exNameCs">Name in Czech <small class="text-body-secondary">(optional)</small></label>
+              <label class="form-label mt-2" for="exNameCs">{{ _("Name in Czech") }} <small class="text-body-secondary">{{ _("(optional)") }}</small></label>
               <input type="text" class="form-control" id="exNameCs" maxlength="100" autocomplete="off" lang="cs">
             </div>
 
             <div class="form-check mb-2">
               <input class="form-check-input" type="checkbox" id="exTimed">
-              <label class="form-check-label" for="exTimed">Timed hold - sets are logged in seconds</label>
+              <label class="form-check-label" for="exTimed">{{ _("Timed hold - sets are logged in seconds") }}</label>
             </div>
 
             <div class="form-check" id="exDeletedRow">
               <input class="form-check-input" type="checkbox" id="exDeleted">
               <label class="form-check-label" for="exDeleted">
-                Deleted - hidden from the exercise search (untick to bring it back)
+                {{ _("Deleted - hidden from the exercise search (untick to bring it back)") }}
               </label>
             </div>
           </div>
 
         </div>
         <div class="modal-footer d-flex justify-content-between">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-success" id="exFormConfirm">Confirm</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+          <button type="button" class="btn btn-success" id="exFormConfirm">{{ _("Confirm") }}</button>
         </div>
       </div>
     </div>
@@ -256,22 +257,21 @@
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title text-danger" id="exDeleteTitle">Delete exercise</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <h5 class="modal-title text-danger" id="exDeleteTitle">{{ _("Delete exercise") }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
         </div>
         <div class="modal-body">
-          <label for="exDeleteSearch" class="form-label">Which exercise?</label>
+          <label for="exDeleteSearch" class="form-label">{{ _("Which exercise?") }}</label>
           <input type="search" class="form-control" id="exDeleteSearch" autocomplete="off"
-            placeholder="Start typing a name...">
+            placeholder="{{ _("Start typing a name...") }}">
           <div class="list-group mt-2 wd-results" id="exDeleteResults"></div>
           <p class="text-body-secondary small mt-3 mb-0">
-            It is only hidden from the exercise search. Sets already logged with it stay,
-            and Edit can bring it back.
+            {{ _("It is only hidden from the exercise search. Sets already logged with it stay, and Edit can bring it back.") }}
           </p>
         </div>
         <div class="modal-footer d-flex justify-content-between">
-          <button type="button" class="btn btn-success" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-danger" id="exDeleteConfirm" disabled>Delete</button>
+          <button type="button" class="btn btn-success" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+          <button type="button" class="btn btn-danger" id="exDeleteConfirm" disabled>{{ _("Delete") }}</button>
         </div>
       </div>
     </div>
@@ -282,17 +282,17 @@
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="exViewTitle">Exercises</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <h5 class="modal-title" id="exViewTitle">{{ _("Exercises") }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
         </div>
         <div class="modal-body pt-2">
           <div class="d-flex gap-2 mb-2 sticky-top bg-body pt-1 pb-2">
             <input type="search" class="form-control" id="exViewSearch" autocomplete="off"
-              placeholder="Filter by name..." aria-label="Filter by name">
-            <select class="form-select w-auto" id="exViewGroup" aria-label="Muscle group">
-              <option value="">All groups</option>
+              placeholder="{{ _("Filter by name…") }}" aria-label="{{ _("Filter by name…") }}">
+            <select class="form-select w-auto" id="exViewGroup" aria-label="{{ _("Muscle group") }}">
+              <option value="">{{ _("All groups") }}</option>
               {% for group in muscle_groups %}
-              <option value="{{ group }}">{{ group|replace('_', ' ')|capitalize }}</option>
+              <option value="{{ group }}">{{ _(group|replace('_', ' ')|capitalize) }}</option>
               {% endfor %}
             </select>
           </div>
@@ -309,14 +309,14 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="exSummaryTitle">Add this exercise?</h5>
+          <h5 class="modal-title" id="exSummaryTitle">{{ _("Add this exercise?") }}</h5>
         </div>
         <div class="modal-body">
           <dl class="row mb-0 wd-summary" id="exSummaryBody"></dl>
         </div>
         <div class="modal-footer d-flex justify-content-between">
-          <button type="button" class="btn btn-secondary" id="exSummaryBack">Cancel</button>
-          <button type="submit" class="btn btn-success" id="exSummaryConfirm" form="exSubmit">Confirm</button>
+          <button type="button" class="btn btn-secondary" id="exSummaryBack">{{ _("Cancel") }}</button>
+          <button type="submit" class="btn btn-success" id="exSummaryConfirm" form="exSubmit">{{ _("Confirm") }}</button>
         </div>
       </div>
     </div>
@@ -327,11 +327,11 @@
     <div class="modal-dialog modal-dialog-centered modal-sm">
       <div class="modal-content">
         <div class="modal-body text-center p-4">
-          <h5 class="text-danger mb-3" id="exErrorTitle">Already in the catalog</h5>
+          <h5 class="text-danger mb-3" id="exErrorTitle">{{ _("Already in the catalog") }}</h5>
           <p class="mb-4" id="exErrorText"></p>
           <div class="d-grid gap-2">
-            <button type="button" class="btn btn-primary" id="exErrorFix">Change the name</button>
-            <button type="button" class="btn btn-outline-secondary" id="exErrorMenu">Back to the menu</button>
+            <button type="button" class="btn btn-primary" id="exErrorFix">{{ _("Change the name") }}</button>
+            <button type="button" class="btn btn-outline-secondary" id="exErrorMenu">{{ _("Back to the menu") }}</button>
           </div>
         </div>
       </div>
@@ -353,7 +353,7 @@
 
   <div class="p-3">
     <div class="fixed-bottom text-center py-2">
-      © {{ year }} | Created by Vít Puskajler
+      © {{ year }} | {{ _("Created by") }} Vít Puskajler
     </div>
   </div>
 
@@ -378,10 +378,58 @@
       const $ = (id) => document.getElementById(id);
       const modal = (id) => bootstrap.Modal.getOrCreateInstance($(id));
 
+      // Everything this script writes on the page, in the user's language.
+      const T = {
+        addExercise: {{ _("Add exercise")|tojson }},
+        editExercise: {{ _("Edit exercise")|tojson }},
+        byName: {{ _("{icon} (by name)")|tojson }},
+        noIcon: {{ _("No icon")|tojson }},
+        noneByName: {{ _("None / by name")|tojson }},
+        none: {{ _("None")|tojson }},
+        deletedBadge: {{ _("deleted")|tojson }},
+        existsDeleted: {{ _('"{name}" already exists - it is deleted. Open Edit to bring it back.')|tojson }},
+        existsAdd: {{ _('"{name}" already exists, so it cannot be added again.')|tojson }},
+        existsEdit: {{ _('Another exercise is already called "{name}".')|tojson }},
+        seconds: {{ _("Seconds")|tojson }},
+        reps: {{ _("Repetitions")|tojson }},
+        addThis: {{ _("Add this exercise?")|tojson }},
+        saveChanges: {{ _("Save these changes?")|tojson }},
+        deleteThis: {{ _("Delete this exercise?")|tojson }},
+        name: {{ _("Name")|tojson }},
+        slovak: {{ _("Slovak")|tojson }},
+        czech: {{ _("Czech")|tojson }},
+        muscleGroup: {{ _("Muscle group")|tojson }},
+        icon: {{ _("Icon")|tojson }},
+        loggedIn: {{ _("Logged in")|tojson }},
+        status: {{ _("Status")|tojson }},
+        deleted: {{ _("Deleted")|tojson }},
+        inCatalog: {{ _("In the catalog")|tojson }},
+        confirm: {{ _("Confirm")|tojson }},
+        del: {{ _("Delete")|tojson }},
+        exercise: {{ _("Exercise")|tojson }},
+        timed: {{ _("timed")|tojson }},
+        tapToPlay: {{ _("Tap to play the movement")|tojson }},
+        afterwards: {{ _("Afterwards")|tojson }},
+        afterDelete: {{ _("Hidden from every exercise search. Logged sets stay.")|tojson }},
+        exercisesCount: {{ plural_forms("{count} exercise", "{count} exercises")|tojson }},
+      };
+      // Muscle groups as the dropdowns show them.
+      const GROUP_LABELS = {
+        {% for group in muscle_groups %}{{ group|tojson }}: {{ _(group|replace('_', ' ')|capitalize)|tojson }},
+        {% endfor %}
+      };
+      const fill = (text, values) => text.replace(/\{(\w+)\}/g, (m, k) => (k in values ? values[k] : m));
+      // Slovak and Czech count 1 / 2-4 / 5+ differently (plural_forms in translations/i18n.py).
+      const counted = (forms, n) => forms[n === 1 ? 0 : n >= 2 && n <= 4 ? 1 : 2].replace("{count}", n);
+
       // ---- helpers -----------------------------------------------------
       const tidy = (s) => (s || "").trim().replace(/\s+/g, " ");
       const slugOf = (s) => (s.toLowerCase().match(/[a-z0-9]+/g) || []).join("-");
-      const groupLabel = (g) => { const s = g.replace(/_/g, " "); return s.charAt(0).toUpperCase() + s.slice(1); };
+      const groupLabel = (g) => {
+        if (GROUP_LABELS[g]) return GROUP_LABELS[g];
+        const s = g.replace(/_/g, " ");
+        return s.charAt(0).toUpperCase() + s.slice(1);
+      };
       const iconLabel = (slug) => ICON_LABELS[slug] || slug;
 
       // Same rule as exercise_icon() in server.py: the picked drawing, else
@@ -437,7 +485,7 @@
           item.appendChild(text);
           const meta = document.createElement("small");
           meta.className = ex.deleted ? "badge text-bg-secondary" : "text-body-secondary";
-          meta.textContent = ex.deleted ? "deleted" : groupLabel(ex.group);
+          meta.textContent = ex.deleted ? T.deletedBadge : groupLabel(ex.group);
           item.appendChild(meta);
           item.addEventListener("click", () => onPick(ex));
           container.appendChild(item);
@@ -454,7 +502,7 @@
         preview.appendChild(iconImg(slug));
         $("exIconLabel").textContent = chosenIcon
           ? iconLabel(chosenIcon)
-          : slug ? iconLabel(slug) + " (by name)" : "No icon";
+          : slug ? fill(T.byName, { icon: iconLabel(slug) }) : T.noIcon;
         $("exIconGrid").querySelectorAll("button").forEach((b) => {
           b.classList.toggle("active", (b.dataset.icon || null) === chosenIcon);
         });
@@ -468,7 +516,7 @@
           tile.dataset.icon = slug;
           tile.setAttribute("role", "option");
           tile.appendChild(iconImg(slug || null));
-          tile.appendChild(document.createTextNode(slug ? iconLabel(slug) : "None / by name"));
+          tile.appendChild(document.createTextNode(slug ? iconLabel(slug) : T.noneByName));
           tile.dataset.search = (slug ? iconLabel(slug) + " " + slug : "none").toLowerCase();
           tile.addEventListener("click", () => {
             chosenIcon = slug || null;
@@ -523,7 +571,7 @@
       function openForm(newMode) {
         mode = newMode;
         editing = null;
-        $("exFormTitle").textContent = mode === "add" ? "Add exercise" : "Edit exercise";
+        $("exFormTitle").textContent = mode === "add" ? T.addExercise : T.editExercise;
         $("exPick").classList.toggle("d-none", mode === "add");
         $("exFields").classList.toggle("d-none", mode === "edit");
         $("exDeletedRow").classList.toggle("d-none", mode === "add");
@@ -560,10 +608,10 @@
           ex.name.toLowerCase() === name.toLowerCase() && (!editing || ex.id !== editing.id));
         if (clash) {
           $("exErrorText").textContent = clash.deleted
-            ? `"${clash.name}" already exists - it is deleted. Open Edit to bring it back.`
+            ? fill(T.existsDeleted, { name: clash.name })
             : mode === "add"
-              ? `"${clash.name}" already exists, so it cannot be added again.`
-              : `Another exercise is already called "${clash.name}".`;
+              ? fill(T.existsAdd, { name: clash.name })
+              : fill(T.existsEdit, { name: clash.name });
           swap("exForm", "exError");
           return;
         }
@@ -610,31 +658,31 @@
 
       function showSummary(next) {
         $("exSummaryBody").innerHTML = "";
-        const unit = (timed) => (timed ? "Seconds" : "Reps");
+        const unit = (timed) => (timed ? T.seconds : T.reps);
         const iconBox = document.createElement("span");
         iconBox.className = "d-flex align-items-center gap-2";
         const slug = shownIcon(next.name, next.icon);
         iconBox.appendChild(iconImg(slug));
-        iconBox.appendChild(document.createTextNode(slug ? iconLabel(slug) : "None"));
+        iconBox.appendChild(document.createTextNode(slug ? iconLabel(slug) : T.none));
 
         if (mode === "add") {
-          $("exSummaryTitle").textContent = "Add this exercise?";
-          row("Name", next.name);
-          if (next.name_sk) row("Slovak", next.name_sk);
-          if (next.name_cs) row("Czech", next.name_cs);
-          row("Muscle group", groupLabel(next.group));
-          row("Icon", iconBox);
-          row("Logged in", unit(next.timed));
+          $("exSummaryTitle").textContent = T.addThis;
+          row(T.name, next.name);
+          if (next.name_sk) row(T.slovak, next.name_sk);
+          if (next.name_cs) row(T.czech, next.name_cs);
+          row(T.muscleGroup, groupLabel(next.group));
+          row(T.icon, iconBox);
+          row(T.loggedIn, unit(next.timed));
         } else {
-          $("exSummaryTitle").textContent = "Save these changes?";
-          row("Name", change(editing.name, next.name));
-          row("Slovak", change(editing.name_sk || "–", next.name_sk || "–"));
-          row("Czech", change(editing.name_cs || "–", next.name_cs || "–"));
-          row("Muscle group", change(groupLabel(editing.group), groupLabel(next.group)));
-          row("Icon", iconBox);
-          row("Logged in", change(unit(editing.timed), unit(next.timed)));
-          row("Status", change(editing.deleted ? "Deleted" : "In the catalog",
-            next.deleted ? "Deleted" : "In the catalog"));
+          $("exSummaryTitle").textContent = T.saveChanges;
+          row(T.name, change(editing.name, next.name));
+          row(T.slovak, change(editing.name_sk || "–", next.name_sk || "–"));
+          row(T.czech, change(editing.name_cs || "–", next.name_cs || "–"));
+          row(T.muscleGroup, change(groupLabel(editing.group), groupLabel(next.group)));
+          row(T.icon, iconBox);
+          row(T.loggedIn, change(unit(editing.timed), unit(next.timed)));
+          row(T.status, change(editing.deleted ? T.deleted : T.inCatalog,
+            next.deleted ? T.deleted : T.inCatalog));
         }
 
         setSubmit({
@@ -649,7 +697,7 @@
           is_deleted: next.deleted ? "1" : "0",
         });
         $("exSummaryConfirm").className = "btn btn-success";
-        $("exSummaryConfirm").textContent = "Confirm";
+        $("exSummaryConfirm").textContent = T.confirm;
         backTo = "exForm";
         swap("exForm", "exSummary");
       }
@@ -676,10 +724,10 @@
           item.appendChild(text);
           const meta = document.createElement("small");
           meta.className = "text-body-secondary text-end";
-          meta.textContent = groupLabel(ex.group) + (ex.timed ? " · timed" : "");
+          meta.textContent = groupLabel(ex.group) + (ex.timed ? " · " + T.timed : "");
           item.appendChild(meta);
           if (slug && MOVING.has(slug)) {
-            item.title = "Tap to play the movement";
+            item.title = T.tapToPlay;
             item.addEventListener("click", () => {
               const playing = item.classList.toggle("wd-playing");
               img.src = ICON_BASE + (playing ? "anim/" : "") + slug + ".svg";
@@ -700,7 +748,7 @@
           item.classList.toggle("d-none", !match);
           if (match) shown++;
         });
-        $("exViewCount").textContent = shown + (shown === 1 ? " exercise" : " exercises");
+        $("exViewCount").textContent = counted(T.exercisesCount, shown);
       }
 
       $("openView").addEventListener("click", () => {
@@ -739,18 +787,18 @@
       $("exDeleteConfirm").addEventListener("click", () => {
         if (!toDelete) return;
         $("exSummaryBody").innerHTML = "";
-        $("exSummaryTitle").textContent = "Delete this exercise?";
+        $("exSummaryTitle").textContent = T.deleteThis;
         const name = document.createElement("span");
         name.className = "d-flex align-items-center gap-2 fw-semibold";
         name.appendChild(iconImg(shownIcon(toDelete.name, toDelete.icon)));
         name.appendChild(document.createTextNode(toDelete.name));
-        row("Exercise", name);
-        row("Muscle group", groupLabel(toDelete.group));
-        row("Afterwards", "Hidden from every exercise search. Logged sets stay.");
+        row(T.exercise, name);
+        row(T.muscleGroup, groupLabel(toDelete.group));
+        row(T.afterwards, T.afterDelete);
         setSubmit({ action: "delete", exercise_id: toDelete.id, exercise_name: "",
           muscle_group: "", icon: "", is_timed: "", name_sk: "", name_cs: "", is_deleted: "" });
         $("exSummaryConfirm").className = "btn btn-danger";
-        $("exSummaryConfirm").textContent = "Delete";
+        $("exSummaryConfirm").textContent = T.del;
         backTo = "exDelete";
         swap("exDelete", "exSummary");
       });

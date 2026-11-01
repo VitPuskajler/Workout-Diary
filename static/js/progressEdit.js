@@ -34,7 +34,7 @@
   var fixUnitTargetUnit = null; // unit selected in the fix-unit popup, before submit
   var deleteModal = null;
 
-  var UNIT_LABELS = { kg: "Kg", lbs: "Lbs", other: "Other" };
+  var UNIT_LABELS = { kg: "Kg", lbs: "Lbs", other: wdT("Other") };
 
   function textOf(td) {
     var span = td.querySelector(".wd-view-value");
@@ -79,22 +79,24 @@
     if (raw === "") return null;
     var num = Number(raw);
     if (!isFinite(num) || (mustBeWhole && Math.floor(num) !== num)) {
-      return label + " must be a" + (mustBeWhole ? " whole" : "") + " number.";
+      return (mustBeWhole ? wdT("{label} must be a whole number.") : wdT("{label} must be a number."))
+        .replace("{label}", label);
     }
     if (num < min || (max !== null && num > max)) {
-      return max !== null
-        ? label + " must be between " + min + " and " + max + "."
-        : label + " must be " + min + " or more.";
+      return (max !== null
+        ? wdT("{label} must be between {min} and {max}.").replace("{max}", max)
+        : wdT("{label} must be {min} or more."))
+        .replace("{label}", label).replace("{min}", min);
     }
     return null;
   }
 
   function validate(reps, weight, rpe, notes) {
     return (
-      validateNumber(reps, 0, null, "Reps", true) ||
-      validateNumber(weight, 0, 501, "Weight", false) ||
+      validateNumber(reps, 0, null, wdT("Repetitions"), true) ||
+      validateNumber(weight, 0, 501, wdT("Weight"), false) ||
       validateNumber(rpe, 0, 10, "RPE", false) ||
-      (notes.length > 150 ? "Notes can be at most 150 characters." : null)
+      (notes.length > 150 ? wdT("Notes can be at most 150 characters.") : null)
     );
   }
 

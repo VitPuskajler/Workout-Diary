@@ -1650,18 +1650,19 @@ class WorkoutManagement:
             try:
                 number = cast(value)
             except (TypeError, ValueError):
-                return False, f"{label} must be a number."
+                return False, tr("{label} must be a number.", label=label)
             if number < minimum or (maximum is not None and number > maximum):
                 if maximum is not None:
-                    return False, f"{label} must be between {minimum} and {maximum}."
-                return False, f"{label} must be {minimum} or more."
+                    return False, tr("{label} must be between {min} and {max}.",
+                                     label=label, min=minimum, max=maximum)
+                return False, tr("{label} must be {min} or more.", label=label, min=minimum)
             return True, number
 
-        ok, reps_val = parse_number(reps, int, 0, None, "Reps")
+        ok, reps_val = parse_number(reps, int, 0, None, tr("Repetitions"))
         if not ok:
             return {"ok": False, "error": reps_val}
 
-        ok, weight_val = parse_number(weight, float, 0, 501, "Weight")
+        ok, weight_val = parse_number(weight, float, 0, 501, tr("Weight"))
         if not ok:
             return {"ok": False, "error": weight_val}
 
@@ -1891,6 +1892,9 @@ class WorkoutManagement:
         user_mesocycles = (
             db.session.query(Mesocycles)
             .filter(Mesocycles.user_id == current_user)
+            # Newest first: the mesocycle you are training in now sits at the
+            # top of the dropdowns on /workout_plan_page and /progress.
+            .order_by(desc(Mesocycles.mesocycle_id))
             .all()
         )
 
@@ -4142,7 +4146,7 @@ class WorkoutManagement:
 
         name = (new_name or "").strip()
         if not name:
-            return False, None, "A mesocycle needs a name."
+            return False, None, tr("A mesocycle needs a name.")
         # The column is String(100); SQLite would not complain, it would just
         # store a name no other screen has room for.
         name = name[:100]
@@ -4272,6 +4276,12 @@ class WorkoutManagement:
                 {
                     "id": meso.mesocycle_id,
                     "name": meso.name,
+                    # Mesocycles has no date column; its first workout day
+                    # was created with it, so that day's created_at stands in.
+                    "created": min(
+                        (plan.created_at for plan in plans if plan.created_at),
+                        default=None,
+                    ),
                     "duration_weeks": meso.mesocycle_duration_weeks,
                     "days": days,
                     "day_count": len(days),
@@ -4285,6 +4295,162 @@ class WorkoutManagement:
             )
 
         return mesocycles
+
+    # ------------------------------------------------------------------
+    # Copy one of your own mesocycles - the second picker on /table_layout.
+    #
+    # The plan is copied (days, exercises, sets, rest, duration); the training
+    # logged against it is not. The copy becomes the newest mesocycle, so it is
+    # the one /create_workout edits and the one you train in.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _is_plan_day(workout_name):
+        """A real day of the plan - not a freestyle "c" day or an intuitive one."""
+        return (
+            workout_name is not None
+            and workout_name != "c"
+            and not str(workout_name).endswith("_intuitive")
+        )
+
+    def mesocycles_for_copy(self):
+        """The user's mesocycles that have at least one day, newest first.
+
+        Same shape as load_mesocycle_templates(), so the copy dialog is the
+        template dialog's markup again.
+        """
+        result = []
+        for meso in self.mesocycles_for_management():
+            days = [d for d in meso["days"] if self._is_plan_day(d["name"])]
+            if not days:
+                continue
+            meso = dict(meso)
+            meso["days"] = days
+            meso["day_count"] = len(days)
+            meso["exercise_count"] = sum(len(d["exercises"]) for d in days)
+            result.append(meso)
+        return result
+
+    def _mesocycle_created(self, user_id, mesocycle_id):
+        """When this mesocycle was made: its first workout day's created_at."""
+        return (
+            db.session.query(func.min(WorkoutPlan.created_at))
+            .filter(
+                WorkoutPlan.user_id == user_id,
+                WorkoutPlan.mesocycle_id == mesocycle_id,
+            )
+            .scalar()
+        )
+
+    def copy_mesocycle(self, source_id, new_name):
+        """Copy one of the user's mesocycles into a new one called `new_name`.
+
+        Returns (name, renamed, error):
+          name     the new mesocycle's name, or None if nothing was created
+          renamed  the new names of older namesakes moved aside, newest first
+          error    a message for the user when name is None
+
+        The name may repeat an existing one - a second run of the same block
+        is meant to be called the same. The dropdowns on /workout_plan_page and
+        /progress pick a mesocycle BY NAME, though, so the older namesake is
+        renamed to "name dd.mm.yyyy", the day it was created.
+        """
+        user_id = self.current_user_id_db()
+        if not user_id:
+            return None, [], tr("Could not find your account.")
+
+        try:
+            source_id = int(source_id)
+        except (TypeError, ValueError):
+            return None, [], tr("That mesocycle could not be copied.")
+
+        # Ownership is checked here: the id comes from a form anyone can edit.
+        source = (
+            db.session.query(Mesocycles)
+            .filter(
+                Mesocycles.user_id == user_id,
+                Mesocycles.mesocycle_id == source_id,
+            )
+            .first()
+        )
+        if not source:
+            return None, [], tr("That mesocycle could not be copied.")
+
+        source_days = [
+            plan
+            for plan in (
+                db.session.query(WorkoutPlan)
+                .filter(
+                    WorkoutPlan.user_id == user_id,
+                    WorkoutPlan.mesocycle_id == source.mesocycle_id,
+                )
+                .order_by(WorkoutPlan.workout_id.asc())
+                .all()
+            )
+            if self._is_plan_day(plan.workout_name)
+        ]
+        if not source_days:
+            return None, [], tr("That mesocycle has no workout days to copy.")
+
+        name = ((new_name or "").strip() or source.name)[:100]
+
+        renamed = []
+        try:
+            namesakes = (
+                db.session.query(Mesocycles)
+                .filter(Mesocycles.user_id == user_id, Mesocycles.name == name)
+                .order_by(desc(Mesocycles.mesocycle_id))
+                .all()
+            )
+            for older in namesakes:
+                created = self._mesocycle_created(user_id, older.mesocycle_id)
+                stamp = (created or datetime.now()).strftime("%d.%m.%Y")
+                # Leave room for the date inside the 100-character column.
+                wanted = f"{name[:100 - len(stamp) - 1]} {stamp}"
+                # Two namesakes made on the same day: "name dd.mm.yyyy (2)".
+                older.name = self._free_mesocycle_name(user_id, wanted)
+                db.session.flush()
+                renamed.append(older.name)
+
+            mesocycle = Mesocycles(
+                name=name,
+                user_id=user_id,
+                mesocycle_duration_weeks=source.mesocycle_duration_weeks,
+                # The real number of days copied - find_users_weeks() limits
+                # by this column (see apply_mesocycle_template).
+                workouts_per_week=len(source_days),
+            )
+            db.session.add(mesocycle)
+            db.session.commit()
+
+            for day in source_days:
+                plan = WorkoutPlan(
+                    workout_name=day.workout_name,
+                    user_id=user_id,
+                    mesocycle_id=mesocycle.mesocycle_id,
+                )
+                db.session.add(plan)
+                db.session.commit()
+
+                for position, row in enumerate(
+                    self._workout_exercises_ordered(day.workout_id), start=1
+                ):
+                    db.session.add(
+                        WorkoutExercises(
+                            workout_id=plan.workout_id,
+                            exercise_id=row.exercise_id,
+                            order_in_workout=position,
+                            prescribed_sets=row.prescribed_sets,
+                            rest_period=row.rest_period,
+                        )
+                    )
+                db.session.commit()
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            print(f"copy_mesocycle: rolling back, {e}")
+            return None, [], tr("That mesocycle could not be copied.")
+
+        return name, renamed, None
 
     def delete_mesocycles(self, mesocycle_ids):
         """Delete these mesocycles and their plans. Returns the names removed.
