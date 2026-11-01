@@ -96,9 +96,15 @@
     }
 
     .wd-ex-name {
-      flex: 1 1 auto;
+      /* width: 0 + grow: the box takes the room the column has, but its
+         one-line text never asks the table for more - a long name would
+         otherwise stretch the table past the phone's screen. */
+      flex: 1 1 0;
+      width: 0;
       min-width: 0;
-      min-height: calc(1.5em + .75rem + 2px);     /* a form field's height, so rows line up */
+      /* A form field's height, so rows line up - in rem, not em: a name in
+         a smaller font must not make its box (and its row) lower. */
+      min-height: calc(1.5rem + .75rem + 2px);
       padding: .3rem .5rem;
       border: 1px solid var(--bs-border-color);
       border-radius: var(--bs-border-radius);
@@ -106,6 +112,14 @@
       color: var(--bs-body-color);
       line-height: 1.25;
       text-align: center;
+      /* One line, so every row is the same height: a name too long for the
+         box gets a smaller font instead (fitExerciseNames() below). Only one
+         that does not fit even at the smallest size wraps - never cut off. */
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .wd-ex-name.wd-ex-wrap {
       white-space: normal;
       overflow-wrap: break-word;
     }
@@ -183,6 +197,22 @@
       td.wd-row-extra input[name^="pauses_"],
       td.wd-row-extra input[name^="new_pauses_"] {
         min-width: 3.4rem;
+      }
+
+      /* More of the narrow name column for the name itself, so fewer names
+         need a smaller font. */
+      td.wd-exercise-cell {
+        padding-left: .25rem;
+        padding-right: .25rem;
+      }
+
+      .wd-ex-pick {
+        gap: .3rem;
+      }
+
+      .wd-ex-name {
+        padding-left: .3rem;
+        padding-right: .3rem;
       }
 
     }
@@ -581,6 +611,53 @@
     const NARROW = window.matchMedia("(max-width: 576px)");
 
     // ----------------------------------------------------------------
+    // Exercise names on one line, every row the same height: a name wider
+    // than its box is shown in a smaller font - step by step, down to 70 %.
+    // Refitted whenever a box changes width (turning the phone, the Edit
+    // mode's drag column coming and going) and after a pick.
+    // ----------------------------------------------------------------
+    const NAME_MIN_SCALE = 0.7;
+    const NAME_STEP = 0.05;
+
+    function fitExerciseName(button) {
+      button.classList.remove("wd-ex-wrap");
+      button.style.fontSize = "";
+      if (!button.clientWidth) return;               // hidden: fitted when it shows
+      let scale = 1;
+      while (button.scrollWidth > button.clientWidth && scale - NAME_STEP >= NAME_MIN_SCALE - 1e-9) {
+        scale -= NAME_STEP;
+        button.style.fontSize = scale.toFixed(2) + "em";
+      }
+      // Still too long at the smallest size: wrap rather than cut it off.
+      if (button.scrollWidth > button.clientWidth) button.classList.add("wd-ex-wrap");
+    }
+    window.wdFitExerciseName = fitExerciseName;
+
+    (function () {
+      const names = document.querySelectorAll(".wd-ex-name");
+      if ("ResizeObserver" in window) {
+        const widths = new WeakMap();
+        const observer = new ResizeObserver(function (entries) {
+          entries.forEach(function (entry) {
+            const width = Math.round(entry.contentRect.width);
+            if (widths.get(entry.target) === width) return;   // only a width change refits
+            widths.set(entry.target, width);
+            fitExerciseName(entry.target);
+          });
+        });
+        names.forEach((button) => observer.observe(button));
+      } else {
+        const fitAll = () => names.forEach(fitExerciseName);
+        fitAll();
+        window.addEventListener("resize", fitAll);
+      }
+      // Fonts loading late change text widths.
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => names.forEach(fitExerciseName));
+      }
+    })();
+
+    // ----------------------------------------------------------------
     // "Choose exercise": tapping a row's exercise name (or "+ Add exercise")
     // opens every exercise in the catalog (fetched once, the first time); a
     // tap on one puts it into that row - name, icon and the hidden field the
@@ -721,6 +798,7 @@
           if (button) {
             button.textContent = item.label;
             button.classList.add("wd-ex-chosen");
+            if (window.wdFitExerciseName) window.wdFitExerciseName(button);
             showRowIcon(button.closest(".wd-ex-pick").querySelector(".wd-ex-icon"), item.name);
           }
           if (target.id.indexOf("exercise_new_") === 0) syncTimedToggle(target.id.slice("exercise_new_".length), item.name);

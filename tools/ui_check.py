@@ -262,6 +262,17 @@ def run_checks(base, db, user, shots):
             if cut:
                 failures.append(f"{name} /create_workout: exercise names cut off: {', '.join(cut[:5])}")
 
+            # ...and every row the same height: a long name gets a smaller
+            # font, not a second line. Only a warning - a name too long even
+            # at the smallest font wraps on purpose rather than being cut.
+            heights = page.evaluate("""() => [...new Set(Array.from(document.querySelectorAll('.wd-ex-name'))
+                .filter(b => b.offsetParent).map(b => Math.round(b.getBoundingClientRect().height)))]""")
+            if len(heights) > 1:
+                wrapped = page.evaluate("""() => Array.from(document.querySelectorAll('.wd-ex-name.wd-ex-wrap'))
+                    .map(b => b.textContent.trim())""")
+                warnings.append(f"{name} /create_workout: exercise rows of different heights {sorted(heights)}px"
+                                + (f" - wrapped: {', '.join(wrapped[:5])}" if wrapped else ""))
+
             ctx.close()
             browser.close()
             print(f"  {name}: done")
