@@ -173,6 +173,25 @@
         height: 44px;
       }
 
+      /* Sets and Pauses: a three-digit pause ("120") was cut off - Bootstrap's
+         side padding left too little of the field for the digits. Thinner
+         padding in these cells, and the Pauses field never narrower than
+         three digits; the exercise name column gives up the width. */
+      td.wd-row-extra {
+        padding-left: .2rem;
+        padding-right: .2rem;
+      }
+
+      td.wd-row-extra .form-control {
+        padding-left: .2rem;
+        padding-right: .2rem;
+      }
+
+      td.wd-row-extra input[name^="pauses_"],
+      td.wd-row-extra input[name^="new_pauses_"] {
+        min-width: 3.4rem;
+      }
+
       /* Tapping an exercise field hands it the whole row. On a phone the cell
          is too narrow to show a full exercise name, which makes the
          suggestions dropdown useless - you cannot read what you are picking.
@@ -763,9 +782,29 @@
       const COUNT_TEXT = {{ _("Exercises: {count}")|tojson }};
       const LOADING = {{ _("Loading…")|tojson }};
       const SLUGS = new Set(EXERCISE_ICONS.slugs);
+      const MOVING = new Set(EXERCISE_ICONS.animated);
       let target = null;          // the field the list was opened from
       let rows = null;            // [{item, el, text}] once built
       let loading = null;
+
+      // The icons play their rep while they are on screen in the open list -
+      // here, choosing an exercise, is where seeing the movement helps most.
+      // Only the visible ones move: the list holds over a thousand, and an
+      // icon scrolled away (or filtered out, or the list closed) goes still.
+      const watcher = "IntersectionObserver" in window
+        ? new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            const img = entry.target;
+            const want = entry.isIntersecting ? img.dataset.wdMoving : img.dataset.wdStill;
+            if (img.getAttribute("src") !== want) img.src = want;
+          });
+        }, { root: list.closest(".modal-body") })
+        : null;
+      modalEl.addEventListener("hidden.bs.modal", function () {
+        list.querySelectorAll("img[data-wd-moving]").forEach(function (img) {
+          if (img.getAttribute("src") !== img.dataset.wdStill) img.src = img.dataset.wdStill;
+        });
+      });
 
       // Lower case, accents dropped - "sikmy" finds "Šikmý".
       const fold = (text) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -796,6 +835,11 @@
             icon.loading = "lazy";
             icon.src = EXERCISE_ICONS.base + slug + ".svg";
             icon.alt = "";
+            if (MOVING.has(slug)) {
+              icon.dataset.wdStill = icon.src;
+              icon.dataset.wdMoving = EXERCISE_ICONS.base + "anim/" + slug + ".svg";
+              if (watcher) watcher.observe(icon);
+            }
           } else {
             icon = document.createElement("span");
             icon.className = "wd-icon-blank";
@@ -912,16 +956,41 @@
   <script src="{{ url_for('static', filename='js/sortable.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/editMode.js') }}"></script>
   <script>
-    // The swiped-out Delete button is the confirmation: tick the row's remove
-    // box and save straight away. Other unsaved edits on the page go with it.
-    document.addEventListener("click", function (e) {
-      const button = e.target.closest("[data-wd-remove]");
-      if (!button) return;
-      const box = document.querySelector(`input[name="${button.dataset.wdRemove}"]`);
-      const form = button.closest("form");
-      if (!box || !form) return;
-      box.checked = true;
-      form.requestSubmit ? form.requestSubmit() : form.submit();
+    // The swiped-out Delete button asks first: a dialog names the exercise,
+    // and only its Delete ticks the row's remove box and saves. Other unsaved
+    // edits on the page go with that save. Wired once the page is read - the
+    // dialog's markup comes after this script.
+    document.addEventListener("DOMContentLoaded", function () {
+      const dialogEl = document.getElementById("wd_confirm_delete");
+      const nameEl = document.getElementById("wd_confirm_delete_name");
+      const confirmButton = document.getElementById("wd_confirm_delete_yes");
+      let pending = null;           // {box, form} of the row waiting on the answer
+
+      document.addEventListener("click", function (e) {
+        const button = e.target.closest("[data-wd-remove]");
+        if (!button) return;
+        const box = document.querySelector(`input[name="${button.dataset.wdRemove}"]`);
+        const form = button.closest("form");
+        if (!box || !form) return;
+        const field = button.closest("tr").querySelector('input[type="text"]');
+        nameEl.textContent = field ? field.value : "";
+        pending = { box: box, form: form };
+        bootstrap.Modal.getOrCreateInstance(dialogEl).show();
+      });
+
+      confirmButton.addEventListener("click", function () {
+        if (!pending) return;
+        pending.box.checked = true;
+        const form = pending.form;
+        pending = null;
+        form.requestSubmit ? form.requestSubmit() : form.submit();
+      });
+
+      // Cancelled: the row slides its Delete button back in.
+      dialogEl.addEventListener("hidden.bs.modal", function () {
+        if (pending) document.querySelectorAll("tr.wd-swiped").forEach((row) => row.classList.remove("wd-swiped"));
+        pending = null;
+      });
     });
   </script>
   <script>
@@ -976,6 +1045,27 @@
           </div>
           <p class="text-body-secondary small mb-2" id="wd_picker_count"></p>
           <div class="list-group wd-catalog" id="wd_picker_list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# "Delete this exercise?" - opened by a row's swiped-out Delete button. #}
+  <div class="modal fade" id="wd_confirm_delete" tabindex="-1" aria-hidden="true"
+    aria-labelledby="wd_confirm_delete_title">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content wd-unsaved-card">
+        <div class="modal-body text-center p-4">
+          <p class="mb-1" id="wd_confirm_delete_title">{{ _("Delete this exercise?") }}</p>
+          <p class="fw-semibold mb-4" id="wd_confirm_delete_name"></p>
+          <div class="d-flex justify-content-between gap-3">
+            <button type="button" class="btn btn-secondary flex-fill" data-bs-dismiss="modal">
+              {{ _("Cancel") }}
+            </button>
+            <button type="button" class="btn btn-danger flex-fill" id="wd_confirm_delete_yes">
+              {{ _("Delete") }}
+            </button>
+          </div>
         </div>
       </div>
     </div>

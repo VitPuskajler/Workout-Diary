@@ -205,6 +205,38 @@ def run_checks(base, db, user, shots):
             else:
                 warnings.append(f"{name} /create_workout: no moving icon to test with")
 
+            # Create Workout: the numbers in Sets / Pauses fit their fields
+            # (a "120" pause used to show as "12").
+            clipped = page.evaluate("""() => Array.from(document.querySelectorAll(
+                'tbody[data-day] input[type=number]')).filter(i => i.offsetParent && i.value
+                && i.scrollWidth > i.clientWidth + 1).map(i => i.name + '=' + i.value)""")
+            if clipped:
+                failures.append(f"{name} /create_workout: numbers cut off in {', '.join(clipped[:5])}")
+
+            # Create Workout: Delete asks first - the dialog opens, nothing is
+            # sent until its own Delete is pressed.
+            page.goto(base + "/create_workout")
+            delete = page.locator(".wd-swipe-del").first
+            if delete.count():
+                page.evaluate("document.querySelector('.wd-swipe-del').click()")
+                page.wait_for_timeout(500)
+                if not page.locator("#wd_confirm_delete.show").count():
+                    failures.append(f"{name} /create_workout: Delete did not ask for confirmation")
+                elif page.url.rstrip("/") != (base + "/create_workout"):
+                    failures.append(f"{name} /create_workout: Delete went ahead without confirmation")
+
+            # Create Workout: in "Choose exercise" the icons on screen move.
+            page.goto(base + "/create_workout")
+            pick = page.locator("[data-wd-pick]:visible").first
+            if pick.count():
+                pick.click()
+                page.wait_for_selector("#wd_picker_list img", timeout=10000)
+                page.wait_for_timeout(800)
+                moving = page.evaluate("""() => Array.from(document.querySelectorAll('#wd_picker_list img'))
+                    .filter(i => (i.getAttribute('src') || '').includes('/anim/')).length""")
+                if not moving:
+                    failures.append(f"{name} /create_workout: icons in 'Choose exercise' do not move")
+
             ctx.close()
             browser.close()
             print(f"  {name}: done")
