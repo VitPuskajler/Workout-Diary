@@ -84,54 +84,47 @@
       flex: 0 0 34px;
     }
 
-    /* "Choose from the list": a small button inside every exercise field.
-       Always there on a computer; on a phone only while the field is open
-       (tr.wd-editing), where there is room for it. */
-    .wd-ex-field {
-      position: relative;
+    /* The exercise in a row: its name, as a box you tap to change it - the
+       list of every exercise opens ("Choose exercise"). Nothing is typed on
+       this page any more, so there is no dropdown to fight the phone's
+       keyboard and layout. A long name wraps onto a second line, centred,
+       instead of being cut off. */
+    .wd-ex-pick {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+    }
+
+    .wd-ex-name {
       flex: 1 1 auto;
       min-width: 0;
+      min-height: calc(1.5em + .75rem + 2px);     /* a form field's height, so rows line up */
+      padding: .3rem .5rem;
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-body-bg);
+      color: var(--bs-body-color);
+      line-height: 1.25;
+      text-align: center;
+      white-space: normal;
+      overflow-wrap: break-word;
     }
 
-    .wd-ex-field .form-control {
-      padding-right: 2rem;
+    .wd-ex-name:hover,
+    .wd-ex-name:focus-visible {
+      border-color: var(--bs-primary);
+      outline: 0;
+      box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .15);
     }
 
-    .wd-pick-btn {
-      position: absolute;
-      top: 50%;
-      right: .3rem;
-      transform: translateY(-50%);
-      border: 0;
-      border-radius: 6px;
-      background: transparent;
+    /* The empty row at the bottom: "+ Add exercise" until one is chosen. */
+    .wd-ex-name.wd-ex-new {
+      background: var(--bs-info-bg-subtle);
       color: var(--bs-secondary-color);
-      padding: .3rem;
-      line-height: 0;
     }
 
-    .wd-pick-btn:hover,
-    .wd-pick-btn:focus-visible {
-      color: var(--bs-primary);
-      background: var(--bs-primary-bg-subtle);
-    }
-
-    @media (max-width: 576px) {
-      .wd-pick-btn {
-        display: none;
-      }
-
-      .wd-ex-field .form-control {
-        padding-right: .25rem;
-      }
-
-      tr.wd-editing .wd-pick-btn {
-        display: block;
-      }
-
-      tr.wd-editing .wd-ex-field .form-control {
-        padding-right: 2rem;
-      }
+    .wd-ex-name.wd-ex-new.wd-ex-chosen {
+      color: var(--bs-body-color);
     }
 
     /* The list itself */
@@ -192,30 +185,6 @@
         min-width: 3.4rem;
       }
 
-      /* Tapping an exercise field hands it the whole row. On a phone the cell
-         is too narrow to show a full exercise name, which makes the
-         suggestions dropdown useless - you cannot read what you are picking.
-         The other cells step aside while the field is being edited.
-
-         Hiding them is only half of it: a table lays cells out by COLUMN, so a
-         lone visible cell drops into column 1 and comes out narrower than it
-         started. The script also swaps in a colspan across the whole row - see
-         expandExerciseRow(). The dropdown is width: 100%, so it follows. */
-      tr.wd-editing > td.wd-row-extra,
-      tr.wd-editing > td.wd-drag-cell {
-        display: none;
-      }
-
-      tr.wd-editing > td.wd-exercise-cell {
-        width: 100%;
-      }
-
-      /* An exercise field open for typing: room below the page, so even the
-         last day's field can be scrolled up under the navbar - above the
-         phone keyboard, with its suggestions visible under it. */
-      body.wd-typing {
-        padding-bottom: 75vh;
-      }
     }
   </style>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -426,26 +395,18 @@
               {% for exe in user_exe[x] %}
               <tr data-we-id="{{ exe['id'] }}" data-wd-swipe>
                 <td class="wd-exercise-cell">
-                  <div class="d-flex align-items-center gap-1">
+                  {# The name opens the list to swap the exercise; the hidden
+                     field carries the choice to the server, as the typed
+                     field used to. #}
+                  <div class="wd-ex-pick">
                     {% set icon = exercise_icon(exe['exercise']) %}
                     {% set moving = exercise_icon_moving(exe['exercise']) if icon else none %}
-                    {% if icon %}<img src="{{ icon }}" class="wd-exercise-icon" alt="" aria-hidden="true"
-                      {% if moving %}data-wd-moving="{{ moving }}"{% endif %}>{% endif %}
-                    <div class="wd-ex-field">
-                      <input type="text" id="exercise_{{ exe['id'] }}" name="exercise_{{ exe['id'] }}"
-                        class="form-control text-center" value="{{ exercise_label(exe['exercise']) }}" autocomplete="off" />
-                      <button type="button" class="wd-pick-btn" data-wd-pick="exercise_{{ exe['id'] }}"
-                        aria-label="{{ _("Choose from the list") }}" title="{{ _("Choose from the list") }}">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
-                          stroke-linecap="round" aria-hidden="true"><path d="M6 4h8M6 8h8M6 12h8"/><path d="M2.5 4h.01M2.5 8h.01M2.5 12h.01" stroke-width="2.4"/></svg>
-                      </button>
-                    </div>
-                  </div>
-                  <!-- Suggestions dropdown -->
-                  <div class="dropdown">
-                    <ul id="exercise_suggestions_{{ exe['id'] }}" class="dropdown-menu show"
-                      style="width: 100%; display: none">
-                    </ul>
+                    <span class="wd-ex-icon">{% if icon %}<img src="{{ icon }}" class="wd-exercise-icon" alt="" aria-hidden="true"
+                      {% if moving %}data-wd-moving="{{ moving }}"{% endif %}>{% endif %}</span>
+                    <button type="button" class="wd-ex-name" data-wd-pick="exercise_{{ exe['id'] }}"
+                      title="{{ _("Choose exercise") }}">{{ exercise_label(exe['exercise']) }}</button>
+                    <input type="hidden" id="exercise_{{ exe['id'] }}" name="exercise_{{ exe['id'] }}"
+                      value="{{ exercise_label(exe['exercise']) }}" />
                   </div>
                 </td>
                 <td class="wd-row-extra">
@@ -473,30 +434,22 @@
 
               <tr>
                 <td class="wd-exercise-cell">
-                  <div class="d-flex align-items-center gap-1">
-                  <div class="wd-ex-field">
-                    <input type="text" id="exercise_new_{{ x }}" name="new_exercise_{{ x }}"
-                      class="form-control text-center bg-info-subtle" placeholder="{{ _("Select Exercise") }}" autocomplete="off" />
-                    <button type="button" class="wd-pick-btn" data-wd-pick="exercise_new_{{ x }}"
-                        aria-label="{{ _("Choose from the list") }}" title="{{ _("Choose from the list") }}">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
-                          stroke-linecap="round" aria-hidden="true"><path d="M6 4h8M6 8h8M6 12h8"/><path d="M2.5 4h.01M2.5 8h.01M2.5 12h.01" stroke-width="2.4"/></svg>
-                      </button>
-                  </div>
-                  <!-- Reps <-> Sec for the exercise being added (a hold is timed). Blank
-                       means "leave the exercise as it is"; a tap makes it explicit. It
-                       lives here and not on the training pages so a sweaty thumb mid-set
-                       cannot flip it. -->
-                  <input type="hidden" name="new_timed_{{ x }}" id="new_timed_{{ x }}" value="" />
-                  <button type="button" id="timed_toggle_{{ x }}" data-mode="reps"
-                    class="btn btn-outline-secondary btn-sm px-1 wd-timed-toggle flex-shrink-0"
-                    title="{{ _("Count this exercise in reps or in seconds") }}">{{ _("Reps") }}</button>
-                  </div>
-                  <!-- Suggestions dropdown -->
-                  <div class="dropdown">
-                    <ul id="exercise_suggestions_new_{{ x }}" class="dropdown-menu show"
-                      style="width: 100%; display: none">
-                    </ul>
+                  <div class="wd-ex-pick">
+                    <span class="wd-ex-icon"></span>
+                    <button type="button" class="wd-ex-name wd-ex-new" data-wd-pick="exercise_new_{{ x }}"
+                      data-wd-empty="{{ _("Add exercise") }}">
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"
+                        class="me-1 align-baseline"><path d="M8 2a.75.75 0 0 1 .75.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5A.75.75 0 0 1 8 2z"/></svg>{{ _("Add exercise") }}
+                    </button>
+                    <input type="hidden" id="exercise_new_{{ x }}" name="new_exercise_{{ x }}" value="" />
+                    <!-- Reps <-> Sec for the exercise being added (a hold is timed). Blank
+                         means "leave the exercise as it is"; a tap makes it explicit. It
+                         lives here and not on the training pages so a sweaty thumb mid-set
+                         cannot flip it. -->
+                    <input type="hidden" name="new_timed_{{ x }}" id="new_timed_{{ x }}" value="" />
+                    <button type="button" id="timed_toggle_{{ x }}" data-mode="reps"
+                      class="btn btn-outline-secondary btn-sm px-1 wd-timed-toggle flex-shrink-0"
+                      title="{{ _("Count this exercise in reps or in seconds") }}">{{ _("Reps") }}</button>
                   </div>
                 </td>
                 <td class="col-2 wd-row-extra">
@@ -543,21 +496,6 @@
   </div>
 
   <script>
-    // The suffix of every exercise input on the page. Existing rows are
-    // identified by workout_exercise_id, the empty row at the bottom of each
-    // day by "new_<day>". Neither depends on where a row sits in the table,
-    // so this list stays correct if the rows are reordered.
-    const EXERCISE_FIELD_IDS = [
-      {%- for x in range(week) %}
-      "new_{{ x }}",
-      {%- for exe in user_exe[x] %}
-      "{{ exe['id'] }}",
-      {%- endfor %}
-      {%- endfor %}
-    ];
-  </script>
-
-  <script>
     // Reps / Sec button on the "add exercise" row.
     function setTimedToggle(day, timed) {
       const button = document.getElementById(`timed_toggle_${day}`);
@@ -592,10 +530,9 @@
     });
   </script>
 
-  <script src="{{ url_for('static', filename='js/exerciseSuggestions.js') }}"></script>
   <script>
     // The drawings there are, which of them move, and the exercises given one
-    // by hand - exerciseSuggestions.js puts them on the suggestions.
+    // by hand - for the icons in the rows and in "Choose exercise".
     const EXERCISE_ICONS = {
       base: "{{ url_for('static', filename='icons/exercises/') }}",
       slugs: {{ exercise_icon_slugs|tojson }},
@@ -619,7 +556,7 @@
       var tapped = null;                                  // the icon a tap set playing
       var pressedWith = "mouse";                          // pointerType of the last press on an icon
       function play(img, on) { img.src = on ? img.dataset.wdMoving : img.dataset.wdStill; }
-      document.querySelectorAll("img[data-wd-moving]").forEach(function (img) {
+      window.wdWireRowIcon = function (img) {
         img.dataset.wdStill = img.getAttribute("src");
         img.addEventListener("pointerenter", function (e) { if (hoverPlays && e.pointerType === "mouse") play(img, true); });
         img.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse") play(img, false); });
@@ -630,148 +567,25 @@
           tapped = tapped === img ? null : img;
           play(img, tapped === img);
         });
-      });
+      };
+      document.querySelectorAll("tbody[data-day] img[data-wd-moving]").forEach(window.wdWireRowIcon);
       document.addEventListener("click", function (e) {
-        if (!tapped || (e.target.closest && e.target.closest("img[data-wd-moving]"))) return;
+        if (!tapped || (e.target.closest && e.target.closest("tbody[data-day] img[data-wd-moving]"))) return;
         play(tapped, false);
         tapped = null;
       });
     })();
 
-    // Wire one exercise text input to its own suggestions dropdown - paging,
-    // icons, waiting out fast typing and dropping stale answers are all in
-    // exerciseSuggestions.js; here is only what picking one does.
-    function wireExerciseAutocomplete(suffix) {
-      const input = document.getElementById(`exercise_${suffix}`);
-      const suggestions = document.getElementById(`exercise_suggestions_${suffix}`);
-      if (!input || !suggestions) return;
-
-      wireExerciseSuggestions(input, suggestions, {
-        url: "{{ url_for('exercise_suggestions') }}",
-        loadingText: {{ _("Loading…")|tojson }},
-        icons: EXERCISE_ICONS,
-        onPick: function (exercise) {
-          if (suffix.indexOf("new_") === 0) syncTimedToggle(suffix.slice(4), exercise);
-          // Picking from the dropdown IS the change, so it becomes the new
-          // baseline - collapsing afterwards must not undo it.
-          input.dataset.wdOriginal = input.value;
-          collapseExerciseRow(false);
-        },
-      });
-    }
-
-    // ----------------------------------------------------------------
-    // Phone only: give the exercise field the whole row while it is being
-    // typed in. Collapsing reverts whatever was typed unless it came from the
-    // dropdown - tapping away means "I changed my mind", so a half-typed name
-    // can never be left sitting in the row looking like a real exercise.
-    // ----------------------------------------------------------------
+    // Phone-sized screen: the list does not focus its search box there, as
+    // the keyboard would cover the list.
     const NARROW = window.matchMedia("(max-width: 576px)");
 
-    function expandExerciseRow(row) {
-      const cell = row.querySelector("td.wd-exercise-cell");
-      if (!cell) return;
-
-      // Span every column, so the cell is not left sitting in column 1 at the
-      // drag handle's width once its neighbours are hidden.
-      cell.dataset.wdSpan = cell.colSpan;
-      cell.colSpan = row.cells.length;
-      row.classList.add("wd-editing");
-    }
-
-    // The phone keyboard covers the lower half of the screen; a field near the
-    // bottom of the page (the last day's) stayed under it, suggestions and
-    // all, as there was no page left to scroll. So: room below the page, then
-    // the field scrolled up to just under the navbar - again once the keyboard
-    // is up, as opening it scrolls the page itself.
-    function revealExerciseField(input) {
-      document.body.classList.add("wd-typing");
-      const navbar = document.querySelector("nav.fixed-top");
-      function scrollUp() {
-        if (!document.body.classList.contains("wd-typing")) return;
-        const top = input.getBoundingClientRect().top + window.scrollY
-          - (navbar ? navbar.offsetHeight : 0) - 8;
-        window.scrollTo({ top: top, behavior: "smooth" });
-      }
-      requestAnimationFrame(scrollUp);
-      if (window.visualViewport) {
-        window.visualViewport.addEventListener("resize", scrollUp, { once: true });
-      }
-      setTimeout(scrollUp, 450);          // a keyboard that does not resize the viewport
-    }
-
-    function collapseExerciseRow(revert) {
-      const row = document.querySelector("tr.wd-editing");
-      if (!row) return;
-
-      const cell = row.querySelector("td.wd-exercise-cell");
-      if (cell && cell.dataset.wdSpan !== undefined) {
-        cell.colSpan = parseInt(cell.dataset.wdSpan, 10) || 1;
-        delete cell.dataset.wdSpan;
-      }
-
-      const input = row.querySelector('input[type="text"]');
-      if (input) {
-        if (revert && input.dataset.wdOriginal !== undefined) {
-          input.value = input.dataset.wdOriginal;
-        }
-        delete input.dataset.wdOriginal;
-        const suggestions = row.querySelector("ul.dropdown-menu");
-        if (suggestions) suggestions.style.display = "none";
-
-        // Expanding is driven by focusin, so the field must not keep focus
-        // after it collapses - otherwise tapping the same field again fires no
-        // focusin and it never reopens. Escape is where this bites: unlike a
-        // tap somewhere else, it does not move focus on its own. Blurring also
-        // drops the phone keyboard, which is what you want at this point.
-        if (document.activeElement === input) input.blur();
-      }
-
-      row.classList.remove("wd-editing");
-      document.body.classList.remove("wd-typing");
-    }
-
-    document.addEventListener("focusin", function (e) {
-      const input = e.target.closest
-        ? e.target.closest('tbody[data-day] input[type="text"]')
-        : null;
-      if (!input) return;
-
-      const row = input.closest("tr");
-      // Moving between two exercise fields: put the first one back first.
-      if (row && row.classList.contains("wd-editing")) return;
-      collapseExerciseRow(true);
-
-      if (!NARROW.matches || !row) return;
-      input.dataset.wdOriginal = input.value;
-      expandExerciseRow(row);
-      revealExerciseField(input);
-    });
-
-    // "Click on empty page or any other place and it collapses." pointerdown
-    // rather than click, so it also fires when a tap starts a scroll - and the
-    // dropdown lives inside the row, so picking a suggestion is not "outside".
-    document.addEventListener("pointerdown", function (e) {
-      if (e.target.closest && e.target.closest("tr.wd-editing")) return;
-      collapseExerciseRow(true);
-    });
-
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") collapseExerciseRow(true);
-    });
-
-    // Rotating the phone out of the narrow layout mid-edit.
-    NARROW.addEventListener("change", function () {
-      if (!NARROW.matches) collapseExerciseRow(false);
-    });
-
-    EXERCISE_FIELD_IDS.forEach(wireExerciseAutocomplete);
-
     // ----------------------------------------------------------------
-    // "Choose from the list": the button in an exercise field opens every
-    // exercise in the catalog (fetched once, the first time); a tap on one
-    // puts it into that field, as picking a suggestion does. Wired once the
-    // page is read - the window's markup comes after this script.
+    // "Choose exercise": tapping a row's exercise name (or "+ Add exercise")
+    // opens every exercise in the catalog (fetched once, the first time); a
+    // tap on one puts it into that row - name, icon and the hidden field the
+    // server reads. Wired once the page is read - the window's markup comes
+    // after this script.
     // ----------------------------------------------------------------
     document.addEventListener("DOMContentLoaded", function () {
       const modalEl = document.getElementById("wd_picker");
@@ -881,9 +695,34 @@
         return loading;
       }
 
+      // The row's icon follows the exercise: its drawing (playing on a tap,
+      // like the others) or none.
+      function showRowIcon(slot, name) {
+        if (!slot) return;
+        slot.innerHTML = "";
+        const slug = iconSlug(name);
+        if (!slug) return;
+        const img = document.createElement("img");
+        img.src = EXERCISE_ICONS.base + slug + ".svg";
+        img.className = "wd-exercise-icon";
+        img.alt = "";
+        img.setAttribute("aria-hidden", "true");
+        if (MOVING.has(slug)) {
+          img.dataset.wdMoving = EXERCISE_ICONS.base + "anim/" + slug + ".svg";
+          if (window.wdWireRowIcon) window.wdWireRowIcon(img);
+        }
+        slot.appendChild(img);
+      }
+
       function choose(item) {
         if (target) {
           target.value = item.label;
+          const button = document.querySelector(`[data-wd-pick="${target.id}"]`);
+          if (button) {
+            button.textContent = item.label;
+            button.classList.add("wd-ex-chosen");
+            showRowIcon(button.closest(".wd-ex-pick").querySelector(".wd-ex-icon"), item.name);
+          }
           if (target.id.indexOf("exercise_new_") === 0) syncTimedToggle(target.id.slice("exercise_new_".length), item.name);
           if (window.wdRefreshSaveButtons) window.wdRefreshSaveButtons();
         }
@@ -972,8 +811,8 @@
         const box = document.querySelector(`input[name="${button.dataset.wdRemove}"]`);
         const form = button.closest("form");
         if (!box || !form) return;
-        const field = button.closest("tr").querySelector('input[type="text"]');
-        nameEl.textContent = field ? field.value : "";
+        const name = button.closest("tr").querySelector(".wd-ex-name");
+        nameEl.textContent = name ? name.textContent.trim() : "";
         pending = { box: box, form: form };
         bootstrap.Modal.getOrCreateInstance(dialogEl).show();
       });

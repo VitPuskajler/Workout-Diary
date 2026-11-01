@@ -237,6 +237,31 @@ def run_checks(base, db, user, shots):
                 if not moving:
                     failures.append(f"{name} /create_workout: icons in 'Choose exercise' do not move")
 
+                # Picking one puts it into the row: the name shown and the
+                # hidden field the server reads.
+                target = pick.get_attribute("data-wd-pick")
+                choice = page.locator("#wd_picker_list button:visible").nth(2)
+                chosen = choice.locator("span.flex-grow-1").inner_text().strip()
+                choice.click()
+                page.wait_for_timeout(500)
+                shown = pick.inner_text().strip()
+                stored = page.locator(f"#{target}").input_value()
+                if not (shown == chosen == stored):
+                    failures.append(f"{name} /create_workout: picking '{chosen}' left the row showing "
+                                    f"'{shown}' and sending '{stored}'")
+
+            # Create Workout: nothing is typed in the plan - every exercise is
+            # picked - and every name fits whole (it wraps instead).
+            page.goto(base + "/create_workout")
+            typed = page.locator("tbody[data-day] input[type=text]").count()
+            if typed:
+                failures.append(f"{name} /create_workout: {typed} typed exercise field(s) in the plan")
+            cut = page.evaluate("""() => Array.from(document.querySelectorAll('.wd-ex-name'))
+                .filter(b => b.offsetParent && (b.scrollWidth > b.clientWidth + 1 || b.scrollHeight > b.clientHeight + 1))
+                .map(b => b.textContent.trim())""")
+            if cut:
+                failures.append(f"{name} /create_workout: exercise names cut off: {', '.join(cut[:5])}")
+
             ctx.close()
             browser.close()
             print(f"  {name}: done")
