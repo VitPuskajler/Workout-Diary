@@ -7,6 +7,8 @@ database: locally, and again on PythonAnywhere.
   - users.show_session_icons (0/1, 1)     the exercise's icon in each row of
                                           the training session table
   - users.animate_session_icons (0/1, 0)  those icons play their rep
+  - users.show_plan_icons (0/1, 1)        the icon beside each exercise on
+                                          Create Workout
   - users.show_stopwatch (0/1, 1)         the stopwatch bar on the training pages
   - users.show_set_gaps (0/1, 1)          "+2:35" since the previous set
   - users.language ("en")                 "en", "sk" or "cs" (translations/i18n.py)
@@ -39,6 +41,7 @@ DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 COLUMNS = [
     ("users", "show_session_icons", "BOOLEAN NOT NULL DEFAULT 1"),
     ("users", "animate_session_icons", "BOOLEAN NOT NULL DEFAULT 0"),
+    ("users", "show_plan_icons", "BOOLEAN NOT NULL DEFAULT 1"),
     ("users", "show_stopwatch", "BOOLEAN NOT NULL DEFAULT 1"),
     ("users", "show_set_gaps", "BOOLEAN NOT NULL DEFAULT 1"),
     ("users", "language", "VARCHAR(5) NOT NULL DEFAULT 'en'"),

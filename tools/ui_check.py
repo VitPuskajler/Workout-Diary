@@ -267,6 +267,25 @@ def run_checks(base, db, user, shots):
             # at the smallest font wraps on purpose rather than being cut.
             heights = page.evaluate("""() => [...new Set(Array.from(document.querySelectorAll('.wd-ex-name'))
                 .filter(b => b.offsetParent).map(b => Math.round(b.getBoundingClientRect().height)))]""")
+            # The icons switch above the plan: hides the icons on the spot,
+            # is saved (Customization shows it off), and turns back on.
+            switch = page.locator("#showPlanIconsHere")
+            if switch.count() and switch.is_checked():
+                switch.click()
+                page.wait_for_timeout(500)
+                visible = page.locator("tbody[data-day] .wd-ex-icon img:visible").count()
+                page.goto(base + "/customization")
+                saved_off = not page.is_checked("#showPlanIcons")
+                page.goto(base + "/create_workout")
+                hidden_after_reload = page.locator("tbody[data-day] .wd-ex-icon img:visible").count() == 0
+                if visible or not saved_off or not hidden_after_reload:
+                    failures.append(f"{name} /create_workout: the icons switch did not hide the icons "
+                                    f"(visible {visible}, saved off {saved_off}, after reload {hidden_after_reload})")
+                page.locator("#showPlanIconsHere").click()
+                page.wait_for_timeout(500)
+                if not page.locator("tbody[data-day] .wd-ex-icon img:visible").count():
+                    failures.append(f"{name} /create_workout: the icons switch did not show the icons again")
+
             if len(heights) > 1:
                 wrapped = page.evaluate("""() => Array.from(document.querySelectorAll('.wd-ex-name.wd-ex-wrap'))
                     .map(b => b.textContent.trim())""")

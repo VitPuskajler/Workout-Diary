@@ -142,6 +142,14 @@
                     <div class="form-text">{{ _("The icons play the exercise's rep. Not with “reduce motion” on.") }}</div>
                 </div>
 
+                <!-- Also on Create Workout itself, above the plan. -->
+                <div class="form-check form-switch wd-switch mt-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="showPlanIcons"
+                        name="show_plan_icons" value="1" {{ 'checked' if current_user.show_plan_icons }}>
+                    <label class="form-check-label" for="showPlanIcons">{{ _("Icons in the workout plan") }}</label>
+                    <div class="form-text">{{ _("The exercise's drawing beside its name on Create Workout.") }}</div>
+                </div>
+
                 <hr class="my-4">
                 <div class="wd-group mb-3">{{ _("Timing") }}</div>
 

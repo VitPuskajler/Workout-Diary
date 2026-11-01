@@ -1204,7 +1204,11 @@ def change_password():
 
 # The switches on /customization -> Users columns.
 CUSTOMIZATION_SWITCHES = ("show_session_icons", "animate_session_icons", "show_stopwatch", "show_set_gaps",
-                          "translate_exercises")
+                          "translate_exercises", "show_plan_icons")
+
+# The switches that also sit on another page (Create Workout) and are saved
+# from there one at a time - see save_one_switch().
+SINGLE_SWITCHES = ("translate_exercises", "show_plan_icons")
 
 
 @app.route("/customization")
@@ -1237,13 +1241,18 @@ def save_customization():
     return jsonify({"ok": True})
 
 
-@app.route("/customization/translate_exercises", methods=["POST"])
+@app.route("/customization/switch", methods=["POST"])
 @login_required
-def save_translate_exercises():
-    """Just the translated-names switch - the copy of it on /create_workout.
-    save_customization() would turn off every switch the request leaves out."""
+def save_one_switch():
+    """One Customization switch, from its copy on another page (Create
+    Workout: translated names, plan icons). save_customization() would turn
+    off every switch the request leaves out, so this one takes a single name
+    - and only one of SINGLE_SWITCHES."""
+    name = request.form.get("name")
+    if name not in SINGLE_SWITCHES:
+        abort(400)
     user = db.session.get(Users, current_user.user_id)
-    user.translate_exercises = request.form.get("translate_exercises") == "1"
+    setattr(user, name, request.form.get("value") == "1")
     db.session.commit()
     return jsonify({"ok": True})
 

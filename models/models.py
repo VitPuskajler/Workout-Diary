@@ -33,6 +33,9 @@ class Users(UserMixin, db.Model):
     # training session table, and whether it plays its rep. See
     # temp/add_customization_columns.py.
     show_session_icons = Column(Boolean, nullable=False, default=True, server_default="1")
+    # The same drawing beside each exercise on Create Workout (the plan) -
+    # its own switch, on that page and on /customization.
+    show_plan_icons = Column(Boolean, nullable=False, default=True, server_default="1")
     animate_session_icons = Column(Boolean, nullable=False, default=False, server_default="0")
     # The stopwatch bar on the training pages, and the "+2:35" since the
     # previous set under each logged set.

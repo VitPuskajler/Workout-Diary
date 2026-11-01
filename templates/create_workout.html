@@ -95,6 +95,12 @@
       gap: .4rem;
     }
 
+    /* Icons switched off (the switch above the plan / Customization): the
+       names get the room. */
+    .wd-no-icons .wd-ex-icon {
+      display: none;
+    }
+
     .wd-ex-name {
       /* width: 0 + grow: the box takes the room the column has, but its
          one-line text never asks the table for more - a long name would
@@ -345,19 +351,26 @@
           </div>
         </form>
 
-        {# The same switch as on /customization. Outside the plan form, so
-           flipping it is not an unsaved change of the plan. English has no
-           translations, so the switch is only there for Slovak and Czech. #}
-        {% if current_language() != 'en' %}
-        <div class="d-flex justify-content-center mb-4">
-          <div class="form-check form-switch">
+        {# The same switches as on /customization, saved from here one at a
+           time. Outside the plan form, so flipping one is not an unsaved
+           change of the plan. English has no translations, so that switch
+           is only there for Slovak and Czech. #}
+        <div class="d-flex flex-wrap justify-content-center column-gap-4 row-gap-2 mb-4">
+          {% if current_language() != 'en' %}
+          <div class="form-check form-switch mb-0">
             <input class="form-check-input" type="checkbox" role="switch" id="translateExercisesHere"
               {{ 'checked' if current_user.translate_exercises }}
-              data-wd-save-url="{{ url_for('save_translate_exercises') }}">
+              data-wd-switch="translate_exercises">
             <label class="form-check-label small" for="translateExercisesHere">{{ _("Translated exercise names") }}</label>
           </div>
+          {% endif %}
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" role="switch" id="showPlanIconsHere"
+              {{ 'checked' if current_user.show_plan_icons }}
+              data-wd-switch="show_plan_icons">
+            <label class="form-check-label small" for="showPlanIconsHere">{{ _("Exercise icons") }}</label>
+          </div>
         </div>
-        {% endif %}
       </div>
     </div>
   </div>
@@ -377,7 +390,8 @@
     <!-- Row to center the content -->
     <div class="row justify-content-center">
       <!-- Column that adjusts width based on screen size -->
-      <div class="col-12 col-md-7" data-wd-editable="create_workout">
+      <div class="col-12 col-md-7{{ '' if current_user.show_plan_icons else ' wd-no-icons' }}"
+        data-wd-editable="create_workout" id="wd_plan_area">
         {% for x in range(week) %}
         <form action="{{ url_for('create_workout') }}" method="POST" data-wd-plan>
           {# The day's name, with the Edit toggle beside it. The toggle used to
@@ -1137,18 +1151,38 @@
 
     refreshSaveButtons();
 
-    // ---- the translated-names switch
+    // ---- the switches above the plan (copies of Customization's)
+    function saveSwitch(box) {
+      const data = new FormData();
+      data.append("name", box.dataset.wdSwitch);
+      data.append("value", box.checked ? "1" : "0");
+      return fetch("{{ url_for('save_one_switch') }}", { method: "POST", body: data })
+        .then(function (response) { if (!response.ok) throw new Error(response.status); });
+    }
+
+    // Icons: shown or hidden on the spot, nothing to reload. The names
+    // refit to the room they gain or lose on their own (ResizeObserver).
+    (function () {
+      const box = document.getElementById("showPlanIconsHere");
+      const area = document.getElementById("wd_plan_area");
+      if (!box || !area) return;
+      box.addEventListener("change", function () {
+        area.classList.toggle("wd-no-icons", !box.checked);
+        saveSwitch(box).catch(function () {
+          box.checked = !box.checked;
+          area.classList.toggle("wd-no-icons", !box.checked);
+        });
+      });
+    })();
+
+    // Translated names: they come from the server - reload to swap them.
     (function () {
       const box = document.getElementById("translateExercisesHere");
       if (!box) return;
       box.addEventListener("change", function () {
-        const data = new FormData();
-        data.append("translate_exercises", box.checked ? "1" : "0");
-        fetch(box.dataset.wdSaveUrl, { method: "POST", body: data })
-          .then(function (response) {
-            if (!response.ok) throw new Error(response.status);
-            // The names in the fields come from the server - reload to swap
-            // them. Unsaved work first gets the usual Save / Discard choice;
+        saveSwitch(box)
+          .then(function () {
+            // Unsaved work first gets the usual Save / Discard choice;
             // either way it lands back here with the new names.
             if (isDirty() && unsavedDialog) {
               pendingHref = window.location.href;
