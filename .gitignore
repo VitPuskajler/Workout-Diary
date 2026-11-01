@@ -15,3 +15,5 @@ Testing_files
 test.html
 migrations
 instance
+# Claude Code: personal settings stay local (.claude/settings.json is shared)
+.claude/settings.local.json

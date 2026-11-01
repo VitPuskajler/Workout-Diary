@@ -1,0 +1,260 @@
+"""UI check before a commit: the app on a PC, an Android phone and an iPhone.
+
+Runs a COPY of the app on a COPY of instance/workout.db - the real database is
+never opened for writing - and drives it with Playwright in three browsers:
+
+    PC        Chromium, 1920 x 1080
+    Android   Chromium, Pixel 7 (touch)
+    iPhone    WebKit (Safari's engine), iPhone 13 (touch)
+
+For each: every main page in English, Slovak and Czech must answer 200 with no
+JavaScript error, plus checks for things that have broken before (a tapped
+icon on Create Workout must move - it did not on an iPhone). Screenshots of
+every page (in Slovak) go to a folder printed at the end, to look at.
+
+    python tools/ui_check.py                 run it
+    python tools/ui_check.py --stamp         ...and remember a pass for this diff
+    python tools/ui_check.py --skip-if-stamped
+                                             what the git pre-commit hook runs:
+                                             skips when the staged change was
+                                             already checked (by Claude's hook)
+
+Exit code 0 = passed, 1 = something failed. Needs: pip install playwright,
+then playwright install chromium webkit.
+"""
+import argparse
+import hashlib
+import os
+import shutil
+import socket
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CHECKED_DIRS = ["templates", "static", "translations"]
+STAMP = os.path.join(ROOT, ".git", "ui_check_ok")
+
+PAGES = ["/table_layout", "/create_workout", "/workout_plan_page", "/progress",
+         "/training_session", "/intuitive_training", "/mesocycle_management",
+         "/profile", "/customization", "/statistics"]
+ADMIN_PAGES = ["/admin/exercises"]
+LANGS = ["en", "sk", "cs"]
+
+RUNNER = r'''
+import os, sys
+app_dir, port = sys.argv[1], int(sys.argv[2])
+sys.path.insert(0, app_dir)
+os.chdir(app_dir)
+import server
+from flask import redirect
+from flask_login import login_user
+from models.models import Users
+
+@server.app.route("/_ui_check_login/<int:user_id>")
+def _ui_check_login(user_id):
+    login_user(server.db.session.get(Users, user_id))
+    return redirect("/create_workout")
+
+server.app.run(port=port, debug=False, use_reloader=False)
+'''
+
+
+# ---------------------------------------------------------------- the stamp
+# A pass is remembered as a fingerprint of the change to the checked folders,
+# so the git pre-commit hook can skip a change Claude's hook already checked.
+# Files are compared by git blob id, which is line-ending neutral (autocrlf).
+def _git(*args):
+    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True).stdout
+
+
+def _fingerprint(diff, new_blobs):
+    for path, blob in sorted(new_blobs):
+        diff += b"\nnew " + path.encode() + b" " + blob
+    return hashlib.sha256(diff).hexdigest()
+
+
+def staged_fingerprint():
+    """The change as staged - what the commit will contain."""
+    diff = _git("diff", "--binary", "--cached", "--diff-filter=MD", "HEAD", "--", *CHECKED_DIRS)
+    added = _git("diff", "--cached", "--name-only", "--diff-filter=A", "--", *CHECKED_DIRS).decode().split()
+    return _fingerprint(diff, [(p, _git("rev-parse", ":" + p).strip()) for p in added])
+
+
+def working_fingerprint():
+    """The change in the working tree - what a following git add will stage."""
+    diff = _git("diff", "--binary", "--diff-filter=MD", "HEAD", "--", *CHECKED_DIRS)
+    new = set(_git("ls-files", "--others", "--exclude-standard", "--", *CHECKED_DIRS).decode().split())
+    new |= set(_git("diff", "--cached", "--name-only", "--diff-filter=A", "--", *CHECKED_DIRS).decode().split())
+    return _fingerprint(diff, [(p, _git("hash-object", p).strip()) for p in new])
+
+
+# ---------------------------------------------------------------- the app copy
+def free_port():
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def start_app(work):
+    app_dir = os.path.join(work, "app")
+    os.makedirs(os.path.join(app_dir, "instance"))
+    for name in ["server.py", "models", "workout_management", "translations", "templates", "static", "data"]:
+        src = os.path.join(ROOT, name)
+        (shutil.copytree if os.path.isdir(src) else shutil.copy2)(src, os.path.join(app_dir, name))
+    for name in ["workout.db", "secret_key"]:
+        src = os.path.join(ROOT, "instance", name)
+        if os.path.exists(src):
+            shutil.copy2(src, os.path.join(app_dir, "instance", name))
+    runner = os.path.join(work, "runner.py")
+    with open(runner, "w", encoding="utf-8") as fh:
+        fh.write(RUNNER)
+    port = free_port()
+    log = open(os.path.join(work, "server.log"), "w", encoding="utf-8")
+    proc = subprocess.Popen([sys.executable, runner, app_dir, str(port)], stdout=log, stderr=subprocess.STDOUT)
+    base = f"http://127.0.0.1:{port}"
+    for _ in range(60):
+        try:
+            urllib.request.urlopen(base + "/login", timeout=2)
+            return proc, base, os.path.join(app_dir, "instance", "workout.db")
+        except Exception:
+            if proc.poll() is not None:
+                break
+            time.sleep(0.5)
+    proc.kill()
+    raise SystemExit("The app copy did not start - see " + os.path.join(work, "server.log"))
+
+
+def pick_user(db):
+    """The user with the most mesocycles - the richest pages to look at."""
+    con = sqlite3.connect(db)
+    row = con.execute("""select u.user_id, u.username, u.role = 'admin', count(m.mesocycle_id) n
+                         from users u left join mesocycles m on m.user_id = u.user_id
+                         group by u.user_id order by n desc limit 1""").fetchone()
+    con.close()
+    if not row:
+        raise SystemExit("instance/workout.db has no users to log in with.")
+    return row
+
+
+def set_language(db, user_id, lang):
+    con = sqlite3.connect(db)
+    con.execute("update users set language = ? where user_id = ?", (lang, user_id))
+    con.commit()
+    con.close()
+
+
+# ---------------------------------------------------------------- the checks
+def run_checks(base, db, user, shots):
+    from playwright.sync_api import sync_playwright
+
+    user_id, username, is_admin, _ = user
+    pages = PAGES + (ADMIN_PAGES if is_admin else [])
+    failures, warnings = [], []
+
+    with sync_playwright() as p:
+        devices = [
+            ("PC", p.chromium, {"viewport": {"width": 1920, "height": 1080}}),
+            ("Android", p.chromium, dict(p.devices["Pixel 7"])),
+            ("iPhone", p.webkit, dict(p.devices["iPhone 13"])),
+        ]
+        for name, engine, options in devices:
+            browser = engine.launch()
+            ctx = browser.new_context(**options)
+            page = ctx.new_page()
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e).splitlines()[0]))
+            page.goto(f"{base}/_ui_check_login/{user_id}")
+
+            for lang in LANGS:
+                set_language(db, user_id, lang)
+                for path in pages:
+                    errors.clear()
+                    try:
+                        response = page.goto(base + path, wait_until="load")
+                        status = response.status if response else 0
+                    except Exception as e:
+                        status = "error: " + str(e).splitlines()[0]
+                    if status != 200:
+                        failures.append(f"{name} {lang} {path}: status {status}")
+                    for err in errors:
+                        failures.append(f"{name} {lang} {path}: JavaScript error: {err}")
+                    if lang == "sk":
+                        page.screenshot(path=os.path.join(shots, f"{name}_{path.strip('/').replace('/', '_')}.png"))
+                        if name != "PC":
+                            overflow = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
+                            if overflow > 1:
+                                warnings.append(f"{name} {path}: page is {overflow}px wider than the screen")
+
+            # Create Workout: a moving icon must move - hover on a PC, tap on a phone.
+            page.goto(base + "/create_workout")
+            icon = page.locator("img[data-wd-moving]").first
+            if icon.count():
+                icon.scroll_into_view_if_needed()
+                if name == "PC":
+                    icon.hover()
+                else:
+                    icon.tap()
+                page.wait_for_timeout(300)
+                if "/anim/" not in (icon.get_attribute("src") or ""):
+                    failures.append(f"{name} /create_workout: the icon did not move when "
+                                    + ("hovered" if name == "PC" else "tapped"))
+            else:
+                warnings.append(f"{name} /create_workout: no moving icon to test with")
+
+            ctx.close()
+            browser.close()
+            print(f"  {name}: done")
+    return failures, warnings
+
+
+def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--stamp", action="store_true", help="remember a pass for the current change")
+    parser.add_argument("--skip-if-stamped", action="store_true",
+                        help="skip if the staged change already passed (git pre-commit)")
+    args = parser.parse_args()
+
+    if args.skip_if_stamped and os.path.exists(STAMP):
+        if open(STAMP).read().strip() == staged_fingerprint():
+            print("UI check: this change already passed (checked before git add) - skipping.")
+            return 0
+
+    try:
+        import playwright  # noqa: F401
+    except ImportError:
+        print("UI check needs Playwright: pip install playwright && playwright install chromium webkit")
+        return 1
+
+    work = tempfile.mkdtemp(prefix="wd_ui_check_")
+    shots = os.path.join(work, "screenshots")
+    os.makedirs(shots)
+    print("UI check: PC, Android, iPhone x en/sk/cs ...")
+    started = time.time()
+    proc, base, db = start_app(work)
+    try:
+        user = pick_user(db)
+        print(f"  logged in as {user[1]} (copy of the database)")
+        failures, warnings = run_checks(base, db, user, shots)
+    finally:
+        proc.kill()
+
+    for w in warnings:
+        print("  warning:", w)
+    for f in failures:
+        print("  FAIL:", f)
+    print(f"UI check {'FAILED' if failures else 'passed'} in {time.time() - started:.0f}s. Screenshots: {shots}")
+
+    if not failures and args.stamp:
+        with open(STAMP, "w") as fh:
+            fh.write(working_fingerprint())
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

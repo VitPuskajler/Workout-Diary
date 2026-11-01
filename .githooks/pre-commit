@@ -1,0 +1,20 @@
+#!/bin/sh
+# Before every commit that changes what the app shows (templates/, static/,
+# translations/): the UI check on a PC, an Android phone and an iPhone -
+# see tools/ui_check.py. A failure stops the commit.
+#
+# Switched on once per clone with:   git config core.hooksPath .githooks
+# Skip it once, knowingly:           git commit --no-verify
+
+changed=$(git diff --cached --name-only -- templates static translations)
+[ -z "$changed" ] && exit 0
+
+python tools/ui_check.py --skip-if-stamped
+status=$?
+if [ $status -ne 0 ]; then
+    echo ""
+    echo "Commit stopped: the UI check failed (see above)."
+    echo "Fix it and commit again - or, knowingly, git commit --no-verify."
+    exit 1
+fi
+exit 0

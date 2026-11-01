@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git *)",
+            "command": "python \"$CLAUDE_PROJECT_DIR/tools/pre_commit_ui_check.py\"",
+            "timeout": 300,
+            "statusMessage": "UI check: PC, Android, iPhone..."
+          }
+        ]
+      }
+    ]
+  }
+}
