@@ -140,6 +140,14 @@ def pick_user(db):
     return row
 
 
+def show_icons(db, user_id):
+    """The icon checks need the icons on - whatever the real account has."""
+    con = sqlite3.connect(db)
+    con.execute("update users set show_plan_icons = 1 where user_id = ?", (user_id,))
+    con.commit()
+    con.close()
+
+
 def set_language(db, user_id, lang):
     con = sqlite3.connect(db)
     con.execute("update users set language = ? where user_id = ?", (lang, user_id))
@@ -220,7 +228,7 @@ def run_checks(base, db, user, shots):
             if delete.count():
                 page.evaluate("document.querySelector('.wd-swipe-del').click()")
                 page.wait_for_timeout(500)
-                if not page.locator("#wd_confirm_delete.show").count():
+                if not page.locator("#wd_confirm.show").count():
                     failures.append(f"{name} /create_workout: Delete did not ask for confirmation")
                 elif page.url.rstrip("/") != (base + "/create_workout"):
                     failures.append(f"{name} /create_workout: Delete went ahead without confirmation")
@@ -239,11 +247,29 @@ def run_checks(base, db, user, shots):
 
                 # Picking one puts it into the row: the name shown and the
                 # hidden field the server reads.
+                # A row already in the plan asks first: Cancel keeps the
+                # exercise, Replace takes the new one.
                 target = pick.get_attribute("data-wd-pick")
+                before = pick.inner_text().strip()
                 choice = page.locator("#wd_picker_list button:visible").nth(2)
                 chosen = choice.locator("span.flex-grow-1").inner_text().strip()
                 choice.click()
-                page.wait_for_timeout(500)
+                page.wait_for_timeout(800)
+                asks = target.startswith("exercise_new_") or chosen == before
+                if not asks:
+                    if not page.locator("#wd_confirm.show").count():
+                        failures.append(f"{name} /create_workout: replacing an exercise did not ask first")
+                    else:
+                        page.locator("#wd_confirm button[data-bs-dismiss]").click()
+                        page.wait_for_timeout(500)
+                        if pick.inner_text().strip() != before:
+                            failures.append(f"{name} /create_workout: Cancel still replaced the exercise")
+                        pick.click()
+                        page.wait_for_timeout(500)
+                        page.locator("#wd_picker_list button:visible").nth(2).click()
+                        page.wait_for_timeout(800)
+                        page.locator("#wd_confirm_ok").click()
+                        page.wait_for_timeout(500)
                 shown = pick.inner_text().strip()
                 stored = page.locator(f"#{target}").input_value()
                 if not (shown == chosen == stored):
@@ -326,6 +352,7 @@ def main():
     proc, base, db = start_app(work)
     try:
         user = pick_user(db)
+        show_icons(db, user[0])
         print(f"  logged in as {user[1]} (copy of the database)")
         failures, warnings = run_checks(base, db, user, shots)
     finally:

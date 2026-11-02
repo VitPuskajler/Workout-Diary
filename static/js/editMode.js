@@ -10,6 +10,9 @@
    Markup:
      <div data-wd-editable="some-key">            scope; the key remembers the
        <button type="button" data-wd-edit-toggle>   mode across a reload
+                                                    (data-wd-icon-only: the button
+                                                    shows icons, the labels go to
+                                                    its aria-label and title)
        <tr data-wd-swipe>
          ... <td class="wd-swipe-cell"> <button class="wd-swipe-del">Delete</button>
 
@@ -40,7 +43,13 @@
     scope.classList.toggle("wd-edit-on", on);
     scope.querySelectorAll("[data-wd-edit-toggle]").forEach(function (btn) {
       // data-label-on/off carry the page's language; English without them.
-      btn.textContent = on ? (btn.dataset.labelOn || "Done") : (btn.dataset.labelOff || "Edit");
+      var label = on ? (btn.dataset.labelOn || "Done") : (btn.dataset.labelOff || "Edit");
+      if (btn.hasAttribute("data-wd-icon-only")) {
+        btn.setAttribute("aria-label", label);
+        btn.title = label;
+      } else {
+        btn.textContent = label;
+      }
       btn.classList.toggle("btn-primary", on);
       btn.classList.toggle("btn-outline-secondary", !on);
       btn.setAttribute("aria-pressed", on ? "true" : "false");
