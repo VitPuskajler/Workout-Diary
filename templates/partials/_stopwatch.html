@@ -38,6 +38,10 @@
 
   /* Corner button, ONE clock in the middle, Start/Go on the right. */
   .wd-sw-stop, .wd-sw-main { flex: 0 0 84px; }
+  /* The power icon needs ~30px; the rest of its 84 goes to the clock while
+     SS and New lap stand beside Go - 1:02:04 must fit a 360px phone. */
+  .wd-sw[data-phase="intro"] .wd-sw-stop,
+  .wd-sw[data-phase="rest"] .wd-sw-stop { flex-basis: 40px; }
   .wd-sw-stop { display: flex; justify-content: flex-start; }
   .wd-sw-lap small { display: block; margin-top: 4px; font-size: .65rem; letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
   .wd-sw-stop {
@@ -97,6 +101,22 @@
     background: #2b2f38; color: #ffc107; font-weight: 700;
   }
   .wd-sw[data-phase="rest"] .wd-sw-ss { display: block; }
+
+  /* Start shows a stopwatch beside its word - only until the clock runs. */
+  .wd-sw-main { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  .wd-sw-main .wd-sw-icon { display: none; flex: 0 0 auto; }
+  .wd-sw[data-phase="off"] .wd-sw-main .wd-sw-icon { display: inline; }
+
+  /* New lap (two arrows in a circle): times what is never logged - warm-up sets above all.
+     The lap clock starts again from 0, the total runs on. Not during a set:
+     there the clock is the set's own. */
+  .wd-sw-flag {
+    display: none; border: 0; border-radius: 12px; padding: 8px 10px; line-height: 0;
+    background: #2b2f38; color: #e9ecef;
+  }
+  .wd-sw-flag:active { background: #3a3f4b; }
+  .wd-sw[data-phase="intro"] .wd-sw-flag,
+  .wd-sw[data-phase="rest"] .wd-sw-flag { display: block; }
   .wd-sw[data-phase="ss"] .wd-sw-lap output { color: #ffc107 !important; }
 </style>
 
@@ -113,7 +133,19 @@
   </button>
   <div class="wd-sw-right">
     <button type="button" class="wd-sw-ss" id="wd-sw-ss" aria-label="{{ _("Superset: next exercise starts now") }}">SS</button>
-    <button type="button" class="wd-sw-main" id="wd-sw-main">{{ _("Start") }}</button>
+    <button type="button" class="wd-sw-flag" id="wd-sw-flag" aria-label="{{ _("New lap") }}" title="{{ _("New lap") }}">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41m-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9"/>
+        <path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5 5 0 0 0 8 3M3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9z"/>
+      </svg>
+    </button>
+    <button type="button" class="wd-sw-main" id="wd-sw-main">
+      <svg class="wd-sw-icon" width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8.5 5.6a.5.5 0 1 0-1 0v2.9h-3a.5.5 0 0 0 0 1H8a.5.5 0 0 0 .5-.5z"/>
+        <path d="M6.5 1A.5.5 0 0 1 7 .5h2a.5.5 0 0 1 0 1v.57c1.36.196 2.594.78 3.584 1.64l.012-.013.354-.354-.354-.353a.5.5 0 0 1 .707-.708l1.414 1.415a.5.5 0 1 1-.707.707l-.353-.354-.354.354-.013.012A7 7 0 1 1 7 2.071V1.5a.5.5 0 0 1-.5-.5M8 3a6 6 0 1 0 .001 12A6 6 0 0 0 8 3"/>
+      </svg>
+      <span id="wd-sw-main-label">{{ _("Start") }}</span>
+    </button>
   </div>
 </div>
 
@@ -131,6 +163,17 @@
   (function () {
     var STATE = {{ stopwatch_state(sw_exercise, sw_colored)|tojson }};   // {last: ms|null, limit: s|null}
     var KEY = "wd_sw_{{ current_user.user_id }}";
+    // The newest logged set when Finish was tapped (the server's time, so a
+    // phone's clock being off cannot matter). A set logged in the last 30
+    // minutes starts the stopwatch by itself on load - but not that one, or
+    // the workout just ended came back on the next reload. A set logged after
+    // the Finish starts a new run as before.
+    var DONE_KEY = KEY + "_done";
+    // The run as it was at Finish, and when. Started again within RESUME -
+    // by Start or by a logged set - it goes on as if it had never stopped:
+    // a Finish tapped by mistake mid-workout loses nothing.
+    var PARKED_KEY = KEY + "_parked";
+    var RESUME = 60 * 60 * 1000;
     // The clock's labels and the main button, in the user's language.
     var T = {{ {"total": _("total"), "superset": _("superset"), "set": _("set"), "warm-up": _("warm-up"),
                 "rest": _("rest"), "Start": _("Start"), "Cancel": _("Cancel"), "Go": _("Go")}|tojson }};
@@ -141,10 +184,13 @@
     var lapEl = document.getElementById("wd-sw-lap");
     var labelEl = document.getElementById("wd-sw-label");
     var mainBtn = document.getElementById("wd-sw-main");
+    var mainLabel = document.getElementById("wd-sw-main-label");
     var stopBtn = document.getElementById("wd-sw-stop");
 
     // st = {start, seen, setAt, view}: run start, newest set time seen, Go tap
-    // time, and which clock is showing ("total" or the lap). A superset adds
+    // time, and which clock is showing ("total" or the lap). {lapAt, laps}:
+    // the last "New lap" tap and how many there were since the clock's start
+    // (Start, or the newest logged set) - a logged set or Go clears them. A superset adds
     // {restFrom, restLimit, ss, ssAt}: the rest runs from restFrom (the first
     // exercise's set, not the newest one) against restLimit (its rest); ss is
     // true from the SS tap (at ssAt) until that set is logged.
@@ -154,6 +200,18 @@
     function save() {
       try { st ? localStorage.setItem(KEY, JSON.stringify(st)) : localStorage.removeItem(KEY); } catch (e) { }
     }
+    // The last thing the run did - the moment the 30 idle minutes count from.
+    function lastActive(s) {
+      return Math.max(s.setAt || 0, s.seen || 0, s.start || 0, s.resumedAt || 0);
+    }
+    // The run parked by Finish, if it is recent enough to go on; used once.
+    function unpark() {
+      var parked = null;
+      try { parked = JSON.parse(localStorage.getItem(PARKED_KEY)); localStorage.removeItem(PARKED_KEY); } catch (e) { }
+      if (!parked || !parked.st || Date.now() - parked.at > RESUME) return null;
+      parked.st.resumedAt = Date.now();
+      return parked.st;
+    }
     function fmt(ms) {
       var s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
       return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(sec).padStart(2, "0");
@@ -162,13 +220,21 @@
     var st = load();
     var now = Date.now();
 
-    if (STATE.last) {
-      var brandNewRun = !st
-        || (st.seen ? STATE.last - st.seen > IDLE : STATE.last - st.start > IDLE);
+    var finishedAt = 0;
+    try { finishedAt = Number(localStorage.getItem(DONE_KEY)) || 0; } catch (e) { }
+
+    if (STATE.last && (st || STATE.last > finishedAt)) {
+      // A set logged after a Finish: the finished run goes on, if it was
+      // finished under an hour ago - otherwise a new one starts with the set.
+      if (!st) st = unpark();
+      var brandNewRun = !st || STATE.last - lastActive(st) > IDLE;
       if (brandNewRun) {
         // The set was logged a moment ago, so it is also when the run began.
         st = { start: STATE.last, seen: STATE.last, setAt: null, restFrom: STATE.last, restLimit: STATE.limit };
-      } else if (STATE.last !== st.seen) {
+      } else if (STATE.last !== st.seen && STATE.last !== st.before) {
+        // Not the set that was the newest when Start was tapped (the last one
+        // before a Finish, say) - it is no part of this run. Compared by the
+        // server's own timestamp, so the phone's clock cannot matter.
         st.seen = STATE.last;
         st.setAt = null;                        // a new set ends the "Set" phase
         st.view = "lap";                        // and brings the rest clock back
@@ -177,6 +243,7 @@
           st.restLimit = STATE.limit;
         }                                       // a superset set: the old one goes on
         st.ss = false; st.ssAt = null;
+        st.lapAt = null; st.laps = 0;           // laps belong to the gap before it
       }
     }
     save();
@@ -190,12 +257,14 @@
 
     function render() {
       now = Date.now();
-      if (st && now - (st.setAt || st.seen || st.start) > IDLE) { st = null; save(); }
+      if (st && now - lastActive(st) > IDLE) { st = null; save(); }
 
       var p = phase(), tone = "", nudge = false;
       bar.dataset.phase = p;
-      // Before the first set the lap IS the total, so there is nothing to swap.
-      var showTotal = !!st && st.view === "total" && p !== "intro";
+      // Before the first set the lap IS the total, so there is nothing to
+      // swap - until a New lap starts the lap clock afresh.
+      var lapped = !!st && !!st.lapAt && (p === "intro" || p === "rest");
+      var showTotal = !!st && st.view === "total" && (p !== "intro" || lapped);
       bar.dataset.view = showTotal ? "total" : "lap";
       if (st) {
         if (showTotal) {
@@ -203,7 +272,14 @@
         } else if (p === "set") {
           lapEl.textContent = fmt(now - st.setAt); labelEl.textContent = T["set"];
         } else if (p === "intro") {
-          lapEl.textContent = fmt(now - st.start); labelEl.textContent = T["warm-up"];
+          lapEl.textContent = fmt(now - (lapped ? st.lapAt : st.start));
+          labelEl.textContent = T["warm-up"] + (lapped ? " " + (st.laps + 1) : "");
+        } else if (lapped && p === "rest") {
+          // A lap inside the rest - a warm-up for the next exercise: its own
+          // clock, numbered, measured like a rest from the tap.
+          var sinceLap = now - st.lapAt;
+          lapEl.textContent = fmt(sinceLap); labelEl.textContent = T["rest"] + " " + (st.laps + 1);
+          nudge = sinceLap / 1000 >= (STATE.limit || NUDGE_AFTER);
         } else {
           // Rest - also while a superset's next exercise is done (phase "ss"),
           // and after it: from the first exercise's set, against its rest.
@@ -218,15 +294,24 @@
       }
       bar.dataset.tone = tone;
       bar.dataset.nudge = nudge ? "1" : "";
-      mainBtn.textContent = { off: T["Start"], set: T["Cancel"], ss: T["Cancel"] }[p] || T["Go"];
+      mainLabel.textContent = { off: T["Start"], set: T["Cancel"], ss: T["Cancel"] }[p] || T["Go"];
     }
 
     mainBtn.addEventListener("click", function () {
       var p = phase();
-      if (p === "off") st = { start: Date.now(), seen: 0, setAt: null };
+      if (p === "off") st = unpark() || { start: Date.now(), seen: 0, setAt: null, before: STATE.last || 0 };
       else if (p === "set") st.setAt = null;
       else if (p === "ss") { st.ss = false; st.ssAt = null; }
-      else { st.setAt = Date.now(); st.view = "lap"; }
+      else { st.setAt = Date.now(); st.view = "lap"; st.lapAt = null; st.laps = 0; }
+      save(); render();
+    });
+
+    // New lap: the lap clock starts again from 0 - a warm-up set done, or
+    // its rest over - with nothing logged. The total runs on.
+    document.getElementById("wd-sw-flag").addEventListener("click", function () {
+      var p = phase();
+      if (p !== "intro" && p !== "rest") return;
+      st.lapAt = Date.now(); st.laps = (st.laps || 0) + 1; st.view = "lap";
       save(); render();
     });
 
@@ -242,7 +327,7 @@
 
     // Tap the clock to peek at the total time in the gym, tap again to go back.
     document.getElementById("wd-sw-clock").addEventListener("click", function () {
-      if (!st || phase() === "intro") return;
+      if (!st || (phase() === "intro" && !st.lapAt)) return;
       st.view = st.view === "total" ? "lap" : "total";
       save(); render();
     });
@@ -256,7 +341,9 @@
     });
     document.getElementById("wd-sw-finish").addEventListener("click", function () {
       modal.classList.remove("open");
+      try { if (st) localStorage.setItem(PARKED_KEY, JSON.stringify({ st: st, at: Date.now() })); } catch (e) { }
       st = null; save(); render();
+      try { if (STATE.last) localStorage.setItem(DONE_KEY, String(STATE.last)); } catch (e) { }
     });
 
     // The page binds Enter to Confirm on `document`; Enter on these buttons

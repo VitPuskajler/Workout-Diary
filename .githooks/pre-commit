@@ -1,13 +1,42 @@
 #!/bin/sh
-# Before every commit that changes what the app shows (templates/, static/,
-# translations/): the UI check on a PC, an Android phone and an iPhone -
-# see tools/ui_check.py. A failure stops the commit.
+# Before every commit that changes what the app shows:
+#   1. translations - every text the app shows has its Slovak and Czech
+#      translation (English is the source, in the code itself); see
+#      tools/check_translations.py. Texts can come from server.py and
+#      workout_management too, so those count here.
+#   2. the UI check on a PC, an Android phone and an iPhone (templates/,
+#      static/, translations/) - see tools/ui_check.py.
+# A failure stops the commit.
 #
 # Switched on once per clone with:   git config core.hooksPath .githooks
 # Skip it once, knowingly:           git commit --no-verify
 
+texts=$(git diff --cached --name-only -- templates static translations server.py workout_management)
+if [ -n "$texts" ]; then
+    python tools/check_translations.py > /tmp/wd_translations.$$ 2>&1
+    status=$?
+    if [ $status -ne 0 ]; then
+        grep -v "^ *unused:" /tmp/wd_translations.$$
+        rm -f /tmp/wd_translations.$$
+        echo ""
+        echo "Commit stopped: the texts above have no Slovak / Czech translation."
+        echo "Add them to translations/sk.json and translations/cs.json, then commit again."
+        exit 1
+    fi
+    rm -f /tmp/wd_translations.$$
+fi
+
 changed=$(git diff --cached --name-only -- templates static translations)
 [ -z "$changed" ] && exit 0
+
+# 3. a reminder, never a stop: a page's look changed but the Manual's
+#    screenshots (static/manual/) did not come along.
+looks=$(git diff --cached --name-only -- templates static     | grep -v -e '^static/manual/' -e '^templates/manual.html' -e '^templates/index.html')
+shots=$(git diff --cached --name-only -- static/manual)
+if [ -n "$looks" ] && [ -z "$shots" ]; then
+    echo "Reminder: pages changed - the Manual's screenshots may be out of date."
+    echo "          Refresh them with: python tools/make_manual_shots.py"
+fi
 
 python tools/ui_check.py --skip-if-stamped
 status=$?

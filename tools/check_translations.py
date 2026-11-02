@@ -48,6 +48,10 @@ def collect():
 
 
 def main():
+    # A Windows console (and a git hook's pipe) is not UTF-8: a text with an
+    # arrow in it used to crash the report itself.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     singles, plurals = collect()
     if "--list" in sys.argv:
         for text in sorted(singles):

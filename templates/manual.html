@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="{{ current_language() }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Periodization - Manual</title>
+    <link rel="icon" href="/static/title/barbell_title.jpg">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
+
+    <style>
+        /* Page heading: the same quiet section label as "Menu" on /profile. */
+        .wd-label {
+            font-size: 1.05rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.35em;
+            color: var(--bs-secondary-color, #6c757d);
+            padding-left: 0.35em;
+        }
+
+        /* One page of the app per row: an icon, its name - a tap opens a few
+           short points. Big rows, easy to hit and easy to scan. */
+        .wd-manual .accordion-button {
+            gap: .75rem;
+            font-weight: 600;
+            padding-top: .9rem;
+            padding-bottom: .9rem;
+        }
+
+        .wd-manual .wd-manual-icon {
+            width: 1.6rem;
+            text-align: center;
+            font-size: 1.25rem;
+            line-height: 1;
+        }
+
+        /* Short points, one thing each, with air between them. */
+        .wd-manual ul {
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
+        }
+
+        .wd-manual li {
+            padding: .45rem 0;
+            border-bottom: 1px solid var(--bs-border-color-translucent);
+        }
+
+        .wd-manual li:last-child {
+            border-bottom: 0;
+        }
+
+        /* The whole screen of a page, small: a tap shows it big. */
+        .wd-screen {
+            display: block;
+            width: 55%;
+            max-width: 220px;
+            margin: .5rem auto .75rem;
+            padding: 0;
+            border: 1px solid var(--bs-border-color);
+            border-radius: .75rem;
+            overflow: hidden;
+            background: none;
+            box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .12);
+            cursor: zoom-in;
+        }
+
+        .wd-screen img {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        /* A cut-out under its point: the button as it looks in the app. */
+        .wd-cut {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin-top: .4rem;
+            border-radius: .5rem;
+            border: 1px solid var(--bs-border-color-translucent);
+        }
+
+        .wd-zoom-img {
+            display: block;
+            max-width: 100%;
+            max-height: 92vh;
+            margin: 0 auto;
+            border-radius: .75rem;
+            cursor: zoom-out;
+        }
+
+        /* The button or word to look for, as it reads in the app. */
+        .wd-manual .wd-key {
+            display: inline-block;
+            min-width: 1.6rem;
+            padding: 0 .4rem;
+            margin-right: .35rem;
+            border-radius: .4rem;
+            background: var(--bs-secondary-bg);
+            font-weight: 600;
+            text-align: center;
+        }
+    </style>
+  {% include "partials/_js_translations.html" %}
+</head>
+
+<body>
+    <div class="p-5 mb-5">
+        <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="{{ _("Main navigation") }}">
+          <div class="container-fluid">
+            <a href="{{ url_for('profile') }}" class="text-light me-2 d-flex align-items-center"
+              aria-label="{{ _("Back to menu") }}" title="{{ _("Back to menu") }}" style="text-decoration: none;">
+              <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd"
+                  d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z">
+                </path>
+              </svg>
+            </a>
+            <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
+            <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
+              aria-controls="navbarCollapse" aria-expanded="false" aria-label="{{ _("Toggle navigation") }}">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarCollapse">
+                    <ul class="navbar-nav me-auto mb-2 mb-md-0">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('training_session_redirect')}}">{{ _("Training Session") }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('workout_plan_page')}}">{{ _("Workout Plan") }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('intuitive_training') }}">{{ _("Intuitive Training") }}</a>
+                        </li>
+                    </ul>
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('profile') }}">{{ current_user.username }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('logout') }}">{{ _("Logout") }}</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </div>
+    {% include "partials/_impersonation_banner.html" %}
+
+    {# The manual: one row per page of the app, in the order you meet them.
+       Written to be skimmed - a tap opens one page's points and closes the
+       one open before, so there is only ever one thing to read. Each point
+       is one thing, starting with the button or word to look for, as it
+       reads in the app.
+
+       Pictures (static/manual/<language>/, made by tools/make_manual_shots.py
+       from a demo account): the whole screen at the top of a section - a tap
+       shows it big - and small cut-outs under the points they show.
+
+       section: (icon, title, screen or none, points)
+       point:   (key or none, text, [cut-outs]) #}
+    {% set sections = [
+        ("👋", _("Start here"), none, [
+            (_("Plan"), _("Workout Plan → Create new mesocycle plan."), []),
+            (_("Train"), _("Training Session - log every set."), []),
+            (_("Look back"), _("Menu → Show Progress or Statistics."), []),
+        ]),
+        ("🏋️", _("Training Session"), "training", [
+            (none, _("Pick the training day and the exercise at the top."), []),
+            (_("Confirm"), _("logs the set: weight, reps, RPE, notes."), []),
+            (_("Repeat"), _("logs your last set once more."), []),
+            ("‹ ›", _("previous / next exercise of the day."), ["training-buttons"]),
+            (_("History"), _("what you did last time."), ["training-history"]),
+            (none, _("Fix a logged set: type over it, then Confirm."), []),
+            (_("Del"), _("tick it, then Confirm - the set is deleted."), []),
+            ("Kg", _("tap it to switch to Lbs or Other."), ["training-head"]),
+        ]),
+        ("🤸", _("Intuitive Training"), "intuitive", [
+            (none, _("Training without a plan - any exercise, any order."), []),
+            (none, _("Pick an exercise, then log sets as in Training Session."), []),
+            (_("Today's exercises"), _("what you have done today."), []),
+            (_("Edit"), _("swipe an exercise left to take it off today's list."), []),
+        ]),
+        ("⏱️", _("Stopwatch"), "stopwatch", [
+            (_("Start"), _("or your first logged set - the clock shows your warm-up."), ["sw-off", "sw-warmup"]),
+            (_("Go"), _("right before a set. Cancel undoes it."), ["sw-set"]),
+            (_("Confirm"), _("the set is logged, the rest runs: green within the pause, red over it."), ["sw-rest"]),
+            ("⟳", _("new lap - times warm-up sets you do not log."), ["sw-lap"]),
+            ("SS", _("superset: the next exercise starts inside the rest."), ["sw-ss"]),
+            (none, _("Tap the clock for the total time. Tap again to go back."), ["sw-total"]),
+            ("⏻", _("finishes the workout. By mistake? Start within 60 minutes and it carries on."), ["sw-finish"]),
+            (none, _("No set for 30 minutes: it switches itself off."), []),
+        ]),
+        ("📝", _("Change Current Mesocycle"), "create", [
+            (none, _("Menu → Change Current Mesocycle opens your plan for editing."), []),
+            (none, _("Tap an exercise name to swap it for another one."), ["create-row"]),
+            (_("Add exercise"), _("adds one at the end of the day."), ["create-add"]),
+            ("⇅", _("change the order: drag ≡."), ["create-order"]),
+            (_("Delete"), _("tap ⇅, swipe the exercise left, then Delete - it asks you first."), ["create-delete"]),
+            ("💾", _("saves every change. ✕ throws them away."), ["create-bar"]),
+            (none, _("Swapping or deleting an exercise asks first."), ["create-confirm"]),
+        ]),
+        ("📋", _("Workout Plan"), "plan", [
+            (none, _("Your plan: each day with its exercises, sets and rest."), []),
+            (_("Choose Mesocycle"), _("look at an older one."), []),
+            (_("Download to Excel"), _("the plan, or everything you lifted."), []),
+            (_("Create new mesocycle plan"), _("from a template, from an older mesocycle, or empty."), []),
+        ]),
+        ("📈", _("Progress"), "progress", [
+            (none, _("Every logged set - choose the mesocycle and the training day."), []),
+            (none, _("Tap a set, then the pencil, to fix it."), []),
+            (_("Show all"), _("older sessions of an exercise."), []),
+            (_("Workout Durations"), _("how long each workout took."), []),
+            (_("Copy all"), _("your sets as text, to paste anywhere."), []),
+        ]),
+        ("📊", _("Statistics"), "statistics", [
+            (none, _("Charts of your progress - by mesocycle or by time period."), []),
+        ]),
+        ("⚙️", _("Menu"), "menu", [
+            (none, _("Your name, top right, opens the Menu."), []),
+            (_("Customization"), _("language, icons, stopwatch, time between sets."), []),
+            (_("Manage Mesocycles"), _("delete old plans - your logged sets stay."), []),
+            (_("Change Password"), _("a new password for your account."), []),
+        ]),
+    ] %}
+    {% set shots_lang = current_language() if current_language() in ["en", "sk", "cs"] else "en" %}
+    {% macro shot_url(name) -%}
+        {{ url_for('static', filename='manual/' ~ shots_lang ~ '/' ~ name ~ '.jpg') }}
+    {%- endmacro %}
+
+    <main class="container my-4">
+        <h1 class="wd-label text-center mb-4">{{ _("Manual") }}</h1>
+
+        <div class="accordion wd-manual mx-auto w-100" id="wdManual" style="max-width: 560px;">
+            {% for icon, title, screen, points in sections %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button{{ '' if loop.first else ' collapsed' }}" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#wdManual{{ loop.index }}"
+                        aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="wdManual{{ loop.index }}">
+                        <span class="wd-manual-icon" aria-hidden="true">{{ icon }}</span>{{ title }}
+                    </button>
+                </h2>
+                <div id="wdManual{{ loop.index }}" class="accordion-collapse collapse{{ ' show' if loop.first }}"
+                    data-bs-parent="#wdManual">
+                    <div class="accordion-body pt-1 pb-2">
+                        {% if screen %}
+                        <button type="button" class="wd-screen" data-wd-zoom="{{ shot_url(screen) }}"
+                            aria-label="{{ _("Tap to enlarge") }}" title="{{ _("Tap to enlarge") }}">
+                            <img src="{{ shot_url(screen) }}" alt="{{ title }}" loading="lazy">
+                        </button>
+                        {% endif %}
+                        <ul>
+                            {% for key, text, cuts in points %}
+                            <li>{% if key %}<span class="wd-key">{{ key }}</span>{% endif %}{{ text }}
+                                {% for cut in cuts %}<img class="wd-cut" src="{{ shot_url(cut) }}" alt="" loading="lazy">{% endfor %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+
+    {# A whole screen, big - a tap anywhere closes it. #}
+    <div class="modal fade" id="wdZoom" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" data-bs-dismiss="modal">
+            <img class="wd-zoom-img" src="" alt="">
+        </div>
+    </div>
+
+    <script>
+        // Cut-outs are photographed at twice the screen's pixels: shown at half
+        // their size they match the real buttons (never wider than the page).
+        document.querySelectorAll("img.wd-cut").forEach(function (img) {
+            function fit() { if (img.naturalWidth) img.style.width = (img.naturalWidth / 2) + "px"; }
+            img.complete ? fit() : img.addEventListener("load", fit);
+        });
+        document.addEventListener("click", function (e) {
+            var button = e.target.closest("[data-wd-zoom]");
+            if (!button) return;
+            var dialog = document.getElementById("wdZoom");
+            dialog.querySelector("img").src = button.dataset.wdZoom;
+            bootstrap.Modal.getOrCreateInstance(dialog).show();
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+</body>
+
+</html>

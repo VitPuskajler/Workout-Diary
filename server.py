@@ -729,6 +729,11 @@ def training_session():
             # If repeat button was clicked, last set will me "repeated"
             repeat_set(chosen_exercise, workout_id, chosen_day)
 
+        # Post/Redirect/Get: every POST ends on a plain GET of this page, so
+        # reloading it (or the phone bringing the tab back) shows the sets
+        # again instead of sending Confirm / Repeat a second time - which used
+        # to log the same set twice. Only the buttons log anything.
+        return redirect(url_for("training_session"))
 
     sets_for_jinja = jinja_sets_function(chosen_day, chosen_exercise)
 
@@ -1216,6 +1221,13 @@ SINGLE_SWITCHES = ("translate_exercises", "show_plan_icons")
 def customization():
     """How the app looks for this account: icons, stopwatch, set gaps."""
     return render_template("customization.html")
+
+
+@app.route("/manual")
+@login_required
+def manual():
+    """How each page of the app works - short points, one page at a time."""
+    return render_template("manual.html")
 
 
 @app.context_processor
