@@ -79,7 +79,10 @@
     background: #2b2f38; color: #fff; font-weight: 600;
   }
   .wd-sw-main:active { background: #3a3f4b; }
-  .wd-sw[data-phase="off"] .wd-sw-main { background: #198754; padding: 8px 28px; }
+  /* Off: Start alone, as wide as its icon and word need - held at 84px, it
+     was narrower than its content, and Safari then reserved the content's
+     width and set the button at its left: off-centre on an iPhone. */
+  .wd-sw[data-phase="off"] .wd-sw-main { background: #198754; padding: 8px 28px; flex: 0 0 auto; }
 
   /* Rest is up and Go still not tapped: easy to forget mid-set, so it nags -
      calmly: the button slowly grows and shrinks, as far out as the glow it
