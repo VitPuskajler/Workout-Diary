@@ -46,6 +46,12 @@ class Users(UserMixin, db.Model):
     # Exercise names in the user's language (Exercise.name_sk / name_cs) where
     # one is written, instead of the English ones. Off: English, as before.
     translate_exercises = Column(Boolean, nullable=False, default=False, server_default="0")
+    # For the admin's User activity page (UTC). last_login_at: the login form
+    # itself; last_seen_at: any page, written at most every few minutes -
+    # a phone stays signed in for weeks, so a login alone says little.
+    # NULL until the first time after these were added.
+    last_login_at = Column(DateTime, nullable=True)
+    last_seen_at = Column(DateTime, nullable=True)
 
     def __repr__(self):
         return f"<User {self.username}>"

@@ -1,25 +1,50 @@
-{# Shown on every page (except profile, which puts the message inside its own
-   panel) while an admin is signed in as somebody else. `impersonator` comes
-   from the inject_impersonation context processor in server.py. #}
-{% if impersonator %}
-<div id="wd-impersonation-banner"
-     class="alert alert-warning border-0 rounded-0 mb-3 py-2 px-3 d-flex flex-wrap
-            align-items-center justify-content-center gap-2 text-center">
-  <span class="small">
-    {{ _("Signed in as") }} <strong>{{ current_user.username }}</strong> &mdash;
-    {{ _("you are really {name}", name=impersonator.username) }}
-  </span>
-  <form method="post" action="{{ url_for('stop_impersonating') }}" class="m-0">
-    <button type="submit" class="btn btn-sm btn-dark">{{ _("Back to my account") }}</button>
-  </form>
+{# The strips under the navbar, on every page:
+
+   - while an admin is signed in as somebody else (`impersonator`, from the
+     inject_impersonation context processor in server.py). Profile puts that
+     message inside its own panel, so it includes this with
+     hide_impersonation=true.
+   - for the admin, while a registration waits for approval
+     (`pending_registrations`, from inject_pending_registrations) - with a
+     link straight to it. Not on User management itself, where the
+     registrations are anyway. #}
+{% set show_impersonation = impersonator and not hide_impersonation %}
+{% set show_pending = pending_registrations and request.endpoint != 'user_management' %}
+{% if show_impersonation or show_pending %}
+<div id="wd-top-banners" class="mb-3">
+  {% if show_impersonation %}
+  <div id="wd-impersonation-banner"
+       class="alert alert-warning border-0 rounded-0 mb-0 py-2 px-3 d-flex flex-wrap
+              align-items-center justify-content-center gap-2 text-center">
+    <span class="small">
+      {{ _("Signed in as") }} <strong>{{ current_user.username }}</strong> &mdash;
+      {{ _("you are really {name}", name=impersonator.username) }}
+    </span>
+    <form method="post" action="{{ url_for('stop_impersonating') }}" class="m-0">
+      <button type="submit" class="btn btn-sm btn-dark">{{ _("Back to my account") }}</button>
+    </form>
+  </div>
+  {% endif %}
+  {% if show_pending %}
+  <div id="wd-pending-banner"
+       class="alert alert-warning border-0 rounded-0 mb-0 py-2 px-3 d-flex flex-wrap
+              align-items-center justify-content-center gap-2 text-center">
+    <span class="small">
+      <span aria-hidden="true">⚠</span>
+      {{ _n(pending_registrations, "{count} registration is waiting for approval",
+            "{count} registrations are waiting for approval") }}
+    </span>
+    <a href="{{ url_for('user_management', open='pending') }}" class="btn btn-sm btn-dark">{{ _("Open") }}</a>
+  </div>
+  {% endif %}
 </div>
 <script>
   // The navbar is position:fixed, so it takes no space, and each page clears it
   // with a wrapper of its own (p-3 mb-3 here, p-4 mb-5 there). That leftover
-  // shows up as a gap - or an overlap - between the header and this banner.
+  // shows up as a gap - or an overlap - between the header and these strips.
   // Rather than guess a pixel offset, measure the real distance and cancel it.
   (function () {
-    var banner = document.getElementById("wd-impersonation-banner");
+    var banner = document.getElementById("wd-top-banners");
     var nav = document.querySelector("nav.navbar.fixed-top");
     if (!banner || !nav) { return; }          // pages without a fixed navbar are fine as-is
 

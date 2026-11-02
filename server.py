@@ -30,6 +30,7 @@ from sqlalchemy import (
     func,
     create_engine,
     desc,
+    text,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from wtforms import FloatField, IntegerField, PasswordField, StringField, SubmitField
@@ -239,6 +240,9 @@ def login():
                 return render_template("login.html", form=form,
                                         next=request.args.get("next"))
             login_user(user)
+            # User activity (admin): when the login form last let them in.
+            user.last_login_at = user.last_seen_at = datetime.utcnow()
+            db.session.commit()
 
             next_page = request.args.get("next") or request.form.get("next")
 
@@ -801,6 +805,39 @@ def admin_required(view):
     return wrapper
 
 
+# User activity (admin): last_seen_at is written at most this often - a write
+# per page would be a write per tap during a workout.
+SEEN_EVERY = timedelta(minutes=5)
+
+
+@app.before_request
+def remember_last_seen():
+    """users.last_seen_at for the admin's User activity page. Not while an
+    admin is signed in as somebody - that visit is the admin's, not theirs."""
+    if request.endpoint in (None, "static") or not current_user.is_authenticated:
+        return
+    if session.get(IMPERSONATOR_KEY):
+        return
+    now = datetime.utcnow()
+    seen = current_user.last_seen_at
+    if seen is None or now - seen > SEEN_EVERY:
+        current_user.last_seen_at = now
+        db.session.commit()
+
+
+@app.context_processor
+def inject_pending_registrations():
+    """How many sign-ups wait for approval - for the admin's notice on every
+    page (partials/_impersonation_banner.html) and the Menu button. 0 for
+    everybody else, and while an admin is signed in as somebody."""
+    count = 0
+    if (current_user.is_authenticated and current_user.is_admin
+            and not session.get(IMPERSONATOR_KEY)):
+        count = (db.session.query(func.count(Users.user_id))
+                 .filter(Users.is_approved.is_(False)).scalar()) or 0
+    return {"pending_registrations": count}
+
+
 @app.context_processor
 def inject_impersonation():
     """Every template can ask whether this session is impersonating, and who
@@ -1012,7 +1049,7 @@ def approve_user():
     db.session.commit()
 
     flash(_("{name} can now log in.", name=target.username), "success")
-    return redirect(url_for("profile"))
+    return redirect(url_for("user_management"))
 
 
 @app.route("/admin/decline_user", methods=["POST"])
@@ -1039,7 +1076,116 @@ def decline_user():
     db.session.commit()
 
     flash(_("Declined and removed {name}.", name=username), "success")
-    return redirect(url_for("profile"))
+    return redirect(url_for("user_management"))
+
+
+# --------------------------------------------------------------------------
+# User management (admin): pending registrations, User activity and signing
+# in as somebody - all in one place, opened from the Menu.
+@app.route("/admin/users")
+@login_required
+@admin_required
+def user_management():
+    users_to_impersonate = (
+        db.session.query(Users)
+        .filter(Users.user_id != current_user.user_id)
+        .filter(Users.role != "admin")              # never another admin
+        .filter(Users.is_approved.is_(True))
+        .order_by(Users.username)
+        .all()
+    )
+    pending_users = (
+        db.session.query(Users)
+        .filter(Users.is_approved.is_(False))
+        .order_by(Users.username)
+        .all()
+    )
+    return render_template(
+        "user_management.html",
+        users_to_impersonate=users_to_impersonate,
+        pending_users=pending_users,
+        # The notice's "Open" lands here with the registrations already open.
+        open_pending=request.args.get("open") == "pending" and bool(pending_users),
+    )
+
+
+def time_ago(moment):
+    """'5 minutes ago', '2 days ago' - for times stored in UTC."""
+    if moment is None:
+        return _("never")
+    minutes = int((datetime.utcnow() - moment).total_seconds() // 60)
+    if minutes < 1:
+        return _("just now")
+    if minutes < 60:
+        return _n(minutes, "{count} minute ago", "{count} minutes ago")
+    hours = minutes // 60
+    if hours < 24:
+        return _n(hours, "{count} hour ago", "{count} hours ago")
+    return _n(hours // 24, "{count} day ago", "{count} days ago")
+
+
+def _as_datetime(value):
+    """A timestamp read with raw SQL comes back as text in SQLite."""
+    if value is None or isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+
+
+def user_activity_rows():
+    """Every approved user: when they last came and trained, how often lately,
+    how much in all - most recently active first. A set counts by its
+    logged_at, or its session's date where an old set has none."""
+    now = datetime.utcnow()
+    params = {
+        "week": (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S"),
+        "month": (now - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    sets_of = """from exercise_entries e join sessions s on s.session_id = e.session_id
+                 where s.user_id = u.user_id"""
+    when = "coalesce(e.logged_at, s.session_date)"
+    rows = db.session.execute(text(f"""
+        select u.user_id, u.username, u.role, u.last_login_at, u.last_seen_at,
+               (select max({when}) {sets_of}) as last_workout,
+               (select count(distinct s.session_id) {sets_of} and {when} >= :week) as week,
+               (select count(distinct s.session_id) {sets_of} and {when} >= :month) as month,
+               (select count(*) {sets_of}) as sets,
+               (select m.name from mesocycles m where m.user_id = u.user_id
+                order by m.mesocycle_id desc limit 1) as mesocycle
+        from users u
+        where u.is_approved = 1
+    """), params).mappings().all()
+
+    users = []
+    for row in rows:
+        seen = _as_datetime(row["last_seen_at"])
+        workout = _as_datetime(row["last_workout"])
+        latest = max([t for t in (seen, workout) if t is not None], default=None)
+        users.append({
+            "name": row["username"],
+            "is_admin": row["role"] == "admin",
+            "seen": time_ago(seen),
+            "login": time_ago(_as_datetime(row["last_login_at"])),
+            "workout": time_ago(workout),
+            "week": row["week"] or 0,
+            "month": row["month"] or 0,
+            "sets": row["sets"] or 0,
+            "mesocycle": row["mesocycle"],
+            # Green dot: here in the last week.
+            "active": latest is not None and now - latest <= timedelta(days=7),
+            "latest": latest,
+        })
+    users.sort(key=lambda u: (u["latest"] is None, -(u["latest"].timestamp() if u["latest"] else 0)))
+    return users
+
+
+@app.route("/admin/users/activity")
+@login_required
+@admin_required
+def user_activity():
+    return render_template("user_activity.html", users=user_activity_rows())
 
 
 def catalog_muscle_groups():
@@ -1287,29 +1433,9 @@ def profile():
         # Handle deleting old mesocycles
         return redirect(url_for("mesocycle_management"))
 
-    users_to_impersonate = []
-    pending_users = []
-    if current_user.is_admin and not session.get(IMPERSONATOR_KEY):
-        # Never offer yourself, and never offer another admin.
-        users_to_impersonate = (
-            db.session.query(Users)
-            .filter(Users.user_id != current_user.user_id)
-            .filter(Users.role != "admin")
-            .order_by(Users.username)
-            .all()
-        )
-        pending_users = (
-            db.session.query(Users)
-            .filter(Users.is_approved.is_(False))
-            .order_by(Users.username)
-            .all()
-        )
-
-    return render_template(
-        "profile.html",
-        users_to_impersonate=users_to_impersonate,
-        pending_users=pending_users,
-    )
+    # Pending registrations and "Sign in as user" moved to User management
+    # (/admin/users); the Menu button's count is pending_registrations.
+    return render_template("profile.html")
 
 # --------------------------------------------------------------------------
 @app.route("/progress", methods=["GET", "POST"])

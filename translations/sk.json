@@ -341,6 +341,19 @@
   "Tap to enlarge": "Ťukni pre zväčšenie",
   "change the order: drag ≡.": "zmena poradia: ťahaj za ≡.",
   "tap ⇅, swipe the exercise left, then Delete - it asks you first.": "ťukni na ⇅, potiahni cvik doľava a daj Vymazať - appka sa najprv opýta.",
+  "User management": "Správa používateľov",
+  "User activity": "Aktivita používateľov",
+  "Registrations, activity and signing in as a user": "Registrácie, aktivita a prihlásenie za používateľa",
+  "Who trains, and when": "Kto trénuje a kedy",
+  "Open": "Otvoriť",
+  "Last seen": "Naposledy v appke",
+  "Last login": "Posledné prihlásenie",
+  "Last workout": "Posledný tréning",
+  "Workouts": "Tréningy",
+  "{week} in 7 days, {month} in 30 days": "{week} za 7 dní, {month} za 30 dní",
+  "No users yet.": "Zatiaľ žiadni používatelia.",
+  "just now": "práve teraz",
+  "never": "nikdy",
 
   "these {count} mesocycles": ["tento {count} mezocyklus", "tieto {count} mezocykly", "týchto {count} mezocyklov"],
   "{count} days": ["{count} deň", "{count} dni", "{count} dní"],
@@ -457,5 +470,9 @@
   "{label} must be a whole number.": "{label} musí byť celé číslo.",
   "{label} must be between {min} and {max}.": "{label} musí byť medzi {min} a {max}.",
   "{label} must be {min} or more.": "{label} musí byť aspoň {min}.",
-  "{name} can now log in.": "{name} sa už môže prihlásiť."
+  "{name} can now log in.": "{name} sa už môže prihlásiť.",
+  "{count} minutes ago": ["pred {count} minútou", "pred {count} minútami", "pred {count} minútami"],
+  "{count} hours ago": ["pred {count} hodinou", "pred {count} hodinami", "pred {count} hodinami"],
+  "{count} days ago": ["pred {count} dňom", "pred {count} dňami", "pred {count} dňami"],
+  "{count} registrations are waiting for approval": ["{count} registrácia čaká na schválenie", "{count} registrácie čakajú na schválenie", "{count} registrácií čaká na schválenie"]
 }

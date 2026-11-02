@@ -41,7 +41,7 @@ STAMP = os.path.join(ROOT, ".git", "ui_check_ok")
 PAGES = ["/table_layout", "/create_workout", "/workout_plan_page", "/progress",
          "/training_session", "/intuitive_training", "/mesocycle_management",
          "/profile", "/customization", "/manual", "/statistics"]
-ADMIN_PAGES = ["/admin/exercises"]
+ADMIN_PAGES = ["/admin/exercises", "/admin/users", "/admin/users/activity"]
 LANGS = ["en", "sk", "cs"]
 
 RUNNER = r'''
