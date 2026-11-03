@@ -1050,11 +1050,27 @@ class WorkoutManagement:
 
     def _stamp_stopwatch(self, entry, session_id):
         """Copy the stopwatch's hidden fields onto a set that is about to be
-        added: `set_started` becomes entry.started_at, `superset` links it to
+        added: `set_started` becomes entry.started_at, `set_ended` (Done)
+        entry.logged_at, `superset` links it to
         the set before it, and `sw_start` (the manual start) overwrites the
         session date when this is the session's first set. Call it BEFORE
         db.session.add(entry), so the queries below do not see the new set."""
         entry.started_at = self._form_epoch_ms("set_started")
+
+        # "Done" on the stopwatch: the set ended at that tap, not when it got
+        # written down - so it is logged at the tap, and the rest, the set
+        # gaps and the set's own length all count from the real end. Ignored
+        # if it would put the set before its own start or before the
+        # session's latest set (the order of the sets must not change).
+        ended = self._form_epoch_ms("set_ended")
+        if ended is not None and (entry.started_at is None or ended >= entry.started_at):
+            latest = (
+                db.session.query(func.max(ExerciseEntries.logged_at))
+                .filter(ExerciseEntries.session_id == session_id)
+                .scalar()
+            )
+            if latest is None or ended >= latest:
+                entry.logged_at = ended
 
         # SS on the stopwatch: this set was done straight after the session's
         # latest set - linked, as long as that was another exercise (SS on the
@@ -1094,6 +1110,36 @@ class WorkoutManagement:
         session_row.started_by_stopwatch = local_start is not None
         if local_start is not None:
             session_row.session_date = local_start
+
+    def active_workout(self):
+        """Is a workout going on? Yes while the user's latest logged set is
+        under 30 minutes old (STOPWATCH_IDLE) - whether the stopwatch is on or
+        not. For the navbar's "back to the workout" button
+        (partials/_return_to_workout.html).
+
+        Returns {"last": epoch ms of that set, "page": "/training_session" or
+        "/intuitive_training" - the page the set came from}, or None.
+        """
+        newest = (
+            db.session.query(ExerciseEntries.logged_at, Sessions.workout_id, WorkoutPlan.workout_name)
+            .join(Sessions, ExerciseEntries.session_id == Sessions.session_id)
+            .outerjoin(WorkoutPlan, Sessions.workout_id == WorkoutPlan.workout_id)
+            .filter(
+                Sessions.user_id == self.current_user_id_db(),
+                ExerciseEntries.logged_at >= datetime.utcnow() - STOPWATCH_IDLE,
+            )
+            .order_by(desc(ExerciseEntries.logged_at), desc(ExerciseEntries.entry_id))
+            .first()
+        )
+        if newest is None:
+            return None
+        # Intuitive Training: the session's workout_id is the text "c" itself
+        # (or, on older data, a workout day named "c").
+        intuitive = newest.workout_id == "c" or newest.workout_name == "c"
+        return {
+            "last": int(newest.logged_at.replace(tzinfo=timezone.utc).timestamp() * 1000),
+            "page": "/intuitive_training" if intuitive else "/training_session",
+        }
 
     def stopwatch_state(self, exercise_name, colored=True):
         """What the stopwatch bar needs from the database, as JSON-ready data.

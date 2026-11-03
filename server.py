@@ -839,6 +839,13 @@ def inject_pending_registrations():
 
 
 @app.context_processor
+def inject_active_workout():
+    """active_workout() for partials/_return_to_workout.html - a function, so
+    the query only runs on the pages that show the button."""
+    return {"active_workout": db_operations.active_workout}
+
+
+@app.context_processor
 def inject_impersonation():
     """Every template can ask whether this session is impersonating, and who
     the real admin is, so the banner can render on any page."""
@@ -1355,7 +1362,7 @@ def change_password():
 
 # The switches on /customization -> Users columns.
 CUSTOMIZATION_SWITCHES = ("show_session_icons", "animate_session_icons", "show_stopwatch", "show_set_gaps",
-                          "translate_exercises", "show_plan_icons")
+                          "translate_exercises", "show_plan_icons", "focus_mode", "stopwatch_advanced")
 
 # The switches that also sit on another page (Create Workout) and are saved
 # from there one at a time - see save_one_switch().

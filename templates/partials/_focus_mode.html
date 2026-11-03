@@ -1,0 +1,139 @@
+{# Focus mode (Customization -> "Focus mode"), Training Session only.
+
+   While the stopwatch runs - Start tapped, Finish not yet:
+     - the navbar is not stuck to the top any more: it scrolls away with the
+       page, leaving the whole screen to the sets
+     - the screen stays on (Wake Lock - Safari 16.4+; elsewhere just nothing)
+     - a blue sheen runs across the stopwatch bar when the rest is up
+   And Start itself: a blue-to-red sheen runs across the navbar and the
+   stopwatch bar, and a small FOCUS tag shows above the clock for 3 seconds.
+   Nothing is laid over the sets - the effect stays on the two dark bars.
+
+   The stopwatch (partials/_stopwatch.html) tells this page what it is doing:
+   <html data-wd-sw="off|intro|set|rest">, and the events wd-sw-start and
+   wd-sw-rest-up on document. Needs the stopwatch: off with it. #}
+{% if current_user.focus_mode and current_user.show_stopwatch %}
+<style>
+  /* Absolute instead of fixed: same place at the top of the page, but it
+     scrolls with it. The page's own top padding still clears it. */
+  html[data-wd-sw="intro"] .navbar.fixed-top,
+  html[data-wd-sw="set"] .navbar.fixed-top,
+  html[data-wd-sw="rest"] .navbar.fixed-top { position: absolute; }
+
+  /* The sheen: a band of light crossing a bar once, left to right, clipped
+     to the bar (its rounded corners too). Never in the way of a tap. */
+  .wd-sheen {
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+    border-radius: inherit; z-index: 1;
+  }
+  .wd-sheen::before {
+    content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 70%;
+    transform: translateX(-110%); opacity: 0;
+    background: linear-gradient(100deg,
+      rgba(70, 150, 255, 0) 0%,
+      rgba(70, 150, 255, .38) 38%,
+      rgba(255, 70, 95, .32) 62%,
+      rgba(255, 70, 95, 0) 100%);
+  }
+  .wd-sheen.rest::before {
+    background: linear-gradient(100deg, rgba(70, 150, 255, 0), rgba(70, 150, 255, .4) 50%, rgba(70, 150, 255, 0));
+  }
+  .wd-sheen.go::before, .wd-sheen.rest::before { animation: wd-sheen 1.3s cubic-bezier(.45, 0, .25, 1) forwards; }
+  .wd-sheen.late::before { animation-delay: .12s; }
+
+  @keyframes wd-sheen {
+    0%   { transform: translateX(-110%); opacity: 1; }
+    100% { transform: translateX(160%);  opacity: 1; }
+  }
+
+  /* FOCUS: a small tag sitting on the stopwatch bar's top edge. */
+  .wd-focus-tag {
+    position: absolute; left: 50%; top: 0; z-index: 2; pointer-events: none;
+    transform: translate(-50%, -55%); opacity: 0;
+    padding: 2px 10px; border-radius: 999px;
+    background: #16181d; color: #e9ecef;
+    border: 1px solid rgba(110, 165, 255, .55);
+    box-shadow: 0 0 10px rgba(70, 150, 255, .25);
+    font-size: .62rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+    line-height: 1.5; white-space: nowrap;
+  }
+  .wd-focus-tag.show { animation: wd-tag 3s ease forwards; }
+  @keyframes wd-tag {
+    0%   { opacity: 0; transform: translate(-50%, -35%); }
+    12%  { opacity: 1; transform: translate(-50%, -55%); }
+    80%  { opacity: 1; transform: translate(-50%, -55%); }
+    100% { opacity: 0; transform: translate(-50%, -55%); }
+  }
+
+  /* Less motion asked for: the sheen does not travel, it just shows and goes. */
+  @media (prefers-reduced-motion: reduce) {
+    .wd-sheen::before { width: 100%; transform: none; }
+    .wd-sheen.go::before, .wd-sheen.rest::before { animation: wd-sheen-still 1.3s ease forwards; }
+    @keyframes wd-sheen-still { 0%, 100% { opacity: 0; } 40% { opacity: .6; } }
+    .wd-focus-tag.show { animation-name: wd-tag-still; }
+    @keyframes wd-tag-still { 0%, 100% { opacity: 0; } 10%, 85% { opacity: 1; } }
+  }
+</style>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+    var nav = document.querySelector("nav.navbar.fixed-top");
+    var bar = document.getElementById("wd-sw");
+    if (!bar) return;
+
+    function sheenOn(el) {
+      var s = document.createElement("span");
+      s.className = "wd-sheen"; s.setAttribute("aria-hidden", "true");
+      s.addEventListener("animationend", function () { s.className = "wd-sheen"; });
+      el.appendChild(s);
+      return s;
+    }
+    var barSheen = sheenOn(bar);
+    var navSheen = nav ? sheenOn(nav) : null;
+
+    var tag = document.createElement("span");
+    tag.className = "wd-focus-tag"; tag.setAttribute("aria-hidden", "true");
+    tag.textContent = {{ _("Focus")|tojson }};
+    tag.addEventListener("animationend", function () { tag.className = "wd-focus-tag"; });
+    bar.appendChild(tag);
+
+    function play(el, cls) {
+      if (!el) return;
+      el.className = el.className.split(" ")[0];
+      void el.offsetWidth;                    // restart the animation if it is still running
+      el.className += " " + cls;
+    }
+
+    // Start: the light rises from the bar under the thumb to the navbar.
+    document.addEventListener("wd-sw-start", function () {
+      play(barSheen, "go");
+      play(navSheen, "go late");
+      play(tag, "show");
+      sync();
+    });
+    document.addEventListener("wd-sw-rest-up", function () { play(barSheen, "rest"); });
+
+    // The screen stays on while the stopwatch runs. The phone drops the lock
+    // whenever the page is hidden, so it is asked for again on the way back.
+    var lock = null, asking = false;
+    function running() { return !!root.dataset.wdSw && root.dataset.wdSw !== "off"; }
+    function sync() {
+      if (!("wakeLock" in navigator)) return;
+      if (running() && !lock && !asking && document.visibilityState === "visible") {
+        asking = true;
+        navigator.wakeLock.request("screen").then(function (l) {
+          lock = l;
+          lock.addEventListener("release", function () { lock = null; });
+        }).catch(function () { }).then(function () { asking = false; });
+      } else if (!running() && lock) {
+        lock.release().catch(function () { });
+        lock = null;
+      }
+    }
+    document.addEventListener("visibilitychange", sync);
+    setInterval(sync, 1000);                  // catches Finish and the 30-minute idle stop
+    sync();
+  })();
+</script>
+{% endif %}

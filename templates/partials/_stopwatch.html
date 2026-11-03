@@ -41,6 +41,8 @@
   /* The power icon needs ~30px; the rest of its 84 goes to the clock while
      SS and New lap stand beside Go - 1:02:04 must fit a 360px phone. */
   .wd-sw[data-phase="intro"] .wd-sw-stop,
+  .wd-sw[data-phase="set"] .wd-sw-stop,
+  .wd-sw[data-phase="done"] .wd-sw-stop,
   .wd-sw[data-phase="rest"] .wd-sw-stop { flex-basis: 40px; }
   .wd-sw-stop { display: flex; justify-content: flex-start; }
   .wd-sw-lap small { display: block; margin-top: 4px; font-size: .65rem; letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
@@ -105,6 +107,7 @@
     background: #2b2f38; color: #ffc107; font-weight: 700;
   }
   .wd-sw[data-phase="rest"] .wd-sw-ss,
+  .wd-sw[data-phase="done"] .wd-sw-ss,
   .wd-sw[data-phase="set"][data-ss="1"] .wd-sw-ss { display: block; }
   .wd-sw[data-ss="1"] .wd-sw-ss { background: #ffc107; color: #212529; }
 
@@ -122,9 +125,26 @@
   }
   .wd-sw-flag:active { background: #3a3f4b; }
   .wd-sw[data-phase="intro"] .wd-sw-flag,
-  .wd-sw[data-phase="rest"] .wd-sw-flag { display: block; }</style>
+  .wd-sw[data-phase="rest"] .wd-sw-flag { display: block; }
 
-<div class="wd-sw" id="wd-sw" data-phase="off" role="timer" aria-label="{{ _("Workout stopwatch") }}">
+  /* During a set the big button is Done - the set is over, the rest starts
+     now, however long writing it down takes. This small cross beside it
+     takes back a Go tapped by mistake. */
+  .wd-sw-cancel {
+    display: none; border: 0; border-radius: 12px; padding: 8px 10px; line-height: 0;
+    background: #2b2f38; color: #9aa0a6;
+  }
+  .wd-sw-cancel:active { background: #3a3f4b; color: #ff5c5c; }
+  .wd-sw[data-phase="set"] .wd-sw-cancel { display: block; }
+  .wd-sw[data-phase="set"] .wd-sw-main { background: #0d6efd; }
+
+  /* The simple stopwatch (Customization: Advanced stopwatch off): Start,
+     the rest clock, New lap and Finish - no Go / Done / cross, no SS. */
+  .wd-sw[data-mode="simple"]:not([data-phase="off"]) .wd-sw-main,
+  .wd-sw[data-mode="simple"] .wd-sw-ss,
+  .wd-sw[data-mode="simple"] .wd-sw-cancel { display: none !important; }</style>
+
+<div class="wd-sw" id="wd-sw" data-phase="off" data-mode="{{ 'advanced' if current_user.stopwatch_advanced else 'simple' }}" role="timer" aria-label="{{ _("Workout stopwatch") }}">
   <button type="button" class="wd-sw-stop" id="wd-sw-stop" aria-label="{{ _("Finish workout") }}">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -141,6 +161,11 @@
       <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41m-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9"/>
         <path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5 5 0 0 0 8 3M3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9z"/>
+      </svg>
+    </button>
+    <button type="button" class="wd-sw-cancel" id="wd-sw-cancel" aria-label="{{ _("Cancel the set") }}" title="{{ _("Cancel the set") }}">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
       </svg>
     </button>
     <button type="button" class="wd-sw-main" id="wd-sw-main">
@@ -180,7 +205,9 @@
     var RESUME = 60 * 60 * 1000;
     // The clock's labels and the main button, in the user's language.
     var T = {{ {"total": _("total"), "set": _("set"), "warm-up": _("warm-up"),
-                "rest": _("rest"), "Start": _("Start"), "Cancel": _("Cancel"), "Go": _("Go")}|tojson }};
+                "rest": _("rest"), "Start": _("Start"), "Done": _("Done"), "Go": _("Go")}|tojson }};
+    // Simple stopwatch: no set timing (Go / Done) and no SS.
+    var SIMPLE = {{ 'false' if current_user.stopwatch_advanced else 'true' }};
     var IDLE = 30 * 60 * 1000;                  // no set for 30 min -> off, next set starts afresh
     var NUDGE_AFTER = 90;                       // s of rest before Go pulses, when nothing is prescribed
 
@@ -205,7 +232,7 @@
     }
     // The last thing the run did - the moment the 30 idle minutes count from.
     function lastActive(s) {
-      return Math.max(s.setAt || 0, s.seen || 0, s.start || 0, s.resumedAt || 0);
+      return Math.max(s.endAt || 0, s.setAt || 0, s.seen || 0, s.start || 0, s.resumedAt || 0);
     }
     // The run parked by Finish, if it is recent enough to go on; used once.
     function unpark() {
@@ -222,6 +249,9 @@
 
     var st = load();
     var now = Date.now();
+    // Which page the stopwatch is on - the navbar's "back to the workout"
+    // button on the other pages goes here (partials/_return_to_workout.html).
+    try { localStorage.setItem(KEY + "_page", location.pathname); } catch (e) { }
 
     var finishedAt = 0;
     try { finishedAt = Number(localStorage.getItem(DONE_KEY)) || 0; } catch (e) { }
@@ -239,19 +269,29 @@
         // before a Finish, say) - it is no part of this run. Compared by the
         // server's own timestamp, so the phone's clock cannot matter.
         st.seen = STATE.last;                   // a new rest, from this set - superset or not
-        st.setAt = null; st.ss = false;         // a new set ends the "Set" phase
+        st.setAt = null; st.endAt = null;       // a new set ends the "Set" (and "Done") phase
+        st.ss = false;
         st.view = "lap";                        // and brings the rest clock back
         st.lapAt = null; st.laps = 0;           // laps belong to the gap before it
       }
     }
     save();
 
+    // A run begun with the advanced buttons, carried on with the simple ones:
+    // whatever they had set going is dropped - the simple bar cannot show it.
+    if (SIMPLE && st && (st.setAt || st.endAt || st.ss)) {
+      st.setAt = null; st.endAt = null; st.ss = false; save();
+    }
+
     function phase() {
       if (!st) return "off";
+      // done: Done tapped, the set not logged yet - the rest already runs.
+      if (st.setAt && st.endAt) return "done";
       if (st.setAt) return "set";
       return st.seen ? "rest" : "intro";
     }
 
+    var lastNudge = null;                       // null: the first render
     function render() {
       now = Date.now();
       if (st && now - lastActive(st) > IDLE) { st = null; save(); }
@@ -268,6 +308,12 @@
           lapEl.textContent = fmt(now - st.start); labelEl.textContent = T["total"];
         } else if (p === "set") {
           lapEl.textContent = fmt(now - st.setAt); labelEl.textContent = T["set"];
+        } else if (p === "done") {
+          // The rest, from the Done tap - the set is still being written down.
+          var limitDone = STATE.limit, sinceEnd = now - st.endAt;
+          lapEl.textContent = fmt(sinceEnd); labelEl.textContent = T["rest"];
+          if (limitDone) tone = sinceEnd / 1000 <= limitDone ? "ok" : "over";
+          nudge = sinceEnd / 1000 >= (limitDone || NUDGE_AFTER);
         } else if (p === "intro") {
           lapEl.textContent = fmt(now - (lapped ? st.lapAt : st.start));
           labelEl.textContent = T["warm-up"] + (lapped ? " " + (st.laps + 1) : "");
@@ -288,16 +334,35 @@
       }
       bar.dataset.tone = tone;
       bar.dataset.nudge = nudge ? "1" : "";
+      // For the page (partials/_focus_mode.html): the phase on <html>, and
+      // an event the moment the rest is up - not when a page opens on a rest
+      // that was already up.
+      document.documentElement.dataset.wdSw = p;
+      if (nudge && lastNudge === false) document.dispatchEvent(new Event("wd-sw-rest-up"));
+      lastNudge = nudge;
       bar.dataset.ss = st && st.ss ? "1" : "";
       ssBtn.setAttribute("aria-pressed", st && st.ss ? "true" : "false");
-      mainLabel.textContent = { off: T["Start"], set: T["Cancel"] }[p] || T["Go"];
+      mainLabel.textContent = { off: T["Start"], set: T["Done"] }[p] || T["Go"];
     }
 
     mainBtn.addEventListener("click", function () {
       var p = phase();
-      if (p === "off") st = unpark() || { start: Date.now(), seen: 0, setAt: null, before: STATE.last || 0 };
-      else if (p === "set") st.setAt = null;        // SS, if on, stays on
-      else { st.setAt = Date.now(); st.view = "lap"; st.lapAt = null; st.laps = 0; }
+      if (SIMPLE && p !== "off") return;        // only Start on the simple bar
+      if (p === "off") {
+        st = unpark() || { start: Date.now(), seen: 0, setAt: null, before: STATE.last || 0 };
+        document.dispatchEvent(new Event("wd-sw-start"));
+      }
+      else if (p === "set") { st.endAt = Date.now(); st.view = "lap"; }   // Done: the rest starts now
+      // Go. After a Done whose set was never logged, that set's end is
+      // dropped - it gets logged at the moment it is written down.
+      else { st.setAt = Date.now(); st.endAt = null; st.view = "lap"; st.lapAt = null; st.laps = 0; }
+      save(); render();
+    });
+
+    // The cross beside Done: a Go tapped by mistake - back to the rest.
+    document.getElementById("wd-sw-cancel").addEventListener("click", function () {
+      if (phase() !== "set") return;
+      st.setAt = null;                          // SS, if on, stays on
       save(); render();
     });
 
@@ -316,7 +381,7 @@
     // before it (the hidden "superset" field below). Tapped again: off.
     ssBtn.addEventListener("click", function () {
       var p = phase();
-      if (p !== "rest" && p !== "set") return;
+      if (SIMPLE || (p !== "rest" && p !== "set" && p !== "done")) return;
       st.ss = !st.ss;
       save(); render();
     });
@@ -351,7 +416,8 @@
     document.addEventListener("submit", function (e) {
       var form = e.target;
       if (!st || !form || String(form.method).toLowerCase() !== "post") return;
-      [["sw_start", st.start], ["set_started", st.setAt], ["superset", st.ss ? 1 : 0]].forEach(function (pair) {
+      [["sw_start", st.start], ["set_started", st.setAt], ["set_ended", st.endAt],
+       ["superset", st.ss ? 1 : 0]].forEach(function (pair) {
         var old = form.querySelector('input[data-wd-sw="' + pair[0] + '"]');
         if (old) old.remove();
         if (!pair[1]) return;

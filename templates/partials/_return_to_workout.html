@@ -1,0 +1,83 @@
+{# Back to the workout: while a workout is going on, every other page gets a
+   small back-arrow button at the right of its navbar - one tap back to the
+   workout, instead of going through the Menu.
+
+   A workout is going on while
+     - the user's latest logged set is under 30 minutes old (the database -
+       active_workout() in workout_management.py; stopwatch on or off), or
+     - the stopwatch runs on this browser (Start tapped, no set yet - the
+       same key and 30 minutes idle rule as partials/_stopwatch.html).
+   It goes away by itself 30 minutes after the last set, and at the
+   stopwatch's Finish. It leads to the page the set came from (Training
+   Session or Intuitive Training), or the one the stopwatch is on.
+   Included from partials/_impersonation_banner.html, which every page has.
+   Not on those two pages themselves. #}
+{% if current_user.is_authenticated
+      and request.endpoint not in ("training_session", "intuitive_training") %}
+{% set workout_now = active_workout() %}
+<style>
+  .wd-return {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 40px; height: 34px; margin-left: auto; margin-right: .5rem;
+    border-radius: 10px; color: #3ddc84; text-decoration: none;
+    border: 1px solid rgba(61, 220, 132, .45); background: rgba(61, 220, 132, .08);
+  }
+  .wd-return:hover, .wd-return:active { color: #fff; background: rgba(61, 220, 132, .25); }
+  /* Wide screens have no toggler: the button goes to the far right. */
+  @media (min-width: 992px) { .wd-return { order: 99; margin-left: .75rem; margin-right: 0; } }
+</style>
+<script>
+  (function () {
+    var KEY = "wd_sw_{{ current_user.user_id }}";
+    var IDLE = 30 * 60 * 1000;
+    var PAGES = { "/intuitive_training": 1, "/training_session": 1 };
+
+    var DB = {{ workout_now|tojson }};             // {last, page} or null
+    var DEFAULT_PAGE = "{{ url_for('training_session') }}";
+
+    function target() {
+      var now = Date.now(), run = null, page = null, finished = 0;
+      try {
+        run = JSON.parse(localStorage.getItem(KEY));
+        page = localStorage.getItem(KEY + "_page");
+        finished = Number(localStorage.getItem(KEY + "_done")) || 0;   // the last set at Finish
+      } catch (e) { }
+      // A set in the last 30 minutes - unless the stopwatch's Finish came after it.
+      if (DB && now - DB.last <= IDLE && DB.last > finished) return DB.page;
+      // The stopwatch started, no set logged yet.
+      if (run) {
+        var last = Math.max(run.endAt || 0, run.setAt || 0, run.seen || 0, run.start || 0, run.resumedAt || 0);
+        if (now - last <= IDLE) return PAGES[page] ? page : DEFAULT_PAGE;
+      }
+      return null;
+    }
+
+    var link = null;
+    function update() {
+      var to = target();
+      var nav = document.querySelector("nav.navbar.fixed-top .container-fluid");
+      if (!to || !nav) { if (link) { link.remove(); link = null; } return; }
+      if (!link) {
+        link = document.createElement("a");
+        link.className = "wd-return";
+        link.setAttribute("aria-label", {{ _("Back to the workout")|tojson }});
+        link.title = {{ _("Back to the workout")|tojson }};
+        // A back arrow that bends round: left, then down and back - "return".
+        link.innerHTML = '<svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor"' +
+          ' stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+          '<path d="M5.5 2.5 2 6l3.5 3.5"/>' +
+          '<path d="M2 6h8a4 4 0 0 1 0 8H7"/></svg>';
+        var toggler = nav.querySelector(".navbar-toggler");
+        nav.insertBefore(link, toggler || null);
+        if (toggler) toggler.style.marginLeft = "0";   // the button now pushes them both right
+      }
+      link.href = to;
+    }
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", update);
+    else update();
+    setInterval(update, 30000);                       // gone once the run idles out
+    document.addEventListener("visibilitychange", update);
+    window.addEventListener("storage", update);       // Finish in another tab
+  })();
+</script>
+{% endif %}

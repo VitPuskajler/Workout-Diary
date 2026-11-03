@@ -39,6 +39,18 @@
             cursor: pointer;
         }
 
+        /* The (i) beside a group's name opens what its switches do. */
+        .wd-info {
+            border: 0; background: transparent; padding: 2px; line-height: 0;
+            color: var(--bs-secondary-color, #6c757d); border-radius: 50%;
+        }
+        .wd-info:hover, .wd-info[aria-expanded="true"] { color: var(--bs-primary, #0d6efd); }
+        .wd-info-panel {
+            padding: .75rem .9rem; border-radius: .5rem;
+            background: var(--bs-tertiary-bg, #f8f9fa); color: var(--bs-body-color);
+        }
+        .wd-info-panel p { margin-bottom: .5rem; }
+
         /* A group of switches: "Training session", "Stopwatch"... */
         .wd-group {
             font-size: .8rem;
@@ -151,7 +163,25 @@
                 </div>
 
                 <hr class="my-4">
-                <div class="wd-group mb-3">{{ _("Timing") }}</div>
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <div class="wd-group">{{ _("Timing") }}</div>
+                    <button type="button" class="wd-info" data-bs-toggle="collapse" data-bs-target="#timingInfo"
+                        aria-expanded="false" aria-controls="timingInfo"
+                        aria-label="{{ _("What these switches do") }}" title="{{ _("What these switches do") }}">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                            <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="collapse" id="timingInfo">
+                    <div class="wd-info-panel small mb-3">
+                        <p><strong>{{ _("Stopwatch") }}</strong> &mdash; {{ _("a simple bar at the bottom of Training Session and Intuitive Training: Start, the rest since your last set (green within the prescribed pause, red over it), ⟳ new lap for warm-up sets you do not log, ⏻ to finish.") }}</p>
+                        <p><strong>{{ _("Advanced stopwatch") }}</strong> &mdash; {{ _("adds the buttons that time each set: Go when it starts, Done when it ends (the rest runs from Done, however long you take to write the set down), ✕ for a Go tapped by mistake, and SS to link the sets of a superset.") }}</p>
+                        <p><strong>{{ _("Time between sets") }}</strong> &mdash; {{ _('"+2:35" under each logged set: the time since the one before.') }}</p>
+                        <p class="mb-0"><strong>{{ _("Focus mode") }}</strong> &mdash; {{ _("from the stopwatch's Start, Training Session gives the screen to the sets: the top bar scrolls away, the screen stays on, and the stopwatch bar lights up when the rest is up.") }}</p>
+                    </div>
+                </div>
 
                 <!-- Locked while this device's stopwatch is running (Start tapped,
                      Finish not yet) - see the script below. -->
@@ -159,7 +189,15 @@
                     <input class="form-check-input" type="checkbox" role="switch" id="showStopwatch"
                         name="show_stopwatch" value="1" {{ 'checked' if current_user.show_stopwatch }}>
                     <label class="form-check-label" for="showStopwatch">{{ _("Stopwatch") }}</label>
-                    <div class="form-text" id="showStopwatchHelp">{{ _("The bar on Training Session and Intuitive Training. Off, workouts are timed from the first set.") }}</div>
+                    <div class="form-text" id="showStopwatchHelp">{{ _("The bar on Training Session and Intuitive Training: Start, the rest clock and laps. Off, workouts are timed from the first set.") }}</div>
+                </div>
+
+                <div class="form-check form-switch wd-switch mt-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="stopwatchAdvanced"
+                        name="stopwatch_advanced" value="1" {{ 'checked' if current_user.stopwatch_advanced }}
+                        {{ 'disabled' if not current_user.show_stopwatch }}>
+                    <label class="form-check-label" for="stopwatchAdvanced">{{ _("Advanced stopwatch") }}</label>
+                    <div class="form-text">{{ _("Go and Done to time each set, SS for supersets.") }}</div>
                 </div>
 
                 <div class="form-check form-switch wd-switch mt-3">
@@ -167,6 +205,14 @@
                         name="show_set_gaps" value="1" {{ 'checked' if current_user.show_set_gaps }}>
                     <label class="form-check-label" for="showSetGaps">{{ _("Time between sets") }}</label>
                     <div class="form-text">{{ _('"+2:35" under each logged set: the time since the one before.') }}</div>
+                </div>
+
+                <div class="form-check form-switch wd-switch mt-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="focusMode"
+                        name="focus_mode" value="1" {{ 'checked' if current_user.focus_mode }}
+                        {{ 'disabled' if not current_user.show_stopwatch }}>
+                    <label class="form-check-label" for="focusMode">{{ _("Focus mode") }}</label>
+                    <div class="form-text">{{ _("On Training Session, from the stopwatch's Start: the top bar scrolls away, the screen stays on, and the stopwatch bar lights up when the rest is up.") }}</div>
                 </div>
 
                 <div class="small text-center mt-3" id="customizationStatus" aria-live="polite">&nbsp;</div>
@@ -187,6 +233,8 @@
             var show = document.getElementById("showSessionIcons");
             var animate = document.getElementById("animateSessionIcons");
             var stopwatch = document.getElementById("showStopwatch");
+            var focus = document.getElementById("focusMode");
+            var advanced = document.getElementById("stopwatchAdvanced");
             var status = document.getElementById("customizationStatus");
             var timer = null;
 
@@ -222,6 +270,8 @@
                 var flipped = event.target;
                 var languageChange = flipped.name === "language";
                 animate.disabled = !show.checked;
+                focus.disabled = !stopwatch.checked;
+                advanced.disabled = !stopwatch.checked;
                 var data = new FormData();
                 form.querySelectorAll("input[type=checkbox]").forEach(function (box) {
                     data.append(box.name, box.checked ? "1" : "0");
@@ -240,6 +290,8 @@
                             flipped.checked = !flipped.checked;
                         }
                         animate.disabled = !show.checked;
+                focus.disabled = !stopwatch.checked;
+                advanced.disabled = !stopwatch.checked;
                         say({{ _("Not saved - try again.")|tojson }}, false);
                     });
             });

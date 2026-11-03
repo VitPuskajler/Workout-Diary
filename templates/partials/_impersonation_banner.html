@@ -7,7 +7,10 @@
    - for the admin, while a registration waits for approval
      (`pending_registrations`, from inject_pending_registrations) - with a
      link straight to it. Not on User management itself, where the
-     registrations are anyway. #}
+     registrations are anyway.
+   Every page includes this, so it also brings the navbar's "back to the
+   workout" button (partials/_return_to_workout.html). #}
+{% include "partials/_return_to_workout.html" %}
 {% set show_impersonation = impersonator and not hide_impersonation %}
 {% set show_pending = pending_registrations and request.endpoint != 'user_management' %}
 {% if show_impersonation or show_pending %}
@@ -61,8 +64,9 @@
       // with the page. Measured against the viewport, a page scrolled down by
       // 500px read as a 500px overlap - the strip grew by that much and the
       // page jumped (an iPhone fires resize as Safari's toolbar hides mid-swipe).
-      var gap = banner.getBoundingClientRect().top + window.scrollY
-                - nav.getBoundingClientRect().bottom;
+      // The navbar sits at the very top (fixed, or absolute in focus mode),
+      // so its bottom is its height.
+      var gap = banner.getBoundingClientRect().top + window.scrollY - nav.offsetHeight;
 
       if (gap > 0) {
         // Too low. A negative margin pulls it up - negative margins are not

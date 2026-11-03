@@ -186,13 +186,15 @@
         ]),
         ("⏱️", _("Stopwatch"), "stopwatch", [
             (_("Start"), _("or your first logged set - the clock shows your warm-up."), ["sw-off", "sw-warmup"]),
-            (_("Go"), _("right before a set. Cancel undoes it."), ["sw-set"]),
+            (_("Go"), _("right before a set. ✕ undoes it."), ["sw-set"]),
+            (_("Done"), _("the set is over - the rest starts now, however long you take to write it down."), []),
             (_("Confirm"), _("the set is logged, the rest runs: green within the pause, red over it."), ["sw-rest"]),
             ("⟳", _("new lap - times warm-up sets you do not log."), ["sw-lap"]),
             ("SS", _("superset: tap it when you switch to the next exercise, before Go. The rest runs on and the two sets are linked."), ["sw-ss"]),
             (none, _("Tap the clock for the total time. Tap again to go back."), ["sw-total"]),
             ("⏻", _("finishes the workout. By mistake? Start within 60 minutes and it carries on."), ["sw-finish"]),
             (none, _("No set for 30 minutes: it switches itself off."), []),
+            (none, _("Go, Done and SS are the advanced stopwatch - on or off in Customization."), []),
         ]),
         ("📝", _("Change Current Mesocycle"), "create", [
             (none, _("Menu → Change Current Mesocycle opens your plan for editing."), []),

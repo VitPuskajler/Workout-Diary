@@ -41,6 +41,15 @@ class Users(UserMixin, db.Model):
     # previous set under each logged set.
     show_stopwatch = Column(Boolean, nullable=False, default=True, server_default="1")
     show_set_gaps = Column(Boolean, nullable=False, default=True, server_default="1")
+    # The stopwatch's advanced buttons: Go / Done / the cross (each set timed)
+    # and SS (supersets). Off, the stopwatch is the simple one: Start, the
+    # rest clock, New lap and Finish. On for everybody who had them before.
+    stopwatch_advanced = Column(Boolean, nullable=False, default=True, server_default="1")
+    # Focus mode on Training Session while the stopwatch runs: a blue rush
+    # round the screen on Start, the navbar scrolls away, the screen stays on
+    # and the edges pulse blue once the rest is up. Off until switched on.
+    # See temp/add_focus_mode_column.py.
+    focus_mode = Column(Boolean, nullable=False, default=False, server_default="0")
     # "en", "sk" or "cs" - see translations/i18n.py.
     language = Column(String(5), nullable=False, default="en", server_default="en")
     # Exercise names in the user's language (Exercise.name_sk / name_cs) where
