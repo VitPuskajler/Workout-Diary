@@ -57,7 +57,12 @@
       }
       banner.style.paddingTop = basePad + "px";
 
-      var gap = banner.getBoundingClientRect().top - nav.getBoundingClientRect().bottom;
+      // In page coordinates: the navbar is fixed at the top, the strip scrolls
+      // with the page. Measured against the viewport, a page scrolled down by
+      // 500px read as a 500px overlap - the strip grew by that much and the
+      // page jumped (an iPhone fires resize as Safari's toolbar hides mid-swipe).
+      var gap = banner.getBoundingClientRect().top + window.scrollY
+                - nav.getBoundingClientRect().bottom;
 
       if (gap > 0) {
         // Too low. A negative margin pulls it up - negative margins are not
@@ -73,7 +78,15 @@
 
     align();
     window.addEventListener("load", align);   // again once fonts have settled
-    window.addEventListener("resize", align);
+    // Only a change of width can rewrap the navbar or the strip. A height-only
+    // resize is Safari's toolbar coming and going during a swipe - re-laying
+    // out the top of the page then would jolt the scroll.
+    var lastWidth = window.innerWidth;
+    window.addEventListener("resize", function () {
+      if (window.innerWidth === lastWidth) { return; }
+      lastWidth = window.innerWidth;
+      align();
+    });
   })();
 </script>
 {% endif %}

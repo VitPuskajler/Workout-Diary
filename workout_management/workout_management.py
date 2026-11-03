@@ -1549,10 +1549,26 @@ class WorkoutManagement:
                         else:
                             pass
 
+                        # Sets still to do: the prescribed sets minus those
+                        # logged in today's session - counting down to 0 by
+                        # the end of the workout, never below it (extra sets
+                        # leave it at 0).
+                        sets_left = exers.prescribed_sets
+                        if sets_left is not None and today_session:
+                            done_today = (
+                                db.session.query(func.count(ExerciseEntries.entry_id))
+                                .filter(
+                                    ExerciseEntries.session_id == today_session,
+                                    ExerciseEntries.exercise_id == exers.exercise_id,
+                                )
+                                .scalar()
+                            ) or 0
+                            sets_left = max(sets_left - done_today, 0)
+
                         # Populate the preview entry with data from the latest_entry or default values
                         preview_entry = {
                             "exercise": exercise_name,
-                            "sets": exers.prescribed_sets,
+                            "sets": sets_left,
                             "reps": (
                                 latest_entry.reps
                                 if latest_entry and latest_entry.reps is not None
