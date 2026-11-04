@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="{{ current_language() }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Periodization - {{ _("Body measurement") }}</title>
+    <link rel="icon" href="/static/title/barbell_title.jpg">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
+
+    <style>
+        /* Page heading: the same quiet section label as "Menu" on /profile. */
+        .wd-label {
+            font-size: 1.05rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.35em;
+            color: var(--bs-secondary-color, #6c757d);
+            padding-left: 0.35em;
+        }
+
+        .wd-body {
+            max-width: 720px;
+        }
+
+        /* The chart keeps its height on a phone; the width follows the screen. */
+        .wd-chart-box {
+            position: relative;
+            height: 320px;
+        }
+
+        .wd-chart-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            flex-wrap: wrap;
+        }
+
+        .wd-chart-head select {
+            width: auto;
+        }
+
+        /* Measurement tables (detail popup, latest card): label, value, change. */
+        .wd-measure-table td:nth-child(2),
+        .wd-measure-table td:nth-child(3) {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        /* The change is not coloured: a smaller waist is good, smaller biceps
+           are not. */
+        .wd-delta-none { color: var(--bs-secondary-color); }
+
+        /* Two inputs a row on a phone too - twelve stacked fields is a long scroll. */
+        .wd-measure-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .5rem .75rem;
+        }
+
+        /* The latest value as a hint - light, so it never reads as filled in. */
+        .wd-measure-grid input::placeholder,
+        #weightValue::placeholder {
+            color: #c4c8cc;
+        }
+
+        .wd-measure-grid .form-text {
+            font-size: .72rem;
+            margin-top: .1rem;
+        }
+    </style>
+  {% include "partials/_js_translations.html" %}
+</head>
+
+<body>
+    <div class="p-5 mb-5">
+        <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="{{ _("Main navigation") }}">
+          <div class="container-fluid">
+            <a href="{{ url_for('profile') }}" class="text-light me-2 d-flex align-items-center"
+              aria-label="{{ _("Menu") }}" title="{{ _("Menu") }}" style="text-decoration: none;">
+              <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd"
+                  d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z">
+                </path>
+              </svg>
+            </a>
+            <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
+            <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
+              aria-controls="navbarCollapse" aria-expanded="false" aria-label="{{ _("Toggle navigation") }}">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarCollapse">
+                    <ul class="navbar-nav me-auto mb-2 mb-md-0">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('training_session_redirect')}}">{{ _("Training Session") }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('workout_plan_page')}}">{{ _("Workout Plan") }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('intuitive_training') }}">{{ _("Intuitive Training") }}</a>
+                        </li>
+                    </ul>
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('profile') }}">{{ current_user.username }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('logout') }}">{{ _("Logout") }}</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </div>
+    {% include "partials/_impersonation_banner.html" %}
+
+    {# The user's weight (kg) and tape measurements (cm), one entry of each per
+       day - body_measurement() in server.py. The chart is static/js/bodyChart.js. #}
+    <main class="container wd-body my-4">
+        <h1 class="wd-label text-center mb-4">{{ _("Body measurement") }}</h1>
+
+        {% include "partials/_flashes.html" %}
+
+        <div class="d-grid gap-2 mx-auto mb-4" style="max-width: 300px;">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#weightModal">
+                {{ _("Log body weight") }}</button>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#measureModal">
+                {{ _("Log body measurements") }}</button>
+        </div>
+
+        <div class="wd-chart-head mb-2">
+            <h2 class="h6 mb-0">{{ _("Body weight") }} (kg)</h2>
+            <select id="bodyPeriod" class="form-select form-select-sm" aria-label="{{ _("Period") }}">
+                <option value="30">{{ _("Last month") }}</option>
+                <option value="91" selected>{{ _("Last 3 months") }}</option>
+                <option value="183">{{ _("Last 1/2 year") }}</option>
+                <option value="365">{{ _("Last year") }}</option>
+                <option value="all">{{ _("All time") }}</option>
+            </select>
+        </div>
+
+        <div class="wd-chart-box">
+            <canvas id="bodyChart" aria-label="{{ _("Body weight") }}" role="img"></canvas>
+            <p id="bodyChartEmpty" class="position-absolute top-50 start-50 translate-middle text-center text-body-secondary d-none mb-0"></p>
+        </div>
+        <p class="small text-body-secondary text-center mt-2 mb-4">
+            {{ _("Tap a point to see your measurements from that time.") }}
+            <span class="text-nowrap">◆ {{ _("measurements logged that day") }}</span>
+        </p>
+
+        <div id="latestMeasurements"></div>
+    </main>
+
+    <!-- Log body weight -->
+    <div class="modal fade" id="weightModal" tabindex="-1" aria-labelledby="weightModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <form method="post" action="{{ url_for('save_body_weight') }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="weightModalLabel">{{ _("Log body weight") }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="weightDate" class="form-label">{{ _("Date") }}</label>
+                            <input type="date" class="form-control js-today" id="weightDate" name="measured_on" required>
+                        </div>
+                        <div>
+                            <label for="weightValue" class="form-label">{{ _("Body weight") }} (kg)</label>
+                            <input type="text" inputmode="decimal" class="form-control" id="weightValue" name="weight"
+                                required pattern="[0-9]+([.,][0-9]+)?" autocomplete="off"
+                                placeholder="{{ latest_weight.weight if latest_weight else '' }}">
+                        </div>
+
+                        {# How it was weighed. The time is morning every time
+                           the popup opens; fasted / after a bowel movement
+                           start as last time, as most people weigh the same
+                           way each day. #}
+                        <div class="mt-3">
+                            <div class="form-label mb-1" id="timeOfDayLabel">{{ _("Time of day") }}</div>
+                            <div class="btn-group btn-group-sm w-100" role="group" aria-labelledby="timeOfDayLabel">
+                                {% for value, label in [("morning", _("Morning")), ("noon", _("Noon")),
+                                                        ("evening", _("Evening")), ("custom", _("Custom"))] %}
+                                <input type="radio" class="btn-check js-time-of-day" name="time_of_day"
+                                    id="tod_{{ value }}" value="{{ value }}"{{ ' checked' if value == 'morning' }}>
+                                <label class="btn btn-outline-primary" for="tod_{{ value }}">{{ label }}</label>
+                                {% endfor %}
+                            </div>
+                            <input type="time" class="form-control form-control-sm mt-2 d-none" id="weighedAt"
+                                name="weighed_at" aria-label="{{ _("Exact time") }}">
+                        </div>
+
+                        {% for name, label in [("fasted", _("Fasted")), ("after_bowel", _("After a bowel movement"))] %}
+                        {% set last = latest_weight[name] if latest_weight else none %}
+                        <div class="mt-3 d-flex align-items-center justify-content-between gap-2">
+                            <span id="{{ name }}Label">{{ label }}</span>
+                            <div class="btn-group btn-group-sm" role="group" aria-labelledby="{{ name }}Label">
+                                <input type="radio" class="btn-check" name="{{ name }}" id="{{ name }}_yes"
+                                    value="yes"{{ ' checked' if last is true }}>
+                                <label class="btn btn-outline-primary" for="{{ name }}_yes">{{ _("Yes") }}</label>
+                                <input type="radio" class="btn-check" name="{{ name }}" id="{{ name }}_no"
+                                    value="no"{{ ' checked' if last is false }}>
+                                <label class="btn btn-outline-primary" for="{{ name }}_no">{{ _("No") }}</label>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <div class="form-text mt-3">{{ _("An entry for the same day is overwritten.") }}</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                        <button type="submit" class="btn btn-primary">{{ _("Save") }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log body measurements. Placeholders show the latest value of each. -->
+    <div class="modal fade" id="measureModal" tabindex="-1" aria-labelledby="measureModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <form method="post" action="{{ url_for('save_body_measurements') }}" class="d-flex flex-column overflow-hidden">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="measureModalLabel">{{ _("Log body measurements") }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="measureDate" class="form-label">{{ _("Date") }}</label>
+                            <input type="date" class="form-control js-today" id="measureDate" name="measured_on" required>
+                        </div>
+                        <p class="small text-body-secondary">
+                            {{ _("In cm. Fill in only what you measured.") }}
+                            {{ _("Same tape, same spot, same time of day - ideally in the morning.") }}
+                        </p>
+                        <div class="wd-measure-grid">
+                            {% for name, label, hint in fields %}
+                            <div>
+                                <label for="m_{{ name }}" class="form-label small mb-1">
+                                    {{ label }} ({{ '%' if name == 'body_fat' else 'cm' }})</label>
+                                <input type="text" inputmode="decimal" class="form-control form-control-sm js-measure"
+                                    id="m_{{ name }}" name="{{ name }}" data-field="{{ name }}"
+                                    pattern="[0-9]+([.,][0-9]+)?" autocomplete="off">
+                                <div class="form-text">{{ hint }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="form-text mt-3">{{ _("An entry for the same day is overwritten.") }}</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                        <button type="submit" class="btn btn-primary">{{ _("Save") }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- A tapped point: that day's weight and the measurements nearest to it. -->
+    <div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailModalLabel"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
+                </div>
+                <div class="modal-body" id="detailBody"></div>
+                <div class="modal-footer justify-content-between">
+                    <div class="d-flex gap-2">
+                        <form method="post" action="{{ url_for('delete_body_entry') }}" id="deleteWeightForm">
+                            <input type="hidden" name="kind" value="weight">
+                            <input type="hidden" name="id" value="">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">{{ _("Delete weight") }}</button>
+                        </form>
+                        <form method="post" action="{{ url_for('delete_body_entry') }}" id="deleteMeasureForm">
+                            <input type="hidden" name="kind" value="measurements">
+                            <input type="hidden" name="id" value="">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">{{ _("Delete measurements") }}</button>
+                        </form>
+                    </div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("Close") }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="application/json" id="bodyData">{{ chart_data|tojson }}</script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='js/bodyChart.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
+</body>
+
+</html>

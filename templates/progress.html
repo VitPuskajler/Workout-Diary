@@ -400,14 +400,17 @@
         }
       </style>
 
-      {# The workouts themselves: when, how long, how many sets. Duration needs
-         the stopwatch's set times, so older sessions show a dash. Newest first.
+      {# The workouts themselves: when, how long, how many sets. Time in gym
+         runs from the stopwatch's Start tap (a dash without one), exercise time
+         from the first set to the last - session_times() in
+         workout_management.py. Older sessions, logged before the stopwatch,
+         show dashes. Newest first.
          A small closed-by-default note rather than a full table, so it does not
          compete with the exercise tables below - tap the header to open it. #}
       {% if session_summary %}
       <style>
         .wd-durations {
-          max-width: 22rem;
+          max-width: 26rem;
           margin: 0 auto 1.5rem;
           font-size: .8rem;
         }
@@ -447,7 +450,8 @@
             <thead>
               <tr>
                 <th>{{ _("Date") }}</th>
-                <th>{{ _("Duration") }}</th>
+                <th title="{{ _("From the Start tap on the stopwatch to the last set") }}">{{ _("Time in gym") }}</th>
+                <th title="{{ _("From the first logged set to the last one") }}">{{ _("Exercise time") }}</th>
                 <th>{{ _("Sets") }}</th>
               </tr>
             </thead>
@@ -455,7 +459,8 @@
               {% for item in session_summary %}
               <tr>
                 <td>{{ item.date }}</td>
-                <td{% if item.from_first_set %} title="{{ _("No Start tap on the stopwatch - counted from the first set") }}"{% endif %}>{{ item.duration or '–' }}</td>
+                <td{% if not item.gym %} title="{{ _("No Start tap on the stopwatch") }}"{% endif %}>{{ item.gym or '–' }}</td>
+                <td>{{ item.exercise or '–' }}</td>
                 <td>{{ item.sets }}</td>
               </tr>
               {% endfor %}

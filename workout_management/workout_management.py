@@ -2378,11 +2378,70 @@ class WorkoutManagement:
                 continue
             start = first_set
             # No Start tap: session_date is only when the session was created.
+            if started_by_stopwatch:
+                session_date = self._local_to_utc(session_date)
             if started_by_stopwatch is not False and session_date is not None \
                     and timedelta(0) <= first_set - session_date <= self.LONGEST_WARM_UP:
                 start = session_date
             durations[session_id] = max(0, round((last_set - start).total_seconds() / 60))
         return durations
+
+    @staticmethod
+    def _local_to_utc(moment):
+        """A naive local time (the Start tap _stamp_stopwatch writes into
+        session_date) as naive UTC, the form the sets' logged_at take."""
+        if moment is None:
+            return None
+        return moment.astimezone(timezone.utc).replace(tzinfo=None)
+
+    def session_times(self, session_ids):
+        """{session_id: {"gym": minutes or None, "exercise": minutes or None}}
+        for the Workout Durations table on /progress.
+
+        gym: from the stopwatch's Start tap to the last set logged - None
+        without a Start tap (or a Start more than LONGEST_WARM_UP before the
+        first set, which is some other clock, not a warm-up).
+        exercise: from the first set logged to the last one - None for
+        sessions from before the stopwatch, whose sets carry no times."""
+        if not session_ids:
+            return {}
+        rows = (
+            db.session.query(
+                Sessions.session_id,
+                Sessions.session_date,
+                Sessions.started_by_stopwatch,
+                func.min(func.coalesce(ExerciseEntries.started_at, ExerciseEntries.logged_at)),
+                func.min(ExerciseEntries.logged_at),
+                func.max(ExerciseEntries.logged_at),
+            )
+            .join(ExerciseEntries, ExerciseEntries.session_id == Sessions.session_id)
+            .filter(Sessions.session_id.in_(session_ids))
+            .group_by(Sessions.session_id)
+            .all()
+        )
+
+        def as_datetime(value):
+            # min()/max() over a column come back from SQLite as plain strings.
+            if value is None or isinstance(value, datetime):
+                return value
+            try:
+                return datetime.fromisoformat(str(value))
+            except ValueError:
+                return None
+
+        def minutes(start, end):
+            return max(0, round((end - start).total_seconds() / 60))
+
+        times = {sid: {"gym": None, "exercise": None} for sid in session_ids}
+        for session_id, session_date, started_by_stopwatch, first_start, first_set, last_set in rows:
+            first_start, first_set, last_set = as_datetime(first_start), as_datetime(first_set), as_datetime(last_set)
+            if first_set is None or last_set is None:
+                continue
+            times[session_id]["exercise"] = minutes(first_set, last_set)
+            start = self._local_to_utc(session_date) if started_by_stopwatch else None
+            if start is not None and timedelta(0) <= (first_start or first_set) - start <= self.LONGEST_WARM_UP:
+                times[session_id]["gym"] = minutes(start, last_set)
+        return times
 
     def sessions_without_start(self, session_ids):
         """The session_ids among these whose duration runs from the first set,
@@ -2431,7 +2490,7 @@ class WorkoutManagement:
 
     def progress_session_summary(self, progress):
         """The sessions behind a /progress table set, newest first:
-        [{date, duration, sets}]. Read off the entry_ids already in the dict,
+        [{date, gym, exercise, sets}] - see session_times(). Read off the entry_ids already in the dict,
         so it covers exactly the sessions the tables below show."""
         entry_ids = [
             row["entry_id"]
@@ -2455,13 +2514,12 @@ class WorkoutManagement:
             .order_by(desc(Sessions.session_date))
             .all()
         )
-        durations = self.session_durations([row[0] for row in sessions])
-        from_first_set = self.sessions_without_start([row[0] for row in sessions])
+        times = self.session_times([row[0] for row in sessions])
         return [
             {
                 "date": f"{date_.day}.{date_.month}.{date_.year}",
-                "duration": self.format_duration(durations.get(session_id), session_id in from_first_set),
-                "from_first_set": session_id in from_first_set,
+                "gym": self.format_duration(times[session_id]["gym"]),
+                "exercise": self.format_duration(times[session_id]["exercise"]),
                 "sets": sets,
             }
             for session_id, date_, sets in sessions
@@ -2512,7 +2570,8 @@ class WorkoutManagement:
             for item in session_summary:
                 sets = item["sets"]
                 lines.append(
-                    f"- {item['date']} - {item['duration'] or 'no time'}, "
+                    f"- {item['date']} - in the gym {item['gym'] or '-'}, "
+                    f"exercising {item['exercise'] or '-'}, "
                     f"{sets} {'set' if sets == 1 else 'sets'}"
                 )
             lines.append("")

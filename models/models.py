@@ -1,13 +1,16 @@
 from datetime import datetime, timezone
 from models.db_setup import db
 from flask_login import UserMixin
+
 from sqlalchemy import (
     Boolean,
     Column,
     Float,
     Integer,
     String,
+    Date,
     DateTime,
+    UniqueConstraint,
     func,
     select,
 )
@@ -233,6 +236,62 @@ class SessionMesocycles(UserMixin, db.Model):
         self.session_id = session_id
         self.mesocycle_id = mesocycle_id
         self.training_day_number = training_day_number
+
+# 9. Body weight - one per user per day, from /body. Always kilograms.
+# New tables: db.create_all() adds them, see temp/add_body_tables.py.
+class BodyWeight(db.Model):
+    __tablename__ = "body_weights"
+    __table_args__ = (UniqueConstraint("user_id", "measured_on"),)
+    body_weight_id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, db.ForeignKey("users.user_id"), nullable=False, index=True)
+    # The user's own calendar day (the browser's date), not the server's.
+    measured_on = Column(Date, nullable=False)
+    weight = Column(Float, nullable=False)
+    # How the weighing went - the same conditions every time make the line
+    # honest. time_of_day: one of WEIGH_TIMES; weighed_at "HH:MM" only with
+    # "custom". fasted / after_bowel: NULL when not answered.
+    time_of_day = Column(String(10), nullable=True)
+    weighed_at = Column(String(5), nullable=True)
+    fasted = Column(Boolean, nullable=True)
+    after_bowel = Column(Boolean, nullable=True)
+
+
+WEIGH_TIMES = ("morning", "noon", "evening", "custom")
+
+
+# 10. Body measurements - tape measure in cm (body_fat in %), one row per
+# user per day. Every value is optional: only what was measured that day.
+# BODY_MEASUREMENTS is the order the page shows them in.
+BODY_MEASUREMENTS = (
+    "neck", "shoulders", "chest", "waist", "hips",
+    "biceps_left", "biceps_right", "thigh_left", "thigh_right",
+    "calf_left", "calf_right", "body_fat",
+)
+
+
+class BodyMeasurement(db.Model):
+    __tablename__ = "body_measurements"
+    __table_args__ = (UniqueConstraint("user_id", "measured_on"),)
+    body_measurement_id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, db.ForeignKey("users.user_id"), nullable=False, index=True)
+    measured_on = Column(Date, nullable=False)
+    neck = Column(Float, nullable=True)
+    shoulders = Column(Float, nullable=True)
+    chest = Column(Float, nullable=True)
+    waist = Column(Float, nullable=True)
+    hips = Column(Float, nullable=True)
+    biceps_left = Column(Float, nullable=True)
+    biceps_right = Column(Float, nullable=True)
+    thigh_left = Column(Float, nullable=True)
+    thigh_right = Column(Float, nullable=True)
+    calf_left = Column(Float, nullable=True)
+    calf_right = Column(Float, nullable=True)
+    body_fat = Column(Float, nullable=True)
+
+    def values(self):
+        """{field: value} for the measurements taken, in BODY_MEASUREMENTS order."""
+        return {name: getattr(self, name) for name in BODY_MEASUREMENTS
+                if getattr(self, name) is not None}
 
 # User Loader function (belongs with the Users model)
 def load_user(user_id):

@@ -2,7 +2,7 @@ import json
 import os
 import re
 import secrets
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from functools import wraps
 from flask import (
     Flask,
@@ -38,7 +38,8 @@ from wtforms.validators import DataRequired, EqualTo, NumberRange, ValidationErr
 
 from models.db_setup import db
 from translations.i18n import LANGUAGES, current_language, js_translations, plural_forms, translate as _, translate_plural as _n
-from models.models import Exercise, Users, WorkoutPlan, Mesocycles, load_user, utcnow
+from models.models import (BODY_MEASUREMENTS, WEIGH_TIMES, BodyMeasurement, BodyWeight, Exercise, Users, WorkoutPlan,
+                           Mesocycles, load_user, utcnow)
 from workout_management.workout_management import  WorkoutManagement, english_exercise_name, fold_text, localized_name_column
 
 app = Flask(__name__, instance_relative_config=True)
@@ -1420,6 +1421,206 @@ def save_one_switch():
     setattr(user, name, request.form.get("value") == "1")
     db.session.commit()
     return jsonify({"ok": True})
+
+
+# -------------------------------- Body measurement --------------------------------
+# /body: the user's own weight (a line chart) and tape measurements. Weight is
+# always kg, measurements cm, body fat %. One of each per day - saving the
+# same day again overwrites it. The day is the browser's, sent with the form,
+# so a weight logged just after midnight lands on the right day.
+
+BODY_WEIGHT_RANGE = (20, 400)        # kg
+BODY_MEASUREMENT_RANGE = (5, 300)    # cm
+BODY_FAT_RANGE = (2, 70)             # %
+
+
+def body_measurement_fields():
+    """[(field, label, where to measure)] in BODY_MEASUREMENTS order."""
+    fields = {
+        "neck": (_("Neck"), _("Just below the Adam's apple")),
+        "shoulders": (_("Shoulders"), _("Widest point, arms relaxed")),
+        "chest": (_("Chest"), _("Across the nipples, after a normal breath out")),
+        "waist": (_("Waist"), _("At the navel, belly relaxed")),
+        "hips": (_("Hips"), _("Widest point of the glutes")),
+        "biceps_left": (_("Left biceps"), _("Flexed, at the peak")),
+        "biceps_right": (_("Right biceps"), _("Flexed, at the peak")),
+        "thigh_left": (_("Left thigh"), _("Just below the glute fold")),
+        "thigh_right": (_("Right thigh"), _("Just below the glute fold")),
+        "calf_left": (_("Left calf"), _("Widest point")),
+        "calf_right": (_("Right calf"), _("Widest point")),
+        "body_fat": (_("Body fat"), _("Optional, from a smart scale or calipers")),
+    }
+    return [(name, *fields[name]) for name in BODY_MEASUREMENTS]
+
+
+def _body_form_date():
+    """The day from the form (YYYY-MM-DD), or None if missing, garbled or in
+    the future. A day ahead of the server is allowed: the browser may be in
+    a timezone that has already reached tomorrow."""
+    try:
+        day = date.fromisoformat(request.form.get("measured_on", ""))
+    except ValueError:
+        return None
+    if day.year < 1900 or day > date.today() + timedelta(days=1):
+        return None
+    return day
+
+
+def _body_form_number(name):
+    """The form field as a float (a comma works as the decimal point), or None
+    when left empty. ValueError when it is not a number."""
+    raw = (request.form.get(name) or "").strip().replace(",", ".")
+    return float(raw) if raw else None
+
+
+@app.route("/body")
+@login_required
+def body_measurement():
+    weights = (
+        db.session.query(BodyWeight)
+        .filter(BodyWeight.user_id == current_user.user_id)
+        .order_by(BodyWeight.measured_on)
+        .all()
+    )
+    measurements = (
+        db.session.query(BodyMeasurement)
+        .filter(BodyMeasurement.user_id == current_user.user_id)
+        .order_by(BodyMeasurement.measured_on)
+        .all()
+    )
+    fields = body_measurement_fields()
+    chart_data = {
+        "weights": [{"id": w.body_weight_id, "date": w.measured_on.isoformat(), "weight": w.weight,
+                     "time_of_day": w.time_of_day, "weighed_at": w.weighed_at,
+                     "fasted": w.fasted, "after_bowel": w.after_bowel}
+                    for w in weights],
+        "measurements": [{"id": m.body_measurement_id, "date": m.measured_on.isoformat(), "values": m.values()}
+                         for m in measurements],
+        "fields": [{"name": name, "label": label, "unit": "%" if name == "body_fat" else "cm"}
+                   for name, label, _hint in fields],
+    }
+    return render_template(
+        "body_measurement.html",
+        chart_data=chart_data,
+        fields=fields,
+        latest_weight=weights[-1] if weights else None,
+        weight_range=BODY_WEIGHT_RANGE,
+        measurement_range=BODY_MEASUREMENT_RANGE,
+        fat_range=BODY_FAT_RANGE,
+    )
+
+
+@app.route("/body/weight", methods=["POST"])
+@login_required
+def save_body_weight():
+    day = _body_form_date()
+    if day is None:
+        flash(_("Pick a valid date, not in the future."), "warning")
+        return redirect(url_for("body_measurement"))
+    low, high = BODY_WEIGHT_RANGE
+    try:
+        weight = _body_form_number("weight")
+    except ValueError:
+        weight = None
+    if weight is None or not low <= weight <= high:
+        flash(_("Enter a weight from {min} to {max} kg.", min=low, max=high), "warning")
+        return redirect(url_for("body_measurement"))
+    time_of_day = request.form.get("time_of_day") or "morning"
+    if time_of_day not in WEIGH_TIMES:
+        time_of_day = "morning"
+    weighed_at = None
+    if time_of_day == "custom":
+        weighed_at = (request.form.get("weighed_at") or "").strip()[:5]
+        if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", weighed_at):
+            flash(_("Pick the exact time for Custom."), "warning")
+            return redirect(url_for("body_measurement"))
+
+    row = (
+        db.session.query(BodyWeight)
+        .filter(BodyWeight.user_id == current_user.user_id, BodyWeight.measured_on == day)
+        .first()
+    )
+    if row is None:
+        row = BodyWeight(user_id=current_user.user_id, measured_on=day)
+        db.session.add(row)
+    row.weight = round(weight, 1)
+    row.time_of_day = time_of_day
+    row.weighed_at = weighed_at
+    # "yes" / "no"; anything else (not answered) is NULL.
+    row.fasted = {"yes": True, "no": False}.get(request.form.get("fasted"))
+    row.after_bowel = {"yes": True, "no": False}.get(request.form.get("after_bowel"))
+
+    # users.weight (asked for at registration) follows the newest entry.
+    newest = (
+        db.session.query(func.max(BodyWeight.measured_on))
+        .filter(BodyWeight.user_id == current_user.user_id)
+        .scalar()
+    )
+    if newest is None or day >= newest:
+        db.session.get(Users, current_user.user_id).weight = row.weight
+    db.session.commit()
+    flash(_("Weight saved."), "success")
+    return redirect(url_for("body_measurement"))
+
+
+@app.route("/body/measurements", methods=["POST"])
+@login_required
+def save_body_measurements():
+    day = _body_form_date()
+    if day is None:
+        flash(_("Pick a valid date, not in the future."), "warning")
+        return redirect(url_for("body_measurement"))
+
+    values = {}
+    for name, label, _hint in body_measurement_fields():
+        low, high = BODY_FAT_RANGE if name == "body_fat" else BODY_MEASUREMENT_RANGE
+        try:
+            value = _body_form_number(name)
+        except ValueError:
+            value = low - 1
+        if value is None:
+            continue
+        if not low <= value <= high:
+            flash(_("{name}: enter a number from {min} to {max}.", name=label, min=low, max=high), "warning")
+            return redirect(url_for("body_measurement"))
+        values[name] = round(value, 1)
+    if not values:
+        flash(_("Enter at least one measurement."), "warning")
+        return redirect(url_for("body_measurement"))
+
+    row = (
+        db.session.query(BodyMeasurement)
+        .filter(BodyMeasurement.user_id == current_user.user_id, BodyMeasurement.measured_on == day)
+        .first()
+    )
+    if row is None:
+        row = BodyMeasurement(user_id=current_user.user_id, measured_on=day)
+        db.session.add(row)
+    # The whole day is replaced: a field left empty this time is cleared.
+    for name in BODY_MEASUREMENTS:
+        setattr(row, name, values.get(name))
+    db.session.commit()
+    flash(_("Measurements saved."), "success")
+    return redirect(url_for("body_measurement"))
+
+
+@app.route("/body/delete", methods=["POST"])
+@login_required
+def delete_body_entry():
+    """Delete one weight or one day of measurements (kind = weight /
+    measurements) - only the user's own."""
+    model = {"weight": BodyWeight, "measurements": BodyMeasurement}.get(request.form.get("kind"))
+    try:
+        entry_id = int(request.form.get("id", ""))
+    except ValueError:
+        entry_id = None
+    row = db.session.get(model, entry_id) if model and entry_id else None
+    if row is None or row.user_id != current_user.user_id:
+        abort(404)
+    db.session.delete(row)
+    db.session.commit()
+    flash(_("Entry deleted."), "success")
+    return redirect(url_for("body_measurement"))
 
 
 @app.route("/profile", methods=["GET", "POST"])

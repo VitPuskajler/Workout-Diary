@@ -40,7 +40,7 @@ STAMP = os.path.join(ROOT, ".git", "ui_check_ok")
 
 PAGES = ["/table_layout", "/create_workout", "/workout_plan_page", "/progress",
          "/training_session", "/intuitive_training", "/mesocycle_management",
-         "/profile", "/customization", "/manual", "/statistics"]
+         "/profile", "/customization", "/manual", "/statistics", "/body"]
 ADMIN_PAGES = ["/admin/exercises", "/admin/users", "/admin/users/activity"]
 LANGS = ["en", "sk", "cs"]
 
@@ -58,6 +58,11 @@ from models.models import Users
 def _ui_check_login(user_id):
     login_user(server.db.session.get(Users, user_id))
     return redirect("/create_workout")
+
+# Tables added since the copied database was made (the migrations in temp/
+# do this for real) - the copy is thrown away afterwards.
+with server.app.app_context():
+    server.db.create_all()
 
 server.app.run(port=port, debug=False, use_reloader=False)
 '''
