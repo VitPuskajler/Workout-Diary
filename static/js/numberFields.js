@@ -42,20 +42,20 @@
     input.setCustomValidity(message);
   }
 
+  // Bound on document, not on each field: Training Session swaps its fields
+  // for new ones after every logged set (liveForm.js).
   function start() {
-    document.querySelectorAll("input[data-wd-number]").forEach(function (input) {
-      input.addEventListener("input", function () { check(input); });
+    document.addEventListener("input", function (e) {
+      if (e.target.matches && e.target.matches("input[data-wd-number]")) check(e.target);
     });
-    var unit = document.getElementById("weightUnitToggle");
-    if (unit) {
-      unit.addEventListener("click", function () {
-        // after the toggle's own handler has set the new maximum
-        setTimeout(function () {
-          var weight = document.getElementById("weightInput");
-          if (weight) check(weight);
-        });
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest || !e.target.closest("#weightUnitToggle")) return;
+      // after the toggle's own handler has set the new maximum
+      setTimeout(function () {
+        var weight = document.getElementById("weightInput");
+        if (weight) check(weight);
       });
-    }
+    });
   }
 
   if (document.readyState === "loading") {

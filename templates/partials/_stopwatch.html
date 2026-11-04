@@ -10,7 +10,10 @@
        every POST as hidden fields (sw_start, set_started) so they are saved with
        the set.
    Every number is computed from timestamps (Date.now()), never from counting
-   ticks, so a locked phone or a page reload cannot make it drift. #}
+   ticks, so a locked phone or a page reload cannot make it drift.
+
+   A set saved without a reload (static/js/liveForm.js) hands the new
+   #wd-sw-state to window.wdStopwatch.update() - the same as a reload would. #}
 {# Off in Customization on /profile: no bar at all. Sets still get their
    logged_at, so durations and set gaps keep working - from the first set. #}
 {% if current_user.show_stopwatch %}
@@ -188,9 +191,11 @@
   </div>
 </div>
 
+<script type="application/json" id="wd-sw-state">{{ stopwatch_state(sw_exercise, sw_colored)|tojson }}</script>
 <script>
   (function () {
-    var STATE = {{ stopwatch_state(sw_exercise, sw_colored)|tojson }};   // {last: ms|null, limit: s|null}
+    // {last: ms|null, limit: s|null} - the newest logged set and this exercise's rest.
+    var STATE = JSON.parse(document.getElementById("wd-sw-state").textContent);
     var KEY = "wd_sw_{{ current_user.user_id }}";
     // The newest logged set when Finish was tapped (the server's time, so a
     // phone's clock being off cannot matter). A set logged in the last 30
@@ -253,35 +258,40 @@
     // button on the other pages goes here (partials/_return_to_workout.html).
     try { localStorage.setItem(KEY + "_page", location.pathname); } catch (e) { }
 
-    var finishedAt = 0;
-    try { finishedAt = Number(localStorage.getItem(DONE_KEY)) || 0; } catch (e) { }
+    // What a newly logged set (STATE.last) does to the run. On every page
+    // load, and again after a set saved without a reload.
+    function seeSets() {
+      var finishedAt = 0;
+      try { finishedAt = Number(localStorage.getItem(DONE_KEY)) || 0; } catch (e) { }
 
-    if (STATE.last && (st || STATE.last > finishedAt)) {
-      // A set logged after a Finish: the finished run goes on, if it was
-      // finished under an hour ago - otherwise a new one starts with the set.
-      if (!st) st = unpark();
-      var brandNewRun = !st || STATE.last - lastActive(st) > IDLE;
-      if (brandNewRun) {
-        // The set was logged a moment ago, so it is also when the run began.
-        st = { start: STATE.last, seen: STATE.last, setAt: null };
-      } else if (STATE.last !== st.seen && STATE.last !== st.before) {
-        // Not the set that was the newest when Start was tapped (the last one
-        // before a Finish, say) - it is no part of this run. Compared by the
-        // server's own timestamp, so the phone's clock cannot matter.
-        st.seen = STATE.last;                   // a new rest, from this set - superset or not
-        st.setAt = null; st.endAt = null;       // a new set ends the "Set" (and "Done") phase
-        st.ss = false;
-        st.view = "lap";                        // and brings the rest clock back
-        st.lapAt = null; st.laps = 0;           // laps belong to the gap before it
+      if (STATE.last && (st || STATE.last > finishedAt)) {
+        // A set logged after a Finish: the finished run goes on, if it was
+        // finished under an hour ago - otherwise a new one starts with the set.
+        if (!st) st = unpark();
+        var brandNewRun = !st || STATE.last - lastActive(st) > IDLE;
+        if (brandNewRun) {
+          // The set was logged a moment ago, so it is also when the run began.
+          st = { start: STATE.last, seen: STATE.last, setAt: null };
+        } else if (STATE.last !== st.seen && STATE.last !== st.before) {
+          // Not the set that was the newest when Start was tapped (the last one
+          // before a Finish, say) - it is no part of this run. Compared by the
+          // server's own timestamp, so the phone's clock cannot matter.
+          st.seen = STATE.last;                   // a new rest, from this set - superset or not
+          st.setAt = null; st.endAt = null;       // a new set ends the "Set" (and "Done") phase
+          st.ss = false;
+          st.view = "lap";                        // and brings the rest clock back
+          st.lapAt = null; st.laps = 0;           // laps belong to the gap before it
+        }
+      }
+      save();
+
+      // A run begun with the advanced buttons, carried on with the simple ones:
+      // whatever they had set going is dropped - the simple bar cannot show it.
+      if (SIMPLE && st && (st.setAt || st.endAt || st.ss)) {
+        st.setAt = null; st.endAt = null; st.ss = false; save();
       }
     }
-    save();
-
-    // A run begun with the advanced buttons, carried on with the simple ones:
-    // whatever they had set going is dropped - the simple bar cannot show it.
-    if (SIMPLE && st && (st.setAt || st.endAt || st.ss)) {
-      st.setAt = null; st.endAt = null; st.ss = false; save();
-    }
+    seeSets();
 
     function phase() {
       if (!st) return "off";
@@ -430,9 +440,10 @@
     // On a phone the bar spans the screen. On a wide screen it would stretch
     // far past the sets, so it takes the width of the page's sets column
     // instead - the element marked data-wd-sw-anchor, minus its padding.
-    var anchor = document.querySelector("[data-wd-sw-anchor]");
+    // Looked up every time: a set saved without a reload replaces it.
     var wide = window.matchMedia("(min-width: 768px)");
     function fit() {
+      var anchor = document.querySelector("[data-wd-sw-anchor]");
       if (!anchor || !wide.matches) {
         bar.style.left = bar.style.width = bar.style.right = "";
         return;
@@ -447,6 +458,19 @@
     window.addEventListener("resize", fit);
     // A scrollbar showing up moves the column without a resize event.
     if (window.ResizeObserver) new ResizeObserver(fit).observe(document.documentElement);
+
+    // A set saved without a reload: what the reload would have done -
+    // the run as stored, the new newest set, this exercise's rest.
+    window.wdStopwatch = {
+      update: function (next) {
+        if (!next) return;
+        STATE = next;
+        st = load();
+        seeSets();
+        fit();
+        render();
+      },
+    };
 
     render();
     setInterval(render, 250);

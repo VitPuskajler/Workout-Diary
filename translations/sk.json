@@ -545,5 +545,6 @@
   "After a bowel movement": "Po stolici",
   "Yes": "Áno",
   "No": "Nie",
-  "Pick the exact time for Custom.": "Pri možnosti Vlastné vyber presný čas."
+  "Pick the exact time for Custom.": "Pri možnosti Vlastné vyber presný čas.",
+  "No connection. Reload the page to see whether the set was saved.": "Bez pripojenia. Obnov stránku a uvidíš, či sa séria uložila."
 }

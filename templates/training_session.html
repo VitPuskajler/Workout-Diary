@@ -124,6 +124,10 @@
     </nav>
   </div>
   {% include "partials/_impersonation_banner.html" %}
+  {# #wd-live: everything a logged set changes. Confirm, Repeat and the arrows
+     swap just this part in, without a reload (static/js/liveForm.js); the
+     stopwatch bar below stays as it is. #}
+  <div id="wd-live">
   {% include "partials/_flashes.html" %}
 
   <!-- ------------------------ Load Dynamically Tables ------------------------- -->
@@ -225,7 +229,7 @@
       <img src="{{ still }}" alt=""></picture>{% endif -%}
   {%- endmacro %}
 
-  <form action="{{ url_for('training_session') }}" method="POST">
+  <form action="{{ url_for('training_session') }}" method="POST" data-wd-live="#wd-live">
     <div class="container">
       <div class="row justify-content-center">
         <div class="col-12 col-md-9" data-wd-sw-anchor>
@@ -539,32 +543,6 @@
             });
           </script>
 
-          <script>
-            // Every row here green (done) means nothing left to log today -
-            // the natural next step is /progress, e.g. to hit its Copy
-            // button and hand today's numbers to an AI for analysis. Offer
-            // that shortcut right next to History, but only once it is
-            // actually true.
-            (function () {
-              var rows = document.querySelectorAll("#exercisePreview tbody tr");
-              if (!rows.length) { return; }
-
-              var allDone = Array.prototype.every.call(rows, function (row) {
-                return row.classList.contains("table-success");
-              });
-              if (!allDone) { return; }
-
-              var historyBtn = document.querySelector("button[name='preview_button']");
-              var container = historyBtn && historyBtn.closest(".d-flex");
-              if (!container) { return; }
-
-              var link = document.createElement("a");
-              link.href = "{{ url_for('progress') }}";
-              link.className = "align-self-center small fw-bold text-success text-decoration-none";
-              link.textContent = {{ _("Progress")|tojson }};
-              container.appendChild(link);
-            })();
-          </script>
           {% endif %}
 
         </div>
@@ -572,55 +550,94 @@
 
     </div>
   </form>
+  {# Closes the set table's .container: one </div> short above (the three
+     "Closing div" comments are each one off - .table-responsive is the one
+     never closed), so the plan preview has always sat inside it. Closed here
+     rather than up there, so the page looks exactly as before - and so
+     #wd-live ends where it says, not after the stopwatch. #}
+  </div>
+  </div>{# #wd-live #}
 
   {% with sw_exercise=chosen_exercise, sw_colored=true %}
   {% include "partials/_stopwatch.html" %}
   {% endwith %}
   {% include "partials/_focus_mode.html" %}
   <!-- -------------------------------------------------------------------------- -->
+  {# Everything below is bound on document, or set up again on "wd-swapped":
+     the elements inside #wd-live are replaced after every logged set. #}
   <script>
     // Additional script to reset the color on focus if needed
-    document.querySelectorAll('input').forEach(input => {
-      input.addEventListener('focus', function () {
-        this.style.color = '';
-      });
-      input.addEventListener('blur', function () {
-        const placeholderColor = this.getAttribute('data-placeholder-color');
-        this.style.color = placeholderColor;
-      });
+    document.addEventListener("focusin", function (e) {
+      if (e.target.matches && e.target.matches("input")) { e.target.style.color = ""; }
+    });
+    document.addEventListener("focusout", function (e) {
+      if (e.target.matches && e.target.matches("input")) {
+        e.target.style.color = e.target.getAttribute("data-placeholder-color");
+      }
     });
   </script>
   <!-- Bind enter to Confirm button -->
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") { return; }
+      // Looked up now: the button is replaced after every logged set.
       const confirmBtn = document.querySelector("button[name='confirm_button']");
-
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();          // stop default form submit
-          confirmBtn.click();          // trigger only confirm
-        }
-      });
+      if (!confirmBtn) { return; }
+      e.preventDefault();          // stop default form submit
+      confirmBtn.click();          // trigger only confirm
     });
+  </script>
+  <script>
+    // Every row of the plan green (done) means nothing left to log today -
+    // the natural next step is /progress, e.g. to hit its Copy button and
+    // hand today's numbers to an AI for analysis. Offer that shortcut right
+    // next to History, but only once it is actually true.
+    function wdOfferProgress() {
+      var rows = document.querySelectorAll("#exercisePreview tbody tr");
+      if (!rows.length) { return; }
+
+      var allDone = Array.prototype.every.call(rows, function (row) {
+        return row.classList.contains("table-success");
+      });
+      if (!allDone) { return; }
+
+      var historyBtn = document.querySelector("button[name='preview_button']");
+      var container = historyBtn && historyBtn.closest(".d-flex");
+      if (!container || container.querySelector(".wd-progress-link")) { return; }
+
+      var link = document.createElement("a");
+      link.href = "{{ url_for('progress') }}";
+      link.className = "wd-progress-link align-self-center small fw-bold text-success text-decoration-none";
+      link.textContent = {{ _("Progress")|tojson }};
+      container.appendChild(link);
+    }
+    wdOfferProgress();
+    document.addEventListener("wd-swapped", wdOfferProgress);
   </script>
   <!-- Kg -> Lbs -> Other -> Kg toggle for the new-set weight field -->
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const toggle = document.getElementById("weightUnitToggle");
-      const unitField = document.getElementById("weightUnitField");
-      const weightInput = document.getElementById("weightInput");
-      if (!toggle || !unitField) { return; }
-
+    (function () {
       const KG_PER_LB = 0.45359237;
       const LABELS = { kg: "Kg", lbs: "Lbs", other: {{ _("Other")|tojson }} };
       const NEXT_UNIT = { kg: "lbs", lbs: "other", other: "kg" };
       const MAX_BY_UNIT = { kg: 501, lbs: 1100, other: 50 };
 
-      if (weightInput) {
-        weightInput.dataset.max = MAX_BY_UNIT[toggle.dataset.unit] || 501;
+      function setMax() {
+        const toggle = document.getElementById("weightUnitToggle");
+        const weightInput = document.getElementById("weightInput");
+        if (toggle && weightInput) {
+          weightInput.dataset.max = MAX_BY_UNIT[toggle.dataset.unit] || 501;
+        }
       }
+      setMax();
+      document.addEventListener("wd-swapped", setMax);
 
-      toggle.addEventListener("click", () => {
+      document.addEventListener("click", (e) => {
+        const toggle = e.target.closest && e.target.closest("#weightUnitToggle");
+        if (!toggle) { return; }
+        const unitField = document.getElementById("weightUnitField");
+        const weightInput = document.getElementById("weightInput");
+        if (!unitField) { return; }
         const from = toggle.dataset.unit;
         const to = NEXT_UNIT[from] || "kg";
 
@@ -641,7 +658,7 @@
         toggle.textContent = LABELS[to];
         unitField.value = to;
       });
-    });
+    })();
   </script>
 
 
@@ -653,6 +670,8 @@
   <script src="{{ url_for('static', filename='js/numberFields.js') }}"></script>
   <!-- waiting overlay -->
   <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
+  <!-- Confirm / Repeat / arrows without a reload - after the stopwatch, see the file -->
+  <script src="{{ url_for('static', filename='js/liveForm.js') }}"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
     crossorigin="anonymous"></script>

@@ -252,6 +252,8 @@
     // table we could not measure while it was hidden.
     window.addEventListener("load", markRows);
     document.addEventListener("shown.bs.collapse", markRows);
+    // New rows after a set saved without a reload (liveForm.js).
+    document.addEventListener("wd-swapped", markRows);
   }
 
   if (document.readyState === "loading") {
