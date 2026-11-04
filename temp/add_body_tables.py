@@ -6,48 +6,74 @@
 
 Locally `python server.py` creates the tables on its own (db.create_all()),
 but the app on PythonAnywhere never runs that - so run this there BEFORE
-reloading the app, or /body fails. create_all() never adds a column to a
-table that already exists, so this also adds any column the model has and
-the table lacks (body_weights was created before its four weighing columns).
+reloading the app, or /body fails. It also adds any of the columns below a
+table lacks (body_weights was created before its four weighing columns).
 No other table is touched.
+
+Plain sqlite3, like the other migrations here: any Python runs it, no
+virtualenv needed. The tables match what db.create_all() makes from
+models/models.py (BodyWeight, BodyMeasurement).
 
 Safe to run twice; it only creates what is missing.
 
     python temp/add_body_tables.py
 """
 import os
+import sqlite3
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                       "instance", "workout.db")
 
-from sqlalchemy import text  # noqa: E402
+MEASUREMENTS = ["neck", "shoulders", "chest", "waist", "hips",
+                "biceps_left", "biceps_right", "thigh_left", "thigh_right",
+                "calf_left", "calf_right", "body_fat"]
 
-from server import app  # noqa: E402
-from models.db_setup import db  # noqa: E402
-from models.models import BodyMeasurement, BodyWeight  # noqa: E402
+# table -> (key column, [(column, definition)] after user_id)
+TABLES = {
+    "body_weights": ("body_weight_id", [
+        ("measured_on", "DATE NOT NULL"),
+        ("weight", "FLOAT NOT NULL"),
+        ("time_of_day", "VARCHAR(10)"),
+        ("weighed_at", "VARCHAR(5)"),
+        ("fasted", "BOOLEAN"),
+        ("after_bowel", "BOOLEAN"),
+    ]),
+    "body_measurements": ("body_measurement_id",
+                          [("measured_on", "DATE NOT NULL")]
+                          + [(name, "FLOAT") for name in MEASUREMENTS]),
+}
 
 
 def main():
-    with app.app_context():
-        existing = set(db.inspect(db.engine).get_table_names())
-        tables = [BodyWeight.__table__, BodyMeasurement.__table__]
-        db.metadata.create_all(db.engine, tables=tables, checkfirst=True)
-        for table in tables:
-            if table.name not in existing:
-                print(f"{table.name} table created")
+    if not os.path.exists(DB_PATH):
+        sys.exit(f"No database at {DB_PATH}")
+
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        for table, (key, columns) in TABLES.items():
+            present = [row[1] for row in conn.execute(f"PRAGMA table_info({table})")]
+            if not present:
+                body = ",\n\t".join(
+                    [f"{key} INTEGER NOT NULL", "user_id INTEGER NOT NULL"]
+                    + [f"{name} {definition}" for name, definition in columns]
+                    + [f"PRIMARY KEY ({key})", "UNIQUE (user_id, measured_on)",
+                       "FOREIGN KEY(user_id) REFERENCES users (user_id)"])
+                conn.execute(f"CREATE TABLE {table} (\n\t{body}\n)")
+                conn.execute(f"CREATE INDEX ix_{table}_user_id ON {table} (user_id)")
+                print(f"{table} table created")
                 continue
-            print(f"{table.name} table already present")
-            present = {column["name"] for column in db.inspect(db.engine).get_columns(table.name)}
-            for column in table.columns:
-                if column.name in present:
+            print(f"{table} table already present")
+            for name, definition in columns:
+                if name in present:
                     continue
-                if not column.nullable:
-                    sys.exit(f"{table.name}.{column.name} is NOT NULL - add it by hand")
-                kind = column.type.compile(dialect=db.engine.dialect)
-                with db.engine.begin() as conn:
-                    conn.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {column.name} {kind}"))
-                print(f"  {table.name}.{column.name} column added ({kind})")
+                if "NOT NULL" in definition:
+                    sys.exit(f"{table}.{name} is NOT NULL - add it by hand")
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
+                print(f"  {table}.{name} column added ({definition})")
+        conn.commit()
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":
