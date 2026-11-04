@@ -8,6 +8,7 @@ import pandas as pd
 from models.db_setup import db
 from flask_login import current_user
 from models.models import (
+    utcnow,
     Users,
     Exercise,
     WorkoutPlan,
@@ -1042,10 +1043,12 @@ class WorkoutManagement:
         """A millisecond epoch from a hidden stopwatch field as a naive UTC
         datetime, or None when missing, garbled or not in the last 12 hours."""
         try:
-            moment = datetime.utcfromtimestamp(int(request.form.get(field)) / 1000)
+            moment = datetime.fromtimestamp(
+                int(request.form.get(field)) / 1000, timezone.utc
+            ).replace(tzinfo=None)
         except (TypeError, ValueError, OverflowError, OSError):
             return None
-        age = datetime.utcnow() - moment
+        age = utcnow() - moment
         return moment if timedelta(0) <= age <= timedelta(hours=12) else None
 
     def _stamp_stopwatch(self, entry, session_id):
@@ -1126,7 +1129,7 @@ class WorkoutManagement:
             .outerjoin(WorkoutPlan, Sessions.workout_id == WorkoutPlan.workout_id)
             .filter(
                 Sessions.user_id == self.current_user_id_db(),
-                ExerciseEntries.logged_at >= datetime.utcnow() - STOPWATCH_IDLE,
+                ExerciseEntries.logged_at >= utcnow() - STOPWATCH_IDLE,
             )
             .order_by(desc(ExerciseEntries.logged_at), desc(ExerciseEntries.entry_id))
             .first()
@@ -1163,7 +1166,7 @@ class WorkoutManagement:
             .join(Sessions, ExerciseEntries.session_id == Sessions.session_id)
             .filter(
                 Sessions.user_id == self.current_user_id_db(),
-                ExerciseEntries.logged_at >= datetime.utcnow() - STOPWATCH_IDLE,
+                ExerciseEntries.logged_at >= utcnow() - STOPWATCH_IDLE,
             )
             .order_by(desc(ExerciseEntries.logged_at), desc(ExerciseEntries.entry_id))
             .first()

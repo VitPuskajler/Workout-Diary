@@ -38,7 +38,7 @@ from wtforms.validators import DataRequired, EqualTo, NumberRange, ValidationErr
 
 from models.db_setup import db
 from translations.i18n import LANGUAGES, current_language, js_translations, plural_forms, translate as _, translate_plural as _n
-from models.models import Exercise, Users, WorkoutPlan, Mesocycles, load_user
+from models.models import Exercise, Users, WorkoutPlan, Mesocycles, load_user, utcnow
 from workout_management.workout_management import  WorkoutManagement, english_exercise_name, fold_text, localized_name_column
 
 app = Flask(__name__, instance_relative_config=True)
@@ -241,7 +241,7 @@ def login():
                                         next=request.args.get("next"))
             login_user(user)
             # User activity (admin): when the login form last let them in.
-            user.last_login_at = user.last_seen_at = datetime.utcnow()
+            user.last_login_at = user.last_seen_at = utcnow()
             db.session.commit()
 
             next_page = request.args.get("next") or request.form.get("next")
@@ -818,7 +818,7 @@ def remember_last_seen():
         return
     if session.get(IMPERSONATOR_KEY):
         return
-    now = datetime.utcnow()
+    now = utcnow()
     seen = current_user.last_seen_at
     if seen is None or now - seen > SEEN_EVERY:
         current_user.last_seen_at = now
@@ -1120,7 +1120,7 @@ def time_ago(moment):
     """'5 minutes ago', '2 days ago' - for times stored in UTC."""
     if moment is None:
         return _("never")
-    minutes = int((datetime.utcnow() - moment).total_seconds() // 60)
+    minutes = int((utcnow() - moment).total_seconds() // 60)
     if minutes < 1:
         return _("just now")
     if minutes < 60:
@@ -1145,7 +1145,7 @@ def user_activity_rows():
     """Every approved user: when they last came and trained, how often lately,
     how much in all - most recently active first. A set counts by its
     logged_at, or its session's date where an old set has none."""
-    now = datetime.utcnow()
+    now = utcnow()
     params = {
         "week": (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S"),
         "month": (now - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S"),

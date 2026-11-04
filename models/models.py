@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from models.db_setup import db
 from flask_login import UserMixin
 from sqlalchemy import (
@@ -11,6 +11,13 @@ from sqlalchemy import (
     func,
     select,
 )
+
+
+def utcnow():
+    """The current UTC time as a naive datetime, the form the database stores.
+    Stands in for the deprecated datetime.utcnow(); comparing it with a stored
+    value would fail if it carried a timezone."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 # 1. Users Table
 class Users(UserMixin, db.Model):
@@ -182,7 +189,7 @@ class ExerciseEntries(UserMixin, db.Model):
     # was tapped. Naive UTC, so the browser can turn them into epoch time without
     # knowing the server's timezone. NULL on sets logged before the stopwatch.
     # See temp/add_stopwatch_columns.py.
-    logged_at = Column(DateTime, nullable=True, default=datetime.utcnow)
+    logged_at = Column(DateTime, nullable=True, default=utcnow)
     started_at = Column(DateTime, nullable=True)
     # Superset: the set (of another exercise) this one was done straight
     # after, the stopwatch's SS button. NULL for an ordinary set. See
