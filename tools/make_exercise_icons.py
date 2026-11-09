@@ -111,6 +111,183 @@ def dumbbell(x, y, horizontal=True):
 
 FLOOR = ("e", [(4, 60), (60, 60)])
 
+
+# ---- the front lever ladder: one body, drawn in its own frame. A point is
+# (a, b): a along the torso from the shoulder towards the hips, b out of the
+# chest. lever_body() places it - lying flat for the lever, tilted up with the
+# hips at the bar for the top of a negative - so every rung is the same figure
+# with different legs. Legs are two strokes (knee, foot), so one can move.
+LEVER_HEAD, LEVER_HIP = (-8, 0), (15, 0)
+LEVER_LEGS = {
+    "tuck": [(10, 10), (20, 13)],                        # knees to the chest
+    "adv_tuck": [(15, 11), (26, 11)],                    # flat back, thighs at 90°
+    "full": [(25, 0), (35, 0)],
+    "straddle_a": [(24, 3), (33, 6)], "straddle_b": [(24, -3), (33, -6)],
+}
+
+
+def lever_body(hand, shoulder, u, legs):
+    """Arm, head, torso and both legs, u the unit vector shoulder -> hips."""
+    c = (u[1], -u[0])                                    # out of the chest
+
+    def at(p):
+        return (round(shoulder[0] + p[0] * u[0] + p[1] * c[0], 1),
+                round(shoulder[1] + p[0] * u[1] + p[1] * c[1], 1))
+    hip = at(LEVER_HIP)
+    return [("b", [hand, shoulder]), ("h", at(LEVER_HEAD)), ("b", [shoulder, hip]),
+            *[("b", [hip, *map(at, LEVER_LEGS[leg])]) for leg in legs]]
+
+
+def lever_hold(legs):
+    """A front lever hold under the bar - the place Tuck Front Lever is drawn at."""
+    return [("e", [(12, 8), (52, 8)]), *lever_body((30, 8), (22, 28), (1, 0), legs)]
+
+
+# A negative starts at the top - pulled up, hips at the bar, the thighs on it -
+# and lowers to the lever, so its bar sits lower to fit the legs above it.
+NEGATIVE_TOP_U = (0.447, -0.894)
+
+
+def lever_negative(legs, end=False):
+    bar = ("e", [(8, 20), (56, 20)])
+    if end:
+        return [bar, *lever_body((26, 20), (22, 40), (1, 0), legs)]
+    # The arm and the torso are nearly parallel at the top; the hand is set
+    # well to the chest side so the two still read as two lines.
+    return [bar, *lever_body((26, 20), (28, 40), NEGATIVE_TOP_U, legs),
+            ("a", "M47 6 Q60 16 60 32")]
+
+
+# name -> its legs; the hold animates into the next rung (Tuck Front Lever,
+# drawn by hand below, opens out to the full lever).
+LEVER_HOLDS = {
+    "Advanced Tuck Front Lever": ["adv_tuck", "adv_tuck"],
+    "One Leg Front Lever": ["tuck", "full"],
+    "Straddle Front Lever": ["straddle_a", "straddle_b"],
+    "Front Lever": ["full", "full"],
+}
+LEVER_HOLD_NEXT = {
+    "Advanced Tuck Front Lever": ["adv_tuck", "full"],   # one leg opens out
+    "One Leg Front Lever": ["straddle_a", "straddle_b"],
+    "Straddle Front Lever": ["full", "full"],            # the legs close
+}
+LEVER_NEGATIVES = {
+    "Tuck Front Lever Negative": ["tuck", "tuck"],
+    "Advanced Tuck Front Lever Negative": ["adv_tuck", "adv_tuck"],
+    "One Leg Front Lever Negative": ["tuck", "full"],
+    "Straddle Front Lever Negative": ["straddle_a", "straddle_b"],
+    "Front Lever Negative": ["full", "full"],
+}
+
+# ---- the handstand ladder, side view. One figure with two arms and two legs
+# (shoulder -> elbow -> hand, hip -> knee -> foot; overlapping where they are
+# side by side), so any limb can move on its own in the end pose. The head
+# sits on the chest side - in the wall drawings it tells chest-to-wall from
+# back-to-wall.
+def figure(sh, hip, arms, legs, head):
+    return [*[("b", [sh, *arm]) for arm in arms], ("h", head), ("b", [sh, hip]),
+            *[("b", [hip, *leg]) for leg in legs]]
+
+
+def handstand(x, lean=0):
+    """Straight handstand on hands at (x, 58), chest to the right; lean moves
+    the feet that far right, the body tilting with them."""
+    arm = [(x + lean * .14, 50), (x, 58)]
+    return figure((x + lean * .28, 42), (x + lean * .57, 26), [arm, arm],
+                  [[(x + lean * .78, 14), (x + lean, 2)]] * 2, (x + lean * .28 + 5, 47))
+
+
+def tipped(strokes, deg, centre):
+    """The body strokes turned about centre - a handstand swaying."""
+    import math
+    a = math.radians(deg)
+    cx, cy = centre
+
+    def turn(p):
+        x, y = p[0] - cx, p[1] - cy
+        return (round(cx + x * math.cos(a) - y * math.sin(a), 1), round(cy + x * math.sin(a) + y * math.cos(a), 1))
+    out = []
+    for s in strokes:
+        if s[0] == "b":
+            out.append(("b", [turn(p) for p in s[1]]))
+        elif s[0] == "h":
+            out.append(("h", turn(s[1])))
+        else:
+            out.append(s)
+    return out
+
+
+ARROW_DOWN_R = ("a", "M46 28 L46 42 M43 39 L46 43 L49 39")
+ARROW_DOWN_L = ("a", "M8 32 L8 44 M5 41 L8 45 L11 41")
+ARROW_PRESS = ("a", "M46 36 Q48 16 38 5")
+WALL_L, WALL_R = ("e", [(18, 2), (18, 60)]), ("e", [(47, 2), (47, 60)])
+BOX_LOW, BOX_HIGH = ("e", [(40, 60), (40, 41), (58, 41), (58, 60)]), ("e", [(38, 60), (38, 31), (58, 31), (58, 60)])
+
+_STRAIGHT = lambda sh, hand: [((sh[0] + hand[0]) / 2, (sh[1] + hand[1]) / 2), hand]
+_CHEST_WALL = figure((38, 42), (40.5, 26), [_STRAIGHT((38, 42), (36, 58))] * 2,
+                     [[(42, 14), (43.5, 2.5)]] * 2, (41.5, 48.5))
+_BACK_WALL = figure((29, 42), (26, 26), [_STRAIGHT((29, 42), (30, 58))] * 2,
+                    [[(23.5, 14), (21, 3)]] * 2, (34, 47))
+_HSPU_DOWN = figure((28, 48), (26, 32), [[(21, 53), (30, 58)]] * 2, [[(24, 20), (22, 9)]] * 2, (34, 53.5))
+_PIKE_TOP = figure((20, 43), (32, 29), [_STRAIGHT((20, 43), (16, 58))] * 2,
+                   [[(40, 43.5), (48, 58)]] * 2, (23, 50))
+_PIKE_DOWN = figure((15, 48), (30, 30), [[(23, 52), (16, 58)]] * 2, [[(39, 44), (48, 58)]] * 2, (9, 53))
+_TUCK_PRESS = figure((33, 43), (26, 30), [_STRAIGHT((33, 43), (30, 58))] * 2,
+                     [[(37, 26), (42, 36)]] * 2, (38, 48))
+_STRADDLE_PRESS = figure((33, 43), (28, 28), [_STRAIGHT((33, 43), (30, 58))] * 2,
+                         [[(40, 30), (52, 32)], [(38, 37), (47, 46)]], (38, 48))
+
+HANDSTAND_ICONS = {
+    "Hollow Body Hold": [FLOOR, *figure((18, 50), (32, 56), [[(11, 46), (4, 42)]] * 2,
+                                        [[(43, 52), (55, 47)]] * 2, (16, 43))],
+    "Pike Push-Up": [FLOOR, *_PIKE_TOP, ARROW_DOWN_L],
+    "Elevated Pike Push-Up": [FLOOR, BOX_LOW, *figure((18, 42), (24, 26), [_STRAIGHT((18, 42), (16, 58))] * 2,
+                                                      [[(34, 32), (45, 38.5)]] * 2, (22.5, 48.5)), ARROW_DOWN_L],
+    "Box Pike Hold": [FLOOR, BOX_HIGH, *figure((24, 42), (25, 26), [_STRAIGHT((24, 42), (24, 58))] * 2,
+                                               [[(36, 27), (46, 28.5)]] * 2, (29, 48))],
+    "Wall Walk": [FLOOR, ("e", [(57, 2), (57, 60)]),
+                  *figure((14, 42), (30, 46), [_STRAIGHT((14, 42), (12, 58))] * 2,
+                          [[(41.5, 49.5), (53, 55)]] * 2, (7, 42)),
+                  ("a", "M28 36 Q42 22 50 8")],
+    "Chest-to-Wall Handstand": [FLOOR, WALL_R, *_CHEST_WALL],
+    "Back-to-Wall Handstand": [FLOOR, WALL_L, *_BACK_WALL],
+    "Chest-to-Wall Shoulder Taps": [FLOOR, WALL_R, *moved(_CHEST_WALL, {1: ("b", [(38, 42), (30, 48), (35, 41)])})],
+    "Wall Handstand Heel Pulls": [FLOOR, WALL_L, *_BACK_WALL, ("a", "M26 6 L37 6 M34 3 L37 6 L34 9")],
+    "Kick-Up to Handstand": [FLOOR, *figure((22, 43), (34, 34), [_STRAIGHT((22, 43), (18, 58))] * 2,
+                                            [[(39, 46), (44, 58)], [(45, 28), (56, 22)]], (25, 50)),
+                             ("a", "M50 14 Q40 2 28 4")],
+    "Freestanding Handstand": [FLOOR, *handstand(32)],
+    "Handstand Walk": [FLOOR, *moved(handstand(30), {1: ("b", [(30, 42), (35, 50), (38, 55)])}),
+                       ("a", "M42 50 L54 50 M51 47 L54 50 L51 53")],
+    "Tuck Press to Handstand": [FLOOR, *_TUCK_PRESS, ARROW_PRESS],
+    "Straddle Press to Handstand": [FLOOR, *_STRADDLE_PRESS, ARROW_PRESS],
+    "Handstand Push-Up": [FLOOR, WALL_L, *_BACK_WALL, ARROW_DOWN_R],
+    "Wall Handstand Push-Up Negative": [FLOOR, WALL_L, *_BACK_WALL, ("a", "M42 22 Q50 34 44 46 M41 43 L44 47 L47 42")],
+    "Freestanding Handstand Push-Up": [FLOOR, *handstand(32), ARROW_DOWN_R],
+}
+# Their other ends (the holds sway or ease into place; none for the wall holds).
+HANDSTAND_ENDS = {
+    "Hollow Body Hold": [FLOOR, *figure((18, 53), (32, 57), [[(11, 51), (4, 49)]] * 2,
+                                        [[(43, 55), (55, 52)]] * 2, (15, 48))],
+    "Pike Push-Up": [FLOOR, *_PIKE_DOWN],
+    "Elevated Pike Push-Up": [FLOOR, BOX_LOW, *figure((15, 49), (22, 31), [[(23, 52), (16, 58)]] * 2,
+                                                      [[(33, 34), (45, 38.5)]] * 2, (9, 53))],
+    "Wall Walk": [FLOOR, ("e", [(57, 2), (57, 60)]),
+                  *figure((47, 42), (50, 26), [_STRAIGHT((47, 42), (45, 58))] * 2,
+                          [[(51.5, 14), (53, 3)]] * 2, (51, 48.5))],
+    "Chest-to-Wall Shoulder Taps": [FLOOR, WALL_R, *_CHEST_WALL],
+    "Wall Handstand Heel Pulls": [FLOOR, WALL_L, *handstand(30)],
+    "Kick-Up to Handstand": [FLOOR, *handstand(18)],
+    "Freestanding Handstand": [FLOOR, *tipped(handstand(32), 5, (32, 58))],
+    "Handstand Walk": [FLOOR, *moved(handstand(34), {0: ("b", [(34, 42), (29, 50), (26, 55)])})],
+    "Tuck Press to Handstand": [FLOOR, *handstand(30)],
+    "Straddle Press to Handstand": [FLOOR, *handstand(30)],
+    "Handstand Push-Up": [FLOOR, WALL_L, *_HSPU_DOWN],
+    "Wall Handstand Push-Up Negative": [FLOOR, WALL_L, *_HSPU_DOWN],
+    "Freestanding Handstand Push-Up": [FLOOR, *figure((30, 49), (30, 33), [[(23, 54), (32, 58)]] * 2,
+                                                      [[(30, 21), (30, 9)]] * 2, (36, 54))],
+}
+
 ICONS = {
     "Pull-Up": [
         ("e", [(8, 9), (56, 9)]),
@@ -275,6 +452,9 @@ ICONS = {
         ("a", "M54 50 L54 30 M50 34 L54 29 L58 34"),
         ("a", "M10 50 L10 30 M6 34 L10 29 L14 34"),
     ],
+    **{name: lever_hold(legs) for name, legs in LEVER_HOLDS.items()},
+    **{name: lever_negative(legs) for name, legs in LEVER_NEGATIVES.items()},
+    **HANDSTAND_ICONS,
     "Decline Push-Up (Handles)": [
         FLOOR, ("e", [(42, 38), (60, 38)]), ("e", [(52, 38), (52, 60)]),
         ("e", [(15, 60), (17, 55), (25, 55), (27, 60)]),
@@ -800,6 +980,9 @@ ANIMATED = {
         3: ("b", [(32, 32), (32, 47), (30, 59)]),
         4: ("b", [(32, 47), (34, 59)]),
     }),
+    **{name: lever_hold(legs) for name, legs in LEVER_HOLD_NEXT.items()},
+    **{name: lever_negative(legs, end=True) for name, legs in LEVER_NEGATIVES.items()},
+    **HANDSTAND_ENDS,
     "Decline Push-Up (Handles)": moved(ICONS["Decline Push-Up (Handles)"], {
         4: ("h", (14, 49)),
         5: ("b", [(21, 55), (28, 53), (22, 50)]),
