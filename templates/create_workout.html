@@ -761,13 +761,25 @@
       const names = document.querySelectorAll(".wd-ex-name");
       if ("ResizeObserver" in window) {
         const widths = new WeakMap();
+        // Refitted on the next frame, not inside the callback: a name that
+        // shrinks or wraps can resize the other names' boxes, and doing that
+        // during the callback is a "ResizeObserver loop" error (Safari).
+        const pending = new Set();
+        let frame = 0;
         const observer = new ResizeObserver(function (entries) {
           entries.forEach(function (entry) {
             const width = Math.round(entry.contentRect.width);
             if (widths.get(entry.target) === width) return;   // only a width change refits
             widths.set(entry.target, width);
-            fitExerciseName(entry.target);
+            pending.add(entry.target);
           });
+          if (pending.size && !frame) {
+            frame = requestAnimationFrame(function () {
+              frame = 0;
+              pending.forEach(fitExerciseName);
+              pending.clear();
+            });
+          }
         });
         names.forEach((button) => observer.observe(button));
       } else {
