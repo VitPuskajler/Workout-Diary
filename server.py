@@ -41,6 +41,7 @@ from translations.i18n import LANGUAGES, current_language, js_translations, plur
 from models.models import (BODY_MEASUREMENTS, WEIGH_TIMES, BodyMeasurement, BodyWeight, Exercise, Users, WorkoutPlan,
                            Mesocycles, load_user, utcnow)
 from workout_management.workout_management import  WorkoutManagement, english_exercise_name, fold_text, localized_name_column
+from workout_management.progressions import catalog_info as progression_catalog_info, ladders as progression_ladders
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -525,8 +526,13 @@ def exercise_catalog():
         "triceps": _("Triceps"), "upper_legs": _("Upper legs"),
     }
     labels = exercise_labels()
+    ladder = progression_catalog_info()
     rows = db.session.query(Exercise.exercise_name, Exercise.muscle_group).filter(Exercise.is_deleted.is_(False))
-    items = sorted(({"name": name, "label": labels.get(name, name), "group": group} for name, group in rows),
+    # A level of a progression ladder carries its ladder ("ladder": {id,
+    # ladder_label, index, levels, label, goal_sets, goal_value}); the window
+    # shows the ladder as one row that opens to its levels.
+    items = sorted(({"name": name, "label": labels.get(name, name), "group": group,
+                     **({"ladder": ladder[name]} if name in ladder else {})} for name, group in rows),
                    key=lambda item: fold_text(item["label"]))
     return jsonify({
         "items": items,
@@ -944,7 +950,26 @@ def exercise_label(exercise_name):
 
 @app.context_processor
 def inject_exercise_labels():
-    return {"exercise_label": exercise_label, "exercise_labels": exercise_labels}
+    return {"exercise_label": exercise_label, "exercise_labels": exercise_labels,
+            "exercise_ladders_for_page": exercise_ladders_for_page}
+
+
+def exercise_ladders_for_page():
+    """The progression ladders for a page's script: {"of": {exercise: [ladder
+    id, index]}, "ladders": {id: {"label", "timed", "levels": [{"name",
+    "label" (the exercise's shown name), "level_label", "goal_sets",
+    "goal_value"}]}}}."""
+    out = {"of": {}, "ladders": {}}
+    for ladder in progression_ladders().values():
+        out["ladders"][ladder["id"]] = {
+            "label": ladder["label"], "timed": ladder["timed"],
+            "levels": [{"name": lv["exercise"], "label": exercise_label(lv["exercise"]),
+                        "level_label": lv["label"], "goal_sets": lv["goal_sets"],
+                        "goal_value": lv["goal_value"]} for lv in ladder["levels"]],
+        }
+        for i, lv in enumerate(ladder["levels"]):
+            out["of"][lv["exercise"]] = [ladder["id"], i]
+    return out
 
 
 @app.context_processor

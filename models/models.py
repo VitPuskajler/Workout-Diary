@@ -293,6 +293,38 @@ class BodyMeasurement(db.Model):
         return {name: getattr(self, name) for name in BODY_MEASUREMENTS
                 if getattr(self, name) is not None}
 
+# 11. Progressions - ladders of exercises that are levels of one movement
+# (Front Lever Negative: tuck -> advanced tuck -> one leg -> straddle -> full).
+# Each level stays its own exercise - its icon, translation and logged sets are
+# untouched; these tables only group them. New tables: db.create_all() adds
+# them, see temp/add_progression_tables.py.
+class Progression(db.Model):
+    __tablename__ = "progressions"
+    progression_id = Column(Integer, primary_key=True)
+    # English name, the key; name_sk / name_cs as on Exercise (NULL: English).
+    name = Column(String(100), unique=True, nullable=False)
+    name_sk = Column(String(100), nullable=True)
+    name_cs = Column(String(100), nullable=True)
+
+
+class ProgressionLevel(db.Model):
+    __tablename__ = "progression_levels"
+    __table_args__ = (UniqueConstraint("progression_id", "level"),)
+    progression_level_id = Column(Integer, primary_key=True)
+    progression_id = Column(Integer, db.ForeignKey("progressions.progression_id"), nullable=False, index=True)
+    # An exercise is a level of at most one ladder.
+    exercise_id = Column(Integer, db.ForeignKey("exercises.exercise_id"), nullable=False, unique=True)
+    level = Column(Integer, nullable=False)              # 1 = easiest
+    # Short name of the level inside its ladder ("One Leg"), translated as above.
+    label = Column(String(60), nullable=False)
+    label_sk = Column(String(60), nullable=True)
+    label_cs = Column(String(60), nullable=True)
+    # The goal that unlocks the next level: goal_sets sets of goal_value reps
+    # (seconds for a timed exercise). NULL: no goal, no level-up offer.
+    goal_sets = Column(Integer, nullable=True)
+    goal_value = Column(Integer, nullable=True)
+
+
 # User Loader function (belongs with the Users model)
 def load_user(user_id):
     stmt = select(Users).where(Users.user_id == int(user_id))

@@ -546,5 +546,11 @@
   "Yes": "Áno",
   "No": "Nie",
   "Pick the exact time for Custom.": "Pri možnosti Vlastné vyber presný čas.",
-  "No connection. Reload the page to see whether the set was saved.": "Bez pripojenia. Obnov stránku a uvidíš, či sa séria uložila."
+  "No connection. Reload the page to see whether the set was saved.": "Bez pripojenia. Obnov stránku a uvidíš, či sa séria uložila.",
+  "Levels: {count}": "Úrovne: {count}",
+  "Goal: {sets} × {value} reps": "Cieľ: {sets} × {value} op.",
+  "Goal: {sets} × {value} s": "Cieľ: {sets} × {value} s",
+  "Easier level": "Ľahšia úroveň",
+  "Harder level": "Ťažšia úroveň",
+  "Choose the level": "Vybrať úroveň"
 }
