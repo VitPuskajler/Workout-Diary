@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Periodization - {{ _("Body measurement") }}</title>
+    <title>Periodization - {{ _("Body Diary") }}</title>
     <link rel="icon" href="/static/title/barbell_title.jpg">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
@@ -66,6 +66,26 @@
             color: #c4c8cc;
         }
 
+        /* "Advanced" in Log today: the arrow turns down when open. */
+        .wd-advanced-toggle .wd-chevron {
+            display: inline-block;
+            transition: transform .15s;
+        }
+
+        .wd-advanced-toggle:not(.collapsed) .wd-chevron {
+            transform: rotate(90deg);
+        }
+
+        /* Creatine days: the green strip along the bottom of the chart. */
+        .wd-creatine-key {
+            display: inline-block;
+            width: 14px;
+            height: 6px;
+            border-radius: 2px;
+            background: #20c997;
+            vertical-align: middle;
+        }
+
         .wd-measure-grid .form-text {
             font-size: .72rem;
             margin-top: .1rem;
@@ -120,15 +140,13 @@
     {# The user's weight (kg) and tape measurements (cm), one entry of each per
        day - body_measurement() in server.py. The chart is static/js/bodyChart.js. #}
     <main class="container wd-body my-4">
-        <h1 class="wd-label text-center mb-4">{{ _("Body measurement") }}</h1>
+        <h1 class="wd-label text-center mb-4">{{ _("Body Diary") }}</h1>
 
         {% include "partials/_flashes.html" %}
 
         <div class="d-grid gap-2 mx-auto mb-4" style="max-width: 300px;">
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#weightModal">
-                {{ _("Log body weight") }}</button>
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#measureModal">
-                {{ _("Log body measurements") }}</button>
+                {{ _("Log today") }}</button>
         </div>
 
         <div class="wd-chart-head mb-2">
@@ -149,18 +167,20 @@
         <p class="small text-body-secondary text-center mt-2 mb-4">
             {{ _("Tap a point to see your measurements from that time.") }}
             <span class="text-nowrap">◆ {{ _("measurements logged that day") }}</span>
+            <span class="text-nowrap"><span class="wd-creatine-key" aria-hidden="true"></span> {{ _("creatine") }}</span>
         </p>
+
 
         <div id="latestMeasurements"></div>
     </main>
 
-    <!-- Log body weight -->
+    <!-- Log today: weight and creatine; how it was weighed under "Advanced". -->
     <div class="modal fade" id="weightModal" tabindex="-1" aria-labelledby="weightModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content">
                 <form method="post" action="{{ url_for('save_body_weight') }}">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="weightModalLabel">{{ _("Log body weight") }}</h5>
+                        <h5 class="modal-title" id="weightModalLabel">{{ _("Log today") }}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
                     </div>
                     <div class="modal-body">
@@ -171,15 +191,34 @@
                         <div>
                             <label for="weightValue" class="form-label">{{ _("Body weight") }} (kg)</label>
                             <input type="text" inputmode="decimal" class="form-control" id="weightValue" name="weight"
-                                required pattern="[0-9]+([.,][0-9]+)?" autocomplete="off"
+                                pattern="[0-9]+([.,][0-9]+)?" autocomplete="off"
                                 placeholder="{{ latest_weight.weight if latest_weight else '' }}">
                         </div>
 
-                        {# How it was weighed. The time is morning every time
+                        {# On for the chosen day when creatine is logged for it
+                           (bodyChart.js follows the date field). #}
+                        <div class="form-check form-switch mt-3">
+                            <input class="form-check-input" type="checkbox" role="switch" id="creatineToday"
+                                name="creatine" value="1">
+                            <label class="form-check-label" for="creatineToday">{{ _("Creatine") }}</label>
+                        </div>
+
+                        {# Tape measurements have their own popup; opening it
+                           closes this one (one popup at a time). #}
+                        <button type="button" class="btn btn-outline-primary btn-sm w-100 mt-3" data-bs-toggle="modal"
+                            data-bs-target="#measureModal">{{ _("Measurements") }}</button>
+
+                        {# How it was weighed - set once and then the same every
+                           day, so folded away. The time is morning every time
                            the popup opens; fasted / after a bowel movement
-                           start as last time, as most people weigh the same
-                           way each day. #}
-                        <div class="mt-3">
+                           start as last time. #}
+                        <button class="btn btn-link btn-sm px-0 mt-2 text-decoration-none wd-advanced-toggle collapsed"
+                            type="button" data-bs-toggle="collapse" data-bs-target="#weighAdvanced"
+                            aria-expanded="false" aria-controls="weighAdvanced">
+                            <span class="wd-chevron" aria-hidden="true">&#9656;</span> {{ _("Advanced") }}
+                        </button>
+                        <div class="collapse" id="weighAdvanced">
+                        <div class="mt-2">
                             <div class="form-label mb-1" id="timeOfDayLabel">{{ _("Time of day") }}</div>
                             <div class="btn-group btn-group-sm w-100" role="group" aria-labelledby="timeOfDayLabel">
                                 {% for value, label in [("morning", _("Morning")), ("noon", _("Noon")),
@@ -208,7 +247,54 @@
                         </div>
                         {% endfor %}
 
+                        {# Creatine history from before the app - rare, so here.
+                           Opening it closes Log today (one popup at a time). #}
+                        <div class="mt-3 d-flex align-items-center justify-content-between gap-2">
+                            <span>{{ _("Creatine for past days") }}</span>
+                            <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#creatineModal">{{ _("Add past days") }}</button>
+                        </div>
+                        </div>
+
                         <div class="form-text mt-3">{{ _("An entry for the same day is overwritten.") }}</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                        <button type="submit" class="btn btn-primary">{{ _("Save") }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Creatine for past days: a whole range at once, for history from before the app. -->
+    <div class="modal fade" id="creatineModal" tabindex="-1" aria-labelledby="creatineModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <form method="post" action="{{ url_for('save_creatine_range') }}" id="creatineForm">
+                    {# Only reachable from Log today: closing or saving goes back there (bodyChart.js). #}
+                    <input type="hidden" name="return_to" value="today">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="creatineModalLabel">{{ _("Creatine for past days") }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-body-secondary">
+                            {{ _("Took creatine before you started logging? Mark every day of a period at once.") }}</p>
+                        <div class="mb-3">
+                            <label for="creatineFrom" class="form-label">{{ _("From") }}</label>
+                            <input type="date" class="form-control js-max-today" id="creatineFrom" name="date_from" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="creatineTo" class="form-label">{{ _("To") }}</label>
+                            <input type="date" class="form-control js-today" id="creatineTo" name="date_to" required>
+                        </div>
+                        <div class="btn-group btn-group-sm w-100" role="group" aria-label="{{ _("Creatine") }}">
+                            <input type="radio" class="btn-check" name="action" id="creatineAdd" value="add" checked>
+                            <label class="btn btn-outline-primary" for="creatineAdd">{{ _("Taken") }}</label>
+                            <input type="radio" class="btn-check" name="action" id="creatineRemove" value="remove">
+                            <label class="btn btn-outline-primary" for="creatineRemove">{{ _("Not taken") }}</label>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
@@ -223,9 +309,12 @@
     <div class="modal fade" id="measureModal" tabindex="-1" aria-labelledby="measureModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
-                <form method="post" action="{{ url_for('save_body_measurements') }}" class="d-flex flex-column overflow-hidden">
+                <form method="post" action="{{ url_for('save_body_measurements') }}" class="d-flex flex-column overflow-hidden"
+                    id="measureForm">
+                    {# Only reachable from Log today: closing or saving goes back there (bodyChart.js). #}
+                    <input type="hidden" name="return_to" value="today">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="measureModalLabel">{{ _("Log body measurements") }}</h5>
+                        <h5 class="modal-title" id="measureModalLabel">{{ _("Measurements") }}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
                     </div>
                     <div class="modal-body">

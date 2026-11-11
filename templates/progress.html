@@ -121,7 +121,6 @@
           <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="post">
             <select class="form-select mb-1 mx-auto text-center" aria-label="{{ _("Mesocycle") }}"
               id="MesocycleSelect" name="mesocycle" onchange="this.form.submit()">
-              <option value="">{{ _("Choose Mesocycle") }}</option>
               {% if dropdown %}
               {% for key, value in dropdown.items() %}
               {% set mesocycle_name = value.keys()|first %}
@@ -137,6 +136,21 @@
 
 
         <div class="col-md-7 col-sm-7 mb-5 p-1">
+          {# Never empty: /progress opens the day last trained (progress() in
+             server.py). The day stays pickable on Custom Workouts too, with
+             the workout date below it. #}
+          {% if workouts_info or custom_dates %}
+          <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="get">
+            <select class="form-select mb-1 mx-auto text-center" aria-label="{{ _("Training day") }}"
+              id="WorkoutDaySelect" name="training_day" onchange="this.form.submit()">
+              {% for key, value in workouts_info.items() %}
+              <option value="{{ key }}" {% if key==chosen_day %}selected{% endif %}>{{ key }}</option>
+              {% endfor %}
+              {% if custom_dates %}
+              <option value="{{ custom_sentinel }}" {% if chosen_day==custom_sentinel %}selected{% endif %}>{{ _("Custom Workouts") }}</option>
+              {% endif %}
+            </select>
+          </form>
           {% if chosen_day == custom_sentinel %}
           <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="get">
             <select class="form-select mb-1 mx-auto text-center" aria-label="{{ _("Workout date") }}"
@@ -147,19 +161,7 @@
               {% endfor %}
             </select>
           </form>
-          {% elif workouts_info or custom_dates %}
-          <form class="mb-1 text-center" action="{{ url_for('progress') }}" method="get">
-            <select class="form-select mb-1 mx-auto text-center" aria-label="{{ _("Training day") }}"
-              id="WorkoutDaySelect" name="training_day" onchange="this.form.submit()">
-              <option value="">{{ _("Choose Training Day") }}</option>
-              {% for key, value in workouts_info.items() %}
-              <option value="{{ key }}" {% if key==session.get('chosen_day') %}selected{% endif %}>{{ key }}</option>
-              {% endfor %}
-              {% if custom_dates %}
-              <option value="{{ custom_sentinel }}">{{ _("Custom Workouts") }}</option>
-              {% endif %}
-            </select>
-          </form>
+          {% endif %}
           {% else %}
           <!-- Optionally, display a message if no workouts are available -->
           <p></p>

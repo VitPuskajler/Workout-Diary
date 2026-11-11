@@ -38,7 +38,8 @@ from wtforms.validators import DataRequired, EqualTo, NumberRange, ValidationErr
 
 from models.db_setup import db
 from translations.i18n import LANGUAGES, current_language, js_translations, plural_forms, translate as _, translate_plural as _n
-from models.models import (BODY_MEASUREMENTS, WEIGH_TIMES, BodyMeasurement, BodyWeight, Exercise, Users, WorkoutPlan,
+from models.models import (BODY_MEASUREMENTS, WEIGH_TIMES, BodyMeasurement, BodyWeight, CreatineIntake, Exercise, Users,
+                           WorkoutPlan,
                            Mesocycles, load_user, utcnow)
 from workout_management.workout_management import  WorkoutManagement, english_exercise_name, fold_text, localized_name_column
 from workout_management.progressions import catalog_info as progression_catalog_info, ladders as progression_ladders
@@ -200,6 +201,7 @@ suggest_training_focus = db_operations.suggest_training_focus
 last_exercise_preview = db_operations.last_exercise_preview
 arrow_buttons_next_exercise = db_operations.arrow_buttons_next_exercise
 custom_session_dates = db_operations.custom_session_dates
+last_trained_day = db_operations.last_trained_day
 custom_session_progress = db_operations.custom_session_progress
 progress_session_summary = db_operations.progress_session_summary
 
@@ -1513,8 +1515,15 @@ def body_measurement():
         .order_by(BodyMeasurement.measured_on)
         .all()
     )
+    creatine_days = [
+        day.isoformat() for (day,) in
+        db.session.query(CreatineIntake.taken_on)
+        .filter(CreatineIntake.user_id == current_user.user_id)
+        .order_by(CreatineIntake.taken_on)
+    ]
     fields = body_measurement_fields()
     chart_data = {
+        "creatine": creatine_days,
         "weights": [{"id": w.body_weight_id, "date": w.measured_on.isoformat(), "weight": w.weight,
                      "time_of_day": w.time_of_day, "weighed_at": w.weighed_at,
                      "fasted": w.fasted, "after_bowel": w.after_bowel}
@@ -1535,21 +1544,52 @@ def body_measurement():
     )
 
 
+def _set_creatine(day, taken):
+    """Creatine taken on `day` or not. True when that changed anything."""
+    row = (
+        db.session.query(CreatineIntake)
+        .filter(CreatineIntake.user_id == current_user.user_id, CreatineIntake.taken_on == day)
+        .first()
+    )
+    if taken and row is None:
+        db.session.add(CreatineIntake(user_id=current_user.user_id, taken_on=day))
+        return True
+    if not taken and row is not None:
+        db.session.delete(row)
+        return True
+    return False
+
+
 @app.route("/body/weight", methods=["POST"])
 @login_required
 def save_body_weight():
+    """"Log today": the weight and creatine of one day. The weight may be left
+    empty (creatine only - an existing weight that day stays as it is); the
+    Creatine switch always sets that day, so switching it off removes it."""
     day = _body_form_date()
     if day is None:
         flash(_("Pick a valid date, not in the future."), "warning")
         return redirect(url_for("body_measurement"))
+    creatine = request.form.get("creatine") == "1"
     low, high = BODY_WEIGHT_RANGE
     try:
         weight = _body_form_number("weight")
+        weight_ok = weight is None or low <= weight <= high
     except ValueError:
-        weight = None
-    if weight is None or not low <= weight <= high:
+        weight, weight_ok = None, False
+    if not weight_ok:
         flash(_("Enter a weight from {min} to {max} kg.", min=low, max=high), "warning")
         return redirect(url_for("body_measurement"))
+    if weight is None:
+        if _set_creatine(day, creatine):
+            db.session.commit()
+            flash(_("Creatine saved.") if creatine else _("Creatine removed."), "success")
+        elif not creatine:
+            flash(_("Enter your weight or switch on Creatine."), "warning")
+        else:
+            flash(_("Creatine saved."), "success")
+        return redirect(url_for("body_measurement"))
+    _set_creatine(day, creatine)
     time_of_day = request.form.get("time_of_day") or "morning"
     if time_of_day not in WEIGH_TIMES:
         time_of_day = "morning"
@@ -1588,13 +1628,22 @@ def save_body_weight():
     return redirect(url_for("body_measurement"))
 
 
+def _body_page_back():
+    """Back to /body - with Log today open again when the popup (Measurements,
+    Creatine for past days) was opened from it (return_to=today), as the user
+    is not done there yet."""
+    if request.form.get("return_to") == "today":
+        return url_for("body_measurement", open="today")
+    return url_for("body_measurement")
+
+
 @app.route("/body/measurements", methods=["POST"])
 @login_required
 def save_body_measurements():
     day = _body_form_date()
     if day is None:
         flash(_("Pick a valid date, not in the future."), "warning")
-        return redirect(url_for("body_measurement"))
+        return redirect(_body_page_back())
 
     values = {}
     for name, label, _hint in body_measurement_fields():
@@ -1607,11 +1656,11 @@ def save_body_measurements():
             continue
         if not low <= value <= high:
             flash(_("{name}: enter a number from {min} to {max}.", name=label, min=low, max=high), "warning")
-            return redirect(url_for("body_measurement"))
+            return redirect(_body_page_back())
         values[name] = round(value, 1)
     if not values:
         flash(_("Enter at least one measurement."), "warning")
-        return redirect(url_for("body_measurement"))
+        return redirect(_body_page_back())
 
     row = (
         db.session.query(BodyMeasurement)
@@ -1626,7 +1675,52 @@ def save_body_measurements():
         setattr(row, name, values.get(name))
     db.session.commit()
     flash(_("Measurements saved."), "success")
-    return redirect(url_for("body_measurement"))
+    return redirect(_body_page_back())
+
+
+CREATINE_RANGE_MAX_DAYS = 3 * 366
+
+
+@app.route("/body/creatine", methods=["POST"])
+@login_required
+def save_creatine_range():
+    """Creatine for every day from `date_from` to `date_to` (action add), or
+    none of them (action remove) - for history from before the app."""
+    try:
+        first = date.fromisoformat(request.form.get("date_from", ""))
+        last = date.fromisoformat(request.form.get("date_to", ""))
+    except ValueError:
+        first = last = None
+    if first and last and first > last:
+        first, last = last, first
+    if (first is None or first.year < 1900 or last > date.today() + timedelta(days=1)):
+        flash(_("Pick a valid date, not in the future."), "warning")
+        return redirect(_body_page_back())
+    if (last - first).days >= CREATINE_RANGE_MAX_DAYS:
+        flash(_("Pick at most {days} days at once.", days=CREATINE_RANGE_MAX_DAYS), "warning")
+        return redirect(_body_page_back())
+
+    taken = request.form.get("action") != "remove"
+    existing = {
+        day for (day,) in
+        db.session.query(CreatineIntake.taken_on)
+        .filter(CreatineIntake.user_id == current_user.user_id,
+                CreatineIntake.taken_on >= first, CreatineIntake.taken_on <= last)
+    }
+    if taken:
+        day = first
+        while day <= last:
+            if day not in existing:
+                db.session.add(CreatineIntake(user_id=current_user.user_id, taken_on=day))
+            day += timedelta(days=1)
+    else:
+        (db.session.query(CreatineIntake)
+         .filter(CreatineIntake.user_id == current_user.user_id,
+                 CreatineIntake.taken_on >= first, CreatineIntake.taken_on <= last)
+         .delete(synchronize_session=False))
+    db.session.commit()
+    flash(_("Creatine saved.") if taken else _("Creatine removed."), "success")
+    return redirect(_body_page_back())
 
 
 @app.route("/body/delete", methods=["POST"])
@@ -1725,12 +1819,43 @@ def progress():
                 session.pop("training_day", None)
                 chosen_mesocycle = None
 
+        # The dropdowns never sit empty: a mesocycle that is gone (deleted,
+        # or nothing picked) falls back to the newest one.
+        if not any(chosen_mesocycle in value for value in dropdown_menu_info.values()):
+            chosen_mesocycle = last_mesocycle_by_default()
+            session["chosen_mesocycle"] = chosen_mesocycle
+
         # Ensure `chosen_mesocycle` is set before generating `workout_day_info`
         if chosen_mesocycle:
             workout_day_info = workout_day_information(chosen_mesocycle, dropdown_menu_info)
             custom_dates = custom_session_dates(chosen_mesocycle, dropdown_menu_info)
         else:
             workout_day_info = {}
+
+        # No day picked, or one from another mesocycle: open the day last
+        # trained in this mesocycle - else its first day.
+        day_ok = (chosen_day in workout_day_info
+                  or (chosen_day == CUSTOM_WORKOUTS_OPTION and custom_dates))
+        if not day_ok and chosen_mesocycle:
+            last_day = last_trained_day(chosen_mesocycle, dropdown_menu_info)
+            if last_day == "c" and custom_dates:
+                chosen_day = CUSTOM_WORKOUTS_OPTION
+            elif last_day in workout_day_info:
+                chosen_day = last_day
+            elif workout_day_info:
+                chosen_day = next(iter(workout_day_info))
+            elif custom_dates:
+                chosen_day = CUSTOM_WORKOUTS_OPTION
+            else:
+                chosen_day = None
+            if chosen_day is None:
+                session.pop("chosen_day", None)
+            else:
+                session["chosen_day"] = chosen_day
+            session.pop("chosen_exercise", None)
+            session.pop("chosen_custom_session_id", None)
+            chosen_exercise = None
+            chosen_custom_session_id = None
     # If no workout plan exists redirect to workout creation
     else:
         return render_template("table_layout.html", year=YEAR)

@@ -4,7 +4,8 @@
    Reads #bodyData (body_measurement() in server.py):
      {weights: [{id, date: "YYYY-MM-DD", weight}],
       measurements: [{id, date, values: {field: number}}],
-      fields: [{name, label, unit}]}
+      fields: [{name, label, unit}],
+      creatine: ["YYYY-MM-DD", ...]}   (the days creatine was taken)
    and draws the weight as a line over real time (a gap of a month looks like
    a month). The #bodyPeriod dropdown narrows it to the last N days.
 
@@ -13,6 +14,10 @@
    measurement before. A day that has measurements of its own is drawn as a
    diamond. The newest measurements also sit under the chart, so they show
    even with no weight logged.
+
+   Creatine days are a green strip along the bottom of the chart. The
+   Creatine switch in
+   Log today follows its date field: on when that day already has creatine.
 
    Needs Chart.js (no date adapter: the x axis is plain epoch ms).
 -------------------------------------------------------------------------- */
@@ -71,6 +76,8 @@
   });
   var measuredDays = {};
   measurements.forEach(function (m) { measuredDays[m.x] = true; });
+  var creatineDays = {};
+  (data.creatine || []).forEach(function (day) { creatineDays[parseDay(day)] = true; });
 
   // Custom time of day: the exact time, required then.
   var weighedAt = document.getElementById("weighedAt");
@@ -95,6 +102,81 @@
     input.value = isoToday();
     input.max = isoToday();
   });
+  document.querySelectorAll(".js-max-today").forEach(function (input) {
+    input.max = isoToday();
+  });
+
+  // The Creatine switch shows the chosen day as it is logged.
+  var weightDate = document.getElementById("weightDate");
+  var creatineSwitch = document.getElementById("creatineToday");
+  function syncCreatine() {
+    if (!weightDate.value) return;
+    creatineSwitch.checked = !!creatineDays[parseDay(weightDate.value)];
+  }
+  if (weightDate && creatineSwitch) {
+    weightDate.addEventListener("change", syncCreatine);
+    syncCreatine();
+  }
+
+  // ---- popups opened from Log today -> back to Log today -------------------
+  // Measurements and Creatine for past days open from Log today, and X /
+  // Cancel / Save all come back to it. Save reloads the page (?open=today), so
+  // what was typed in Log today waits in sessionStorage meanwhile and is put
+  // back after the reload.
+  var weightModalEl = document.getElementById("weightModal");
+  var weightForm = weightModalEl && weightModalEl.querySelector("form");
+  var DRAFT_KEY = "wdBodyTodayDraft";
+
+  function openToday() {
+    if (window.bootstrap && weightModalEl) bootstrap.Modal.getOrCreateInstance(weightModalEl).show();
+  }
+
+  [["measureModal", "measureForm"], ["creatineModal", "creatineForm"]].forEach(function (ids) {
+    var modalEl = document.getElementById(ids[0]);
+    var form = document.getElementById(ids[1]);
+    if (!modalEl || !form || !weightForm) return;
+    var saving = false;
+    form.addEventListener("submit", function () {
+      saving = true;
+      var draft = {};
+      Array.prototype.forEach.call(weightForm.elements, function (el) {
+        if (!el.name) return;
+        if (el.type === "radio" || el.type === "checkbox") {
+          if (el.checked) draft[el.name] = el.value;
+        } else {
+          draft[el.name] = el.value;
+        }
+      });
+      try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (e) { /* no storage */ }
+    });
+    modalEl.addEventListener("hidden.bs.modal", function () {
+      if (!saving) openToday();
+    });
+  });
+
+  if (/[?&]open=today\b/.test(window.location.search)) {
+    var draft = null;
+    try {
+      draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "null");
+      sessionStorage.removeItem(DRAFT_KEY);
+    } catch (e) { draft = null; }
+    if (draft && weightForm) {
+      Array.prototype.forEach.call(weightForm.elements, function (el) {
+        if (!el.name) return;
+        if (el.type === "radio") el.checked = draft[el.name] === el.value;
+        else if (el.type === "checkbox") el.checked = draft[el.name] === el.value;
+        else if (draft[el.name] !== undefined) el.value = draft[el.name];
+      });
+      // The custom time field shows only with Custom picked.
+      var custom = document.getElementById("tod_custom");
+      if (custom && custom.checked) custom.dispatchEvent(new Event("change"));
+    }
+    // A reload or Back should not open it again.
+    if (window.history && history.replaceState) {
+      history.replaceState(null, "", window.location.pathname);
+    }
+    openToday();
+  }
   var latest = measurements.length ? measurements[measurements.length - 1] : null;
   if (latest) {
     document.querySelectorAll(".js-measure").forEach(function (input) {
@@ -193,6 +275,7 @@
       [wdT("Time of day"), timeText(point) || null],
       [wdT("Fasted"), yesNo(point.fasted)],
       [wdT("After a bowel movement"), yesNo(point.afterBowel)],
+      [wdT("Creatine"), creatineDays[point.x] ? wdT("Yes") : null],
     ].filter(function (pair) { return pair[1]; });
     if (conditions.length) {
       var list = document.createElement("table");
@@ -237,7 +320,30 @@
   var period = document.getElementById("bodyPeriod");
   if (!canvas || typeof Chart === "undefined") return;
 
+  // Creatine days: a thin strip at the bottom of the plot, one block per day.
+  var creatineStrip = {
+    id: "creatineStrip",
+    afterDatasetsDraw: function (chart) {
+      var area = chart.chartArea;
+      var x = chart.scales.x;
+      if (!area || !x || !chart.data.datasets[0].data.length) return;
+      var ctx = chart.ctx;
+      var dayWidth = Math.max(2, x.getPixelForValue(DAY) - x.getPixelForValue(0));
+      ctx.save();
+      ctx.fillStyle = "#20c997";
+      Object.keys(creatineDays).forEach(function (key) {
+        var left = x.getPixelForValue(+key) - dayWidth / 2;
+        if (left + dayWidth < area.left || left > area.right) return;
+        var from = Math.max(left, area.left);
+        var to = Math.min(left + dayWidth, area.right);
+        ctx.fillRect(from, area.bottom - 6, to - from, 6);
+      });
+      ctx.restore();
+    },
+  };
+
   var chart = new Chart(canvas, {
+    plugins: [creatineStrip],
     type: "line",
     data: {
       datasets: [{
@@ -279,6 +385,7 @@
               var text = number(item.raw.y) + " kg";
               var when = timeText(item.raw);
               if (when) text += " · " + when;
+              if (creatineDays[item.raw.x]) text += " · " + wdT("Creatine");
               return measuredDays[item.raw.x] ? text + " · ◆" : text;
             },
           },
@@ -313,5 +420,6 @@
   }
 
   period.addEventListener("change", draw);
+
   draw();
 })();

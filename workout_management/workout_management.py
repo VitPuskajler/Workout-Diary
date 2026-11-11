@@ -2287,6 +2287,38 @@ class WorkoutManagement:
             })
         return result
 
+    def last_trained_day(self, chosen_mesocycle, mesocycle_info):
+        """The training day of the user's newest session (with sets) in this
+        mesocycle, for /progress to open by default: its workout_name, "c"
+        for a freestyle session, or None when nothing was logged yet."""
+        _, meta = self._mesocycle_entry(chosen_mesocycle, mesocycle_info)
+        mesocycle_id = meta.get(chosen_mesocycle)
+        if mesocycle_id is None:
+            return None
+        row = (
+            db.session.query(Sessions.session_id, Sessions.workout_id)
+            .join(SessionMesocycles, SessionMesocycles.session_id == Sessions.session_id)
+            .filter(
+                Sessions.user_id == self.current_user_id_db(),
+                SessionMesocycles.mesocycle_id == mesocycle_id,
+                db.session.query(ExerciseEntries.entry_id)
+                .filter(ExerciseEntries.session_id == Sessions.session_id)
+                .exists(),
+            )
+            .order_by(desc(Sessions.session_date), desc(Sessions.session_id))
+            .first()
+        )
+        if row is None:
+            return None
+        if row.workout_id == "c":
+            return "c"
+        name = (
+            db.session.query(WorkoutPlan.workout_name)
+            .filter(WorkoutPlan.workout_id == row.workout_id)
+            .scalar()
+        )
+        return name
+
     # Same {exercise: [{entry_id, date, reps, weight, rpe, notes}, ...]} shape
     # exercise_progress_data() returns, but scoped to a single freestyle
     # session instead of a mesocycle's full history - so progress.html renders

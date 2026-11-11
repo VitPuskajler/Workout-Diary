@@ -169,18 +169,14 @@
                 <div class="d-grid gap-2 mb-3">
                     <button type="submit" class="btn btn-primary btn-block" name="action"
                         value="change_mesocycle" title="{{ _("Switch to a different mesocycle plan") }}">{{ _("Change Current Mesocycle") }}</button>
-                    <!-- Show Progress Button -->
                     <button type="submit" class="btn btn-primary btn-block" name="action" value="show_progress"
-                        title="{{ _("View and edit your logged sets") }}">{{ _("Show Progress") }}</button>
+                        title="{{ _("View and edit your logged sets") }}">{{ _("Progress") }}</button>
 
                     <button type="submit" class="btn btn-primary btn-block" name="action"
                         value="statistics" title="{{ _("See progress charts for your exercises") }}">{{ _("Statistics") }}</button>
 
                     <a href="{{ url_for('body_measurement') }}" class="btn btn-primary btn-block"
-                        title="{{ _("Your body weight and tape measurements over time") }}">{{ _("Body measurement") }}</a>
-
-                    <button type="button" class="btn btn-primary btn-block" data-bs-toggle="modal"
-                        data-bs-target="#changePasswordModal" title="{{ _("Update your account password") }}">{{ _("Change Password") }}</button>
+                        title="{{ _("Your body weight, creatine and tape measurements over time") }}">{{ _("Body Diary") }}</a>
 
                     <a href="{{ url_for('customization') }}" class="btn btn-primary btn-block"
                         title="{{ _("Icons, stopwatch and what the training pages show") }}">{{ _("Customization") }}</a>
@@ -189,21 +185,24 @@
                         title="{{ _("How each page of the app works") }}">{{ _("Manual") }}</a>
 
                     <button type="submit" class="btn btn-primary btn-block" name="action"
-                        value="mesocycle_management" title="{{ _("Delete old mesocycle plans") }}">{{ _("Manage Mesocycles") }}</button>
+                        value="mesocycle_management" title="{{ _("Delete old mesocycle plans") }}">{{ _("Mesocycles") }}</button>
 
                     {% if current_user.is_admin and not impersonator %}
                     <!-- Pending registrations, User activity and Sign in as user -->
                     <a href="{{ url_for('user_management') }}"
                         class="btn btn-block {{ 'btn-warning' if pending_registrations else 'btn-primary' }}"
                         title="{{ _("Registrations, activity and signing in as a user") }}">
-                        {{ _("User management") }}
+                        {{ _("Users") }}
                         {% if pending_registrations %}<span class="badge bg-dark">{{ pending_registrations }}</span>{% endif %}
                     </a>
 
                     <a href="{{ url_for('manage_exercises') }}" class="btn btn-primary btn-block"
-                        title="{{ _("Add, edit or delete exercises in the catalog") }}">{{ _("Manage exercises") }}</a>
+                        title="{{ _("Add, edit or delete exercises in the catalog") }}">{{ _("Exercises") }}</a>
 
                     {% endif %}
+
+                    <button type="button" class="btn btn-primary btn-block" data-bs-toggle="modal"
+                        data-bs-target="#changePasswordModal" title="{{ _("Update your account password") }}">{{ _("Change Password") }}</button>
 
                     {% if impersonator %}
                     <!-- formaction sends this one button to a different route, so the

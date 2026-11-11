@@ -293,6 +293,17 @@ class BodyMeasurement(db.Model):
         return {name: getattr(self, name) for name in BODY_MEASUREMENTS
                 if getattr(self, name) is not None}
 
+
+# 11. Creatine - one row per user per day it was taken (no row = not taken),
+# from /body. Kept apart from body_weights: a day can have creatine and no
+# weight. New table: see temp/add_creatine_table.py.
+class CreatineIntake(db.Model):
+    __tablename__ = "creatine_intakes"
+    __table_args__ = (UniqueConstraint("user_id", "taken_on"),)
+    creatine_intake_id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, db.ForeignKey("users.user_id"), nullable=False, index=True)
+    taken_on = Column(Date, nullable=False)
+
 # 11. Progressions - ladders of exercises that are levels of one movement
 # (Front Lever Negative: tuck -> advanced tuck -> one leg -> straddle -> full).
 # Each level stays its own exercise - its icon, translation and logged sets are
