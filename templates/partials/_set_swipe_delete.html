@@ -1,0 +1,163 @@
+{# Swipe a logged set left to delete it - it asks first. Replaces the old
+   "Del" checkbox column (tick it, then Confirm).
+
+   Mark each logged set's row:
+     <tr data-wd-set="{{ set.entry_id }}" data-wd-set-label="30 kg × 5">
+   The row must sit inside the POST form that logs the sets: Delete sends that
+   form with delete=<id> and the delete_set_button, and the server deletes
+   that one set and nothing else (no set is logged, no edits are saved).
+   On /training_session the form is a live one (static/js/liveForm.js), so
+   the table is swapped in without a reload; the listeners below are on
+   `document`, so they keep working on the swapped-in rows. #}
+<style>
+  /* The cells keep vertical scrolling to the browser; a sideways drag is ours. */
+  tr[data-wd-set] > td { touch-action: pan-y; }
+  tr[data-wd-set] > td:last-child { position: relative; }
+  .wd-set-del-strip {
+    position: absolute; top: 0; right: 0; bottom: 0; width: 0; overflow: hidden; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    background: #dc3545; color: #fff; font-weight: 600; font-size: .85rem; white-space: nowrap;
+    transition: width .15s ease; pointer-events: none;
+  }
+  tr.wd-set-swiping .wd-set-del-strip { transition: none; }
+  tr.wd-set-armed .wd-set-del-strip { background: #b02a37; }
+
+  .wd-set-del-modal {
+    position: fixed; inset: 0; z-index: 1060; display: none;
+    align-items: center; justify-content: center; background: rgba(0, 0, 0, .55);
+  }
+  .wd-set-del-modal.open { display: flex; }
+  .wd-set-del-dialog {
+    width: min(86vw, 320px); padding: 22px 20px 18px; border-radius: 16px; text-align: center;
+    background: #16181d; color: #e9ecef; box-shadow: 0 10px 40px rgba(0, 0, 0, .5);
+  }
+  .wd-set-del-dialog p { margin: 0 0 4px; font-size: 1.1rem; font-weight: 600; }
+  .wd-set-del-dialog .wd-set-del-what { margin-bottom: 16px; opacity: .75; font-variant-numeric: tabular-nums; }
+  .wd-set-del-actions { display: flex; gap: 10px; }
+  .wd-set-del-actions button { flex: 1; border: 0; border-radius: 12px; padding: 10px; font-weight: 600; color: #fff; }
+  .wd-set-del-cancel { background: #2b2f38; }
+  .wd-set-del-ok { background: #dc3545; }
+</style>
+
+<div class="wd-set-del-modal" id="wd-set-del-modal" role="dialog" aria-modal="true" aria-labelledby="wd-set-del-title">
+  <div class="wd-set-del-dialog">
+    <p id="wd-set-del-title">{{ _("Delete this set?") }}</p>
+    <div class="wd-set-del-what" id="wd-set-del-what"></div>
+    <div class="wd-set-del-actions">
+      <button type="button" class="wd-set-del-cancel" id="wd-set-del-cancel">{{ _("Cancel") }}</button>
+      <button type="button" class="wd-set-del-ok" id="wd-set-del-ok">{{ _("Delete") }}</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var LABEL = {{ _("Delete")|tojson }};
+    var MAX = 120;        // px the red strip can be pulled out
+    var ARM = 70;         // px of pull that asks to delete on release
+
+    var modal = document.getElementById("wd-set-del-modal");
+    var what = document.getElementById("wd-set-del-what");
+    var pending = null;   // the row asked about
+
+    function strip(row) {
+      var cell = row.lastElementChild;
+      var el = cell.querySelector(".wd-set-del-strip");
+      if (!el) {
+        el = document.createElement("span");
+        el.className = "wd-set-del-strip";
+        el.setAttribute("aria-hidden", "true");
+        el.textContent = LABEL;
+        cell.appendChild(el);
+      }
+      return el;
+    }
+
+    function ask(row) {
+      pending = row;
+      what.textContent = row.dataset.wdSetLabel || "";
+      modal.classList.add("open");
+      document.getElementById("wd-set-del-cancel").focus();
+    }
+    function close() {
+      modal.classList.remove("open");
+      pending = null;
+    }
+
+    var drag = null;      // {row, x, y, horizontal}
+    document.addEventListener("pointerdown", function (e) {
+      var row = e.target.closest && e.target.closest("tr[data-wd-set]");
+      if (!row || modal.classList.contains("open")) return;
+      // A mouse on a field is selecting text, not swiping.
+      if (e.pointerType === "mouse" && e.target.closest("input, textarea, select, button")) return;
+      drag = { row: row, x: e.clientX, y: e.clientY, horizontal: null };
+    });
+
+    document.addEventListener("pointermove", function (e) {
+      if (!drag) return;
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (drag.horizontal === null) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        drag.horizontal = Math.abs(dx) > Math.abs(dy) && dx < 0;
+        if (!drag.horizontal) { drag = null; return; }   // a scroll or a right swipe
+        drag.row.classList.add("wd-set-swiping");
+        // The field the finger started on must not keep the keyboard open.
+        if (document.activeElement && drag.row.contains(document.activeElement)) document.activeElement.blur();
+      }
+      var width = Math.max(0, Math.min(MAX, -dx));
+      strip(drag.row).style.width = width + "px";
+      drag.row.classList.toggle("wd-set-armed", width >= ARM);
+    });
+
+    var swallowClick = false;
+    function end(e) {
+      if (!drag) return;
+      var row = drag.row;
+      if (drag.horizontal) {
+        var el = strip(row);
+        var armed = e.type === "pointerup" && (parseFloat(el.style.width) || 0) >= ARM;
+        row.classList.remove("wd-set-swiping", "wd-set-armed");
+        el.style.width = "";                 // slides back in
+        swallowClick = true;
+        setTimeout(function () { swallowClick = false; }, 400);
+        if (armed) ask(row);
+      }
+      drag = null;
+    }
+    document.addEventListener("pointerup", end);
+    document.addEventListener("pointercancel", end);
+
+    // The click that ends a swipe must not focus a field or press a button.
+    document.addEventListener("click", function (e) {
+      if (!swallowClick) return;
+      swallowClick = false;
+      e.preventDefault();
+      e.stopPropagation();
+    }, true);
+
+    document.getElementById("wd-set-del-cancel").addEventListener("click", close);
+    modal.addEventListener("click", function (e) { if (e.target === modal) close(); });
+    // The page binds Enter to Confirm on `document` - Enter here presses
+    // the focused button instead; Esc cancels.
+    modal.addEventListener("keydown", function (e) {
+      e.stopPropagation();
+      if (e.key === "Escape") close();
+    });
+
+    document.getElementById("wd-set-del-ok").addEventListener("click", function () {
+      var row = pending;
+      close();
+      var form = row && row.closest("form");
+      if (!form) return;
+      var id = document.createElement("input");
+      id.type = "hidden"; id.name = "delete"; id.value = row.dataset.wdSet;
+      var button = document.createElement("button");
+      button.type = "submit"; button.name = "delete_set_button"; button.value = "1"; button.hidden = true;
+      form.appendChild(id);
+      form.appendChild(button);
+      if (form.requestSubmit) form.requestSubmit(button); else button.click();
+      // A live form stays on the page: these must not ride along next time.
+      setTimeout(function () { id.remove(); button.remove(); }, 0);
+    });
+  })();
+</script>

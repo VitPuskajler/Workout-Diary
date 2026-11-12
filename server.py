@@ -716,13 +716,14 @@ def training_session():
                 chosen_exercise = load_chosen_exercise
 
     elif request.method == "POST":
-        if 'confirm_button' in request.form:
+        if 'delete_set_button' in request.form:
+            # Swiped left and confirmed (partials/_set_swipe_delete.html):
+            # that one set goes, nothing typed is logged or saved.
+            delete_set(request.form)
+        elif 'confirm_button' in request.form:
             add_session_to_db(workout_key, workout_id)
             submitted_data = request.form.to_dict()
             add_set_to_db(submitted_data, chosen_exercise, chosen_day)
-            # request.form (not submitted_data) - delete_set needs every
-            # checked "delete" checkbox, and .to_dict() only kept the first.
-            delete_set(request.form)
             # Get access to sets / exercises user want to change
             modify_set(submitted_data)
         elif 'previous_day' in request.form:
@@ -741,6 +742,12 @@ def training_session():
         elif 'repeat_button' in request.form:
             # If repeat button was clicked, last set will me "repeated"
             repeat_set(chosen_exercise, workout_id, chosen_day)
+        elif 'save_order' in request.form:
+            # Reorder mode under the plan table: order_<day> is the day's
+            # workout_exercise_ids in their new order. Saved to the plan
+            # itself, same as a drag on Create Workout - reorder_exercises()
+            # checks every id belongs to that day before it moves anything.
+            reorder_exercises(request.form.to_dict(), weekly, workout_id)
 
         # Post/Redirect/Get: every POST ends on a plain GET of this page, so
         # reloading it (or the phone bringing the tab back) shows the sets
@@ -781,6 +788,8 @@ def training_session():
         placeholders=exercise_placeholders,
         last_exercise =last_exercise,
         default_unit=default_unit,
+        # the day's index, for the reorder mode's order_<day> field
+        order_day=workout_key,
     )
 
 # --------------------------------------------------------------------------
@@ -788,6 +797,69 @@ def training_session():
 @login_required
 def execute_workout_plan_exercises():
     return render_template("<h1>Just test if process will pass<h1>")
+# --------------------------------------------------------------------------
+#  Database download for backups: GET /api/backup/db
+#
+#  For tools/download_db.py, so the live database can be pulled without the
+#  PythonAnywhere Files page. There is no login here; a script cannot easily
+#  fill in the login form. Instead the request must carry a token:
+#      Authorization: Bearer <token>
+#  The token comes from the WORKOUT_BACKUP_TOKEN environment variable or the
+#  file instance/backup_token (instance/ is gitignored); make one with
+#  `python tools/download_db.py --new-token`. With no token set up, the
+#  route does not exist. A wrong token also gets a 404, so the route is never
+#  advertised. The file holds every user's data, password hashes included,
+#  so the token is a full-access secret.
+# --------------------------------------------------------------------------
+
+BACKUP_TOKEN_PATH = os.path.join(basedir, "instance", "backup_token")
+BACKUP_TOKEN_MIN_LENGTH = 32
+
+
+def load_backup_token():
+    token = os.environ.get("WORKOUT_BACKUP_TOKEN", "").strip()
+    if not token and os.path.exists(BACKUP_TOKEN_PATH):
+        with open(BACKUP_TOKEN_PATH, "r", encoding="utf-8") as handle:
+            token = handle.read().strip()
+    # A short token is treated as no token rather than as a weak one.
+    return token if len(token) >= BACKUP_TOKEN_MIN_LENGTH else None
+
+
+@app.route("/api/backup/db")
+def download_database():
+    import sqlite3
+    import tempfile
+
+    expected = load_backup_token()
+    header = request.headers.get("Authorization", "")
+    given = header[len("Bearer "):].strip() if header.startswith("Bearer ") else ""
+    if not expected or not secrets.compare_digest(given.encode(), expected.encode()):
+        abort(404)
+
+    # Copy through SQLite's backup API, not the raw file. The app may be
+    # writing at this moment, and the copy is still a consistent snapshot.
+    source_path = os.path.join(basedir, "instance", "workout.db")
+    handle, snapshot_path = tempfile.mkstemp(suffix=".db")
+    os.close(handle)
+    source = sqlite3.connect(source_path)
+    target = sqlite3.connect(snapshot_path)
+    try:
+        source.backup(target)
+    finally:
+        target.close()
+        source.close()
+
+    with open(snapshot_path, "rb") as snapshot:
+        data = snapshot.read()
+    os.remove(snapshot_path)
+
+    from io import BytesIO
+    response = send_file(BytesIO(data), mimetype="application/vnd.sqlite3", as_attachment=True,
+                         download_name=f"workout-{datetime.now():%Y%m%d-%H%M%S}.db")
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 # --------------------------------------------------------------------------
 # --------------------------------------------------------------------------
 #  Admin: signing in as another user
@@ -953,7 +1025,8 @@ def exercise_label(exercise_name):
 @app.context_processor
 def inject_exercise_labels():
     return {"exercise_label": exercise_label, "exercise_labels": exercise_labels,
-            "exercise_ladders_for_page": exercise_ladders_for_page}
+            "exercise_ladders_for_page": exercise_ladders_for_page,
+            "superset_partners": db_operations.superset_partners}
 
 
 def exercise_ladders_for_page():
@@ -1389,7 +1462,7 @@ def change_password():
 
 
 # The switches on /customization -> Users columns.
-CUSTOMIZATION_SWITCHES = ("show_session_icons", "animate_session_icons", "show_stopwatch", "show_set_gaps",
+CUSTOMIZATION_SWITCHES = ("show_session_icons", "show_session_names", "animate_session_icons", "show_stopwatch", "show_set_gaps",
                           "translate_exercises", "show_plan_icons", "focus_mode", "stopwatch_advanced")
 
 # The switches that also sit on another page (Create Workout) and are saved
@@ -2196,9 +2269,11 @@ def intuitive_training():
 
     else:  # POST
         submitted_data = request.form.to_dict()
-        # request.form (not submitted_data) - delete_set needs every checked
-        # "delete" checkbox, and .to_dict() only kept the first.
-        delete_set(request.form)
+        if "delete_set_button" in submitted_data:
+            # Swiped left and confirmed (partials/_set_swipe_delete.html):
+            # that one set goes, nothing typed is logged or saved.
+            delete_set(request.form)
+            return redirect(url_for("intuitive_training"))
 
         if "previous_day" in submitted_data or "next_day" in submitted_data:
             move = "previous_day" if "previous_day" in submitted_data else "next_day"

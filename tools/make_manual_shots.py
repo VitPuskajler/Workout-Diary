@@ -227,20 +227,17 @@ def photograph(browser, base, db, user_id, lang):
     page.click("#wd-sw-ss")
     page.wait_for_timeout(1200)
     shot(bar, p("sw-ss"))
-    page.click("#wd-sw-main")                       # Cancel the superset
-    page.click("#wd-sw-main")                       # Go - a set starts
-    page.wait_for_timeout(1200)
-    shot(bar, p("sw-set"))
-    page.click("#wd-sw-main")                       # Cancel it
+    page.click("#wd-sw-ss")                         # SS off again
     page.click("#wd-sw-clock")
     page.wait_for_timeout(300)
     shot(bar, p("sw-total"))
     page.click("#wd-sw-clock")
     page.click("#wd-sw-stop")
     page.wait_for_timeout(300)
-    shot(page.locator(".wd-sw-dialog"), p("sw-finish"))
+    shot(page.locator("#wd-sw-modal .wd-sw-dialog"), p("sw-finish"))
     page.click("#wd-sw-finish")
     page.wait_for_timeout(300)
+    page.click("#wd-sw-summary-close")              # "Today's workout took"
     shot(bar, p("sw-off"))
 
     # -- Intuitive Training: two sets of one exercise today.

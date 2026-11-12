@@ -23,7 +23,7 @@
    the set twice. The typed numbers stay in the fields and a note says so.
 
    Load it AFTER partials/_stopwatch.html: that one adds its hidden fields
-   (sw_start, set_started...) on the same submit event, and listeners on one
+   (sw_start, superset) on the same submit event, and listeners on one
    element run in the order they were added.
 -------------------------------------------------------------------------- */
 (function () {

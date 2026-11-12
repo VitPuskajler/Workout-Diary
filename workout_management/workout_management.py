@@ -29,6 +29,7 @@ from sqlalchemy import (
     or_,
 )
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import aliased
 from flask import request
 
 from translations.i18n import current_language, translate as tr
@@ -1053,27 +1054,9 @@ class WorkoutManagement:
 
     def _stamp_stopwatch(self, entry, session_id):
         """Copy the stopwatch's hidden fields onto a set that is about to be
-        added: `set_started` becomes entry.started_at, `set_ended` (Done)
-        entry.logged_at, `superset` links it to
-        the set before it, and `sw_start` (the manual start) overwrites the
+        added: `superset` links it to the set before it, and `sw_start` (the manual start) overwrites the
         session date when this is the session's first set. Call it BEFORE
         db.session.add(entry), so the queries below do not see the new set."""
-        entry.started_at = self._form_epoch_ms("set_started")
-
-        # "Done" on the stopwatch: the set ended at that tap, not when it got
-        # written down - so it is logged at the tap, and the rest, the set
-        # gaps and the set's own length all count from the real end. Ignored
-        # if it would put the set before its own start or before the
-        # session's latest set (the order of the sets must not change).
-        ended = self._form_epoch_ms("set_ended")
-        if ended is not None and (entry.started_at is None or ended >= entry.started_at):
-            latest = (
-                db.session.query(func.max(ExerciseEntries.logged_at))
-                .filter(ExerciseEntries.session_id == session_id)
-                .scalar()
-            )
-            if latest is None or ended >= latest:
-                entry.logged_at = ended
 
         # SS on the stopwatch: this set was done straight after the session's
         # latest set - linked, as long as that was another exercise (SS on the
@@ -1500,6 +1483,20 @@ class WorkoutManagement:
                     else [submitted_data["delete"]]
                 )
 
+                # Only the user's own sets - an id typed into the form by
+                # hand must not reach anybody else's.
+                entry_ids_to_delete = [
+                    entry_id for (entry_id,) in
+                    db.session.query(ExerciseEntries.entry_id)
+                    .join(Sessions, Sessions.session_id == ExerciseEntries.session_id)
+                    .filter(
+                        ExerciseEntries.entry_id.in_(entry_ids_to_delete),
+                        Sessions.user_id == self.current_user_id_db(),
+                    )
+                ]
+                if not entry_ids_to_delete:
+                    return
+
                 # A superset partner of a deleted set stays, just unlinked.
                 db.session.query(ExerciseEntries).filter(
                     ExerciseEntries.superset_of.in_(entry_ids_to_delete)
@@ -1617,6 +1614,8 @@ class WorkoutManagement:
                         # Populate the preview entry with data from the latest_entry or default values
                         preview_entry = {
                             "exercise": exercise_name,
+                            # Row key for the reorder mode on /training_session.
+                            "id": exers.workout_exercise_id,
                             "sets": sets_left,
                             "reps": (
                                 latest_entry.reps
@@ -1655,6 +1654,8 @@ class WorkoutManagement:
                     if exercise_name and exers.prescribed_sets:
                         preview_entry = {
                             "exercise": exercise_name,
+                            # Row key for the reorder mode on /training_session.
+                            "id": exers.workout_exercise_id,
                             "sets": exers.prescribed_sets,
                             "reps": 0,
                             "weight": 0,
@@ -2519,6 +2520,30 @@ class WorkoutManagement:
                 gaps[entry_id] = f"+{hours}:{mins:02d}:{secs:02d}" if hours else f"+{mins}:{secs:02d}"
             previous[session_id] = logged_at
         return gaps
+
+    def superset_partners(self, entries):
+        """{entry_id: English name of the other exercise} for each of these
+        sets that is part of a superset (the stopwatch's SS): the set it was
+        linked to, or else the set linked to it. Sets of no superset are left
+        out. For the "SS · Calf Raise" tag under a set."""
+        ids = {entry.entry_id for entry in entries or [] if getattr(entry, "entry_id", None)}
+        if not ids:
+            return {}
+        Partner = aliased(ExerciseEntries)
+        pairs = (
+            db.session.query(ExerciseEntries.entry_id, ExerciseEntries.superset_of, Partner.entry_id, Exercise.exercise_name)
+            .join(Partner, or_(Partner.entry_id == ExerciseEntries.superset_of,
+                               Partner.superset_of == ExerciseEntries.entry_id))
+            .join(Exercise, Exercise.exercise_id == Partner.exercise_id)
+            .filter(ExerciseEntries.entry_id.in_(ids))
+            .all()
+        )
+        partners = {}
+        for entry_id, superset_of, partner_id, name in pairs:
+            # The set it was linked to wins over a set linked to it.
+            if entry_id not in partners or partner_id == superset_of:
+                partners[entry_id] = name
+        return partners
 
     def progress_session_summary(self, progress):
         """The sessions behind a /progress table set, newest first:

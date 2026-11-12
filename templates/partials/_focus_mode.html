@@ -10,14 +10,13 @@
    Nothing is laid over the sets - the effect stays on the two dark bars.
 
    The stopwatch (partials/_stopwatch.html) tells this page what it is doing:
-   <html data-wd-sw="off|intro|set|rest">, and the events wd-sw-start and
+   <html data-wd-sw="off|intro|rest">, and the events wd-sw-start and
    wd-sw-rest-up on document. Needs the stopwatch: off with it. #}
 {% if current_user.focus_mode and current_user.show_stopwatch %}
 <style>
   /* Absolute instead of fixed: same place at the top of the page, but it
      scrolls with it. The page's own top padding still clears it. */
   html[data-wd-sw="intro"] .navbar.fixed-top,
-  html[data-wd-sw="set"] .navbar.fixed-top,
   html[data-wd-sw="rest"] .navbar.fixed-top { position: absolute; }
 
   /* The sheen: a band of light crossing a bar once, left to right, clipped

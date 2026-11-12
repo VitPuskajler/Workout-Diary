@@ -56,6 +56,12 @@
 
 <body>
   <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
+    <symbol id="grip-lines" viewBox="0 0 16 16">
+      <path d="M2 5.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5m0 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 8m0 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5"/>
+    </symbol>
+    <symbol id="arrow-down-up" viewBox="0 0 16 16">
+      <path fill-rule="evenodd" d="M11.5 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L11 2.707V14.5a.5.5 0 0 0 .5.5m-7-14a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L4 13.293V1.5a.5.5 0 0 1 .5-.5"/>
+    </symbol>
     <symbol id="check2" viewBox="0 0 16 16">
       <path
         d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z">
@@ -191,6 +197,7 @@
 
           </thead>
           <tbody>
+            {% set ss = superset_partners(last_exercise) %}
             {% for exercise in last_exercise %}
             <tr>
               <td>
@@ -204,6 +211,7 @@
               </td>
               <td class="wd-notes">
                 <div> {{exercise.notes if exercise.notes else "-" }} </div>
+                {% if ss.get(exercise.entry_id) %}<span class="wd-ss-tag" title="{{ _("Superset with {name}", name=exercise_label(ss[exercise.entry_id])) }}">SS · {{ exercise_label(ss[exercise.entry_id]) }}</span>{% endif %}
               </td>
             </tr>
             {% endfor %}
@@ -221,6 +229,7 @@
        <picture> picks the still drawing then, no script needed. -->
   {% set show_icons = current_user.show_session_icons %}
   {% set animate_icons = show_icons and current_user.animate_session_icons %}
+  {% set show_names = current_user.show_session_names %}
   {% macro icon_picture(exercise) -%}
     {%- set still = exercise_icon(exercise) -%}
     {%- set moving = exercise_icon_moving(exercise) if still and animate_icons else none -%}
@@ -229,7 +238,7 @@
       <img src="{{ still }}" alt=""></picture>{% endif -%}
   {%- endmacro %}
 
-  <form action="{{ url_for('training_session') }}" method="POST" data-wd-live="#wd-live">
+  <form action="{{ url_for('training_session') }}" method="POST" data-wd-live="#wd-live" id="wdSetForm" data-order-day="{{ order_day }}">
     <div class="container">
       <div class="row justify-content-center">
         <div class="col-12 col-md-9" data-wd-sw-anchor>
@@ -243,7 +252,8 @@
                intrinsic size - that intrinsic size is what used to push the table
                9px off the edge of a 390px phone.
 
-               Five equal columns, which is exactly the proportion the table had
+               Four equal columns since the Del column gave way to swipe-left
+               (partials/_set_swipe_delete.html). Before that: five equal columns, which is exactly the proportion the table had
                before: it was five 75px columns adding up to 375px in a 366px space.
                20% each lands them at 73px, so nothing looks different - it just
                fits now. */
@@ -252,9 +262,21 @@
               width: 100%;
             }
 
-            .table-responsive th { width: 20%; }
+            .table-responsive th { width: 25%; }
 
-            /* "+2:35" under a logged set's Del box: time since the set before it
+            /* "SS · Calf Raise" under a set done as a superset (the stopwatch's
+               SS): the exercise it was paired with. Yellow like the SS button. */
+            .wd-ss-tag {
+              font-size: .7rem;
+              line-height: 1.1;
+              margin-top: 3px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+              color: #b38600;
+              font-weight: 600;
+            }
+            /* "+2:35" under a logged set's note: time since the set before it
                (Customization on /profile). Small and grey - a glance, not a column. */
             .wd-set-gap {
               font-size: .7rem;
@@ -283,15 +305,15 @@
                   <th>{{ _('Sec') if is_timed(chosen_exercise) else _('Reps') }}</th>
                   <th>RPE</th>
                   <th>{{ _("Note") }}</th>
-                  <th>{{ _("Del") }}</th>
                 </tr>
               </thead>
               <tbody>
 
                 {% if sets_for_jinja is not none %}
+                {% set ss = superset_partners(sets_for_jinja) %}
                 {% for set in sets_for_jinja %}
 
-                <tr>
+                <tr data-wd-set="{{ set.entry_id }}" data-wd-set-label="{{ exercise_label(chosen_exercise) }}: {{ (set.weight|string ~ ' ' ~ (set.unit or 'kg') ~ ' × ') if set.weight }}{{ set.reps if set.reps is not none else '-' }}{{ ' s' if is_timed(chosen_exercise) }}">
                   <td><input type="text" inputmode="decimal" autocomplete="off" data-wd-number="decimal" data-min="0" class="form-control text-center"
                       name="update_weight_{{ set.entry_id }}"
                       placeholder="{{set.weight}}{% if set.unit and set.unit != 'kg' %} {{ set.unit }}{% endif %}" /></td>
@@ -303,12 +325,10 @@
                       placeholder="{{set.rpe}}" /></td>
 
                   <td><textarea rows="1" class="form-control text-center" data-note
-                      name="update_notes_{{ set.entry_id }}" placeholder="{{set.notes}}"></textarea></td>
-
-                  <td class="w-auto">
-                    <input class="form-check-input" type="checkbox" name="delete" value="{{ set.entry_id }}" />
+                      name="update_notes_{{ set.entry_id }}" placeholder="{{set.notes}}"></textarea>
                     {% if set_gaps.get(set.entry_id) %}<div class="wd-set-gap" title="{{ _("Since the previous set") }}">{{ set_gaps[set.entry_id] }}</div>{% endif %}
-                  </td>
+                    {% if ss.get(set.entry_id) %}<span class="wd-ss-tag" title="{{ _("Superset with {name}", name=exercise_label(ss[set.entry_id])) }}">SS · {{ exercise_label(ss[set.entry_id]) }}</span>{% endif %}</td>
+
 
                 </tr>
 
@@ -343,7 +363,6 @@
                         placeholder="{{ placeholders.notes }}"></textarea>
                     </div>
                   </td>
-                  <td>.</td>
                 </tr>
 
                 {% else %}
@@ -375,7 +394,6 @@
                         placeholder="..."></textarea>
                     </div>
                   </td>
-                  <td>.</td>
                 </tr>
                 {% endif %}
 
@@ -469,52 +487,173 @@
 
           {% if preview is not none %}
 
-          <table class="table table-striped text-center mb-5" id="exercisePreview">
+          {# Exercise and sets, nothing else: no Weight or Reps column - the
+             room goes to the names, so the rows stay short. With icons and
+             names both on, the icon has a narrow column of its own on the
+             left, and "Exercise" stands over the names alone. #}
+          {% set icon_col = show_icons and show_names %}
+          <table class="table table-striped text-center mb-2{% if not show_names %} wd-no-names{% endif %}" id="exercisePreview">
             <thead class="table-striped ">
               <tr>
-                <th class="col-2">{{ _("Exercise") }}</th>
-                <th class="col-1">{{ _("Weight") }}</th>
-                <th class="col-1">{{ _("Sets") }}</th>
-                <th class="col-1">{{ _("Reps") }}</th>
+                {% if icon_col %}<th style="width: 12%" aria-hidden="true"></th>{% endif %}
+                {# Names off leaves only a 28px icon in the Exercise column, so
+                   the two columns split the row in half instead of 80/20. #}
+                <th style="width: {{ '68%' if icon_col else ('80%' if show_names else '50%') }}" class="wd-ex-col">{{ _("Exercise") }}</th>
+                <th style="width: {{ '20%' if show_names else '50%' }}" class="wd-sets-col">{{ _("Sets") }}</th>
               </tr>
             </thead>
             <tbody>
               {% for row in preview %}
-              <tr class="{% if row.done is not none %}table-success{% endif %}">
-                <td>
+              {# Names can be switched off in Customization; a row with no icon
+                 to show keeps its name anyway, so it is never blank. #}
+              {% set row_icon = icon_picture(row.exercise) if show_icons else "" %}
+              {% set row_named = show_names or not (row_icon|trim) %}
+              <tr class="{% if row.done is not none %}table-success{% endif %}" {% if row.id %}data-we-id="{{ row.id }}"{% endif %}>
+                {% if icon_col %}<td class="wd-icon-cell"><span class="wd-plan-icon">{{ row_icon }}</span></td>{% endif %}
+                <td class="wd-ex-col">
+                  <div class="wd-ex-cell">
                   <button type="submit" name="chosen_exercise" value="{{row.exercise}}"
+                    {% if not row_named %}title="{{ exercise_label(row.exercise) }}" aria-label="{{ exercise_label(row.exercise) }}"{% endif %}
                     class="btn p-0 border-0 shadow-none w-100 {% if row.done is not none %}text-success-emphasis{% endif %}">
-                    {% if show_icons %}<span class="wd-plan-icon">{{ icon_picture(row.exercise) }}</span>{% endif %}
-                    {{ exercise_label(row.exercise) }}
+                    {% if row_icon|trim and not icon_col %}<span class="wd-plan-icon">{{ row_icon }}</span>{% endif %}
+                    {% if row_named %}<span class="wd-ex-name">{{ exercise_label(row.exercise) }}</span>{% endif %}
                   </button>
+                  <span class="wd-drag-handle" role="button" tabindex="-1"
+                    aria-label="{{ _("Drag to reorder") }}" title="{{ _("Drag to reorder") }}">
+                    <svg width="22" height="22" fill="currentColor" aria-hidden="true"><use href="#grip-lines"></use></svg>
+                  </span>
+                  </div>
                 </td>
-                <td>
-                  <div class="col-10 center-container "> {{row.weight}} </div>
-                </td>
-                <td>
+                <td class="wd-sets-col">
                   <div class="col-10 center-container "> {{row.sets}} </div>
-                </td>
-                <td>
-                  <div class="col-12 center-container "> {{row.reps}}{% if is_timed(row.exercise) %} s{% endif %} </div>
                 </td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
 
+          {# Change order: grey until tapped. On, it turns green, the rows get
+             drag handles and the button sticks to the bottom of the screen;
+             everything else on the page waits until it is tapped again, which
+             saves the new order to the plan (see the script at the bottom). #}
+          {% if preview|selectattr("id")|list|length > 1 %}
+          <div class="wd-reorder-slot">
+            <button type="button" id="wdReorderToggle" class="btn btn-outline-secondary wd-reorder-btn"
+              aria-pressed="false" aria-label="{{ _("Change order") }}" title="{{ _("Change order") }}"
+              data-label-on="{{ _("Save order") }}" data-label-off="{{ _("Change order") }}">
+              <svg width="18" height="18" aria-hidden="true" fill="currentColor"><use href="#arrow-down-up"></use></svg>
+            </button>
+          </div>
+          {% endif %}
+
           <style>
-            /* The icon sits above the name, inside the Exercise cell. A column
-               of its own would not stay narrow: the other headers take col-*
-               percentages, and the width they leave over went to the icons. */
+            /* The icon has its own narrow column left of the name (every
+               header carries an explicit width, so no spare width drifts to
+               it). With names off it is the icon alone in the Exercise cell. */
             .wd-plan-icon img {
               width: 28px;
               height: 28px;
               display: block;
-              margin: 0 auto 2px;
+              margin: 0 auto;
             }
+            #exercisePreview .wd-icon-cell { padding-left: .25rem; padding-right: 0; }
 
             /* the whole row is a target for switching exercise, not just the name */
             #exercisePreview tbody tr { cursor: pointer; }
+
+            /* Every row the same height - two lines of name - and a longer
+               name ends in "…" on its second line. Names centred under
+               their centred header. */
+            .wd-ex-cell { display: flex; align-items: center; }
+            #exercisePreview .wd-ex-cell { height: 48px; }
+            #exercisePreview .wd-ex-cell > button {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: .5rem;
+              text-align: center;
+            }
+            .wd-ex-name {
+              display: -webkit-box;
+              -webkit-box-orient: vertical;
+              -webkit-line-clamp: 2;
+              line-clamp: 2;
+              overflow: hidden;
+              line-height: 1.25;
+              overflow-wrap: anywhere;
+            }
+            .wd-ex-cell > button { flex: 1 1 auto; min-width: 0; }
+
+            /* Reorder mode: the Sets column goes too, the Exercise cell takes
+               the whole row and the handle sits on the right, under the thumb. */
+            .wd-ex-cell .wd-drag-handle { display: none; }
+            body.wd-reorder .wd-ex-cell .wd-drag-handle { display: inline-flex; flex: 0 0 auto; }
+            body.wd-reorder #exercisePreview .wd-sets-col { display: none; }
+            body.wd-reorder #exercisePreview .wd-ex-col { width: auto !important; }
+            body.wd-reorder #exercisePreview tbody tr { cursor: default; }
+
+            .wd-drag-handle {
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              width: 32px;
+              height: 44px;
+              margin-right: -.25rem;
+              color: var(--bs-secondary-color, #6c757d);
+              cursor: grab;
+              /* only the handle stops the page scrolling, the rest of a row still scrolls */
+              touch-action: none;
+              -webkit-user-select: none;
+              user-select: none;
+            }
+            .wd-drag-handle:active { cursor: grabbing; }
+            .wd-drag-ghost > td { opacity: 0.35; }
+            .wd-drag-chosen > td {
+              --bs-table-bg-state: #cfe2ff;
+              --bs-table-accent-bg: #cfe2ff;
+            }
+
+            /* The slot keeps the button's place, so nothing jumps when it
+               leaves for the bottom of the screen. */
+            .wd-reorder-slot {
+              display: flex;
+              justify-content: center;
+              height: 40px;
+              margin-bottom: 3rem;
+            }
+            .wd-reorder-btn {
+              width: 40px;
+              height: 40px;
+              padding: 0;
+              border-radius: 50%;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+            }
+            body.wd-reorder .wd-reorder-btn {
+              position: fixed;
+              left: 50%;
+              bottom: var(--wd-reorder-bottom, 16px);
+              transform: translateX(-50%);
+              z-index: 1040;
+              width: 56px;
+              height: 56px;
+              box-shadow: 0 4px 14px rgba(0, 0, 0, .3);
+            }
+            body.wd-reorder .wd-reorder-btn svg { width: 24px; height: 24px; }
+
+            /* "Finish reordering first" - near the top, above everything */
+            #wdReorderNote {
+              position: fixed;
+              top: 70px;
+              left: 50%;
+              transform: translateX(-50%);
+              z-index: 1060;
+              width: calc(100% - 32px);
+              max-width: 420px;
+              display: none;
+            }
+            #wdReorderNote.show { display: block; }
 
             /* Tapped row goes Bootstrap light blue while the page is on its way back.
                Set --bs-table-bg-state rather than background-color: Bootstrap paints
@@ -614,6 +753,176 @@
     wdOfferProgress();
     document.addEventListener("wd-swapped", wdOfferProgress);
   </script>
+  <div id="wdReorderNote" class="alert alert-warning py-2 mb-0 text-center shadow" role="alert" aria-live="assertive">
+    {{ _("Finish changing the order first - tap the green button at the bottom to save it.") }}
+  </div>
+  <!-- Reorder mode: the button under the exercise table -->
+  <script>
+    (function () {
+      var sortable = null;
+      var startOrder = "";
+      var saving = false;
+      var noteTimer = null;
+
+      function on() { return document.body.classList.contains("wd-reorder"); }
+      function tbody() { return document.querySelector("#exercisePreview tbody"); }
+      function currentOrder() {
+        var body = tbody();
+        if (!body) { return ""; }
+        // Not Sortable's floating copy of the dragged row on a touch screen.
+        return Array.prototype.map.call(
+          body.querySelectorAll("tr[data-we-id]:not(.sortable-fallback)"),
+          function (tr) { return tr.dataset.weId; }
+        ).join(",");
+      }
+
+      function paint(button, active) {
+        button.classList.toggle("btn-outline-secondary", !active);
+        button.classList.toggle("btn-success", active);
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+        var label = active ? button.dataset.labelOn : button.dataset.labelOff;
+        button.title = label;
+        button.setAttribute("aria-label", label);
+      }
+
+      // Sits just above the stopwatch bar, when there is one.
+      function placeButton() {
+        var bar = document.getElementById("wd-sw");
+        // fixed, so no offsetParent - its box says whether it is shown
+        var height = bar ? bar.getBoundingClientRect().height : 0;
+        var offset = height ? Math.round(height) + 12 : 16;
+        document.body.style.setProperty("--wd-reorder-bottom", offset + "px");
+      }
+
+      function start(button) {
+        var body = tbody();
+        if (!body || typeof Sortable === "undefined") { return; }
+        if (document.activeElement && document.activeElement.blur) { document.activeElement.blur(); }
+        startOrder = currentOrder();
+        placeButton();
+        document.body.classList.add("wd-reorder");
+        paint(button, true);
+        // The table just lost three columns and about half its height; left
+        // alone the browser clamps the scroll and the page jumps. Line the
+        // list up under the navbar instead, so all of it is in view.
+        var table = document.getElementById("exercisePreview");
+        var nav = document.querySelector(".navbar.fixed-top");
+        if (table) {
+          var top = table.getBoundingClientRect().top + window.scrollY - (nav ? nav.offsetHeight : 0) - 8;
+          window.scrollTo(0, Math.max(0, top));
+        }
+        sortable = Sortable.create(body, {
+          handle: ".wd-drag-handle",
+          draggable: "tr[data-we-id]",
+          animation: 150,
+          ghostClass: "wd-drag-ghost",
+          chosenClass: "wd-drag-chosen",
+        });
+      }
+
+      function stop(button) {
+        if (sortable) { sortable.destroy(); sortable = null; }
+        document.body.classList.remove("wd-reorder");
+        if (button) { paint(button, false); }
+        saving = false;
+        hideNote();
+      }
+
+      // Sent through the set form: it is the one liveForm.js already swaps in
+      // without a reload (the stopwatch keeps running), and a separate form
+      // cannot sit next to it - the page's unclosed <div>s leave everything
+      // below nested inside it, and a nested form never submits. The server
+      // sees save_order and does only that, never a set.
+      function addField(form, name, value) {
+        var input = document.createElement("input");
+        input.type = "hidden";
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+      }
+
+      function finish(button) {
+        var order = currentOrder();
+        var form = document.getElementById("wdSetForm");
+        if (order === startOrder || !form) { stop(button); return; }
+        addField(form, "order_" + form.dataset.orderDay, order);
+        addField(form, "save_order", "1");
+        saving = true;
+        if (sortable) { sortable.option("disabled", true); }
+        button.disabled = true;
+        // Comes back with the new order and a grey button ("wd-swapped").
+        if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+      }
+
+      function showNote() {
+        var note = document.getElementById("wdReorderNote");
+        if (!note) { return; }
+        note.classList.add("show");
+        clearTimeout(noteTimer);
+        noteTimer = setTimeout(hideNote, 2500);
+      }
+      function hideNote() {
+        var note = document.getElementById("wdReorderNote");
+        if (note) { note.classList.remove("show"); }
+        clearTimeout(noteTimer);
+      }
+
+      // What may still be used while reordering: the toggle, the handles (and
+      // the save itself, once it is on its way), and anything outside the set log and the exercise
+      // table (navbar, stopwatch).
+      function blocked(target) {
+        if (!on() || saving || !target || !target.closest) { return false; }
+        if (target.closest("#wdReorderToggle, .wd-drag-handle, #wdReorderNote")) { return false; }
+        return !!target.closest("#wd-live");
+      }
+
+      // Window, capture phase: runs before every other listener on the page,
+      // the row taps and Enter-to-Confirm included.
+      function guard(e) {
+        if (!blocked(e.target)) { return; }
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (e.type === "focusin" && e.target.blur) { e.target.blur(); }
+        if (e.type !== "focusin") { showNote(); }
+      }
+      ["click", "focusin", "change", "submit"].forEach(function (type) {
+        window.addEventListener(type, guard, true);
+      });
+      // A select opens on press, before any click or focus.
+      window.addEventListener("mousedown", function (e) {
+        if (blocked(e.target) && e.target.closest("select, input, textarea")) {
+          e.preventDefault();
+          showNote();
+        }
+      }, true);
+      window.addEventListener("keydown", function (e) {
+        if (on() && (e.key === "Enter" || blocked(e.target))) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          showNote();
+        }
+      }, true);
+
+      // The toggle itself.
+      document.addEventListener("click", function (e) {
+        var button = e.target.closest && e.target.closest("#wdReorderToggle");
+        if (!button || saving) { return; }
+        if (on()) { finish(button); } else { start(button); }
+      });
+
+      // A dragged but unsaved order is lost on leaving the page - ask first.
+      window.addEventListener("beforeunload", function (e) {
+        if (on() && !saving && currentOrder() !== startOrder) {
+          e.preventDefault();
+          e.returnValue = "";
+        }
+      });
+
+      // The region came back from the server: a fresh, grey button.
+      document.addEventListener("wd-swapped", function () { stop(null); startOrder = ""; });
+      window.addEventListener("resize", function () { if (on()) { placeButton(); } });
+    })();
+  </script>
   <!-- Kg -> Lbs -> Other -> Kg toggle for the new-set weight field -->
   <script>
     (function () {
@@ -664,6 +973,7 @@
 
 
 
+  <script src="{{ url_for('static', filename='js/sortable.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/rowExpand.js') }}"></script>
   <script src="{{ url_for('static', filename='js/notesEdit.js') }}"></script>
   <!-- Kg / Reps / RPE on the phone's number pad, comma or dot -->
@@ -671,6 +981,7 @@
   <!-- waiting overlay -->
   <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
   <!-- Confirm / Repeat / arrows without a reload - after the stopwatch, see the file -->
+  {% include "partials/_set_swipe_delete.html" %}
   <script src="{{ url_for('static', filename='js/liveForm.js') }}"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"

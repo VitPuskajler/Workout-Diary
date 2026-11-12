@@ -43,6 +43,10 @@ class Users(UserMixin, db.Model):
     # training session table, and whether it plays its rep. See
     # temp/add_customization_columns.py.
     show_session_icons = Column(Boolean, nullable=False, default=True, server_default="1")
+    # The exercise names in that same table. Off: the icons alone (a name
+    # still shows where there is no icon to show). See
+    # temp/add_session_names_column.py.
+    show_session_names = Column(Boolean, nullable=False, default=True, server_default="1")
     # The same drawing beside each exercise on Create Workout (the plan) -
     # its own switch, on that page and on /customization.
     show_plan_icons = Column(Boolean, nullable=False, default=True, server_default="1")
@@ -51,9 +55,9 @@ class Users(UserMixin, db.Model):
     # previous set under each logged set.
     show_stopwatch = Column(Boolean, nullable=False, default=True, server_default="1")
     show_set_gaps = Column(Boolean, nullable=False, default=True, server_default="1")
-    # The stopwatch's advanced buttons: Go / Done / the cross (each set timed)
-    # and SS (supersets). Off, the stopwatch is the simple one: Start, the
-    # rest clock, New lap and Finish. On for everybody who had them before.
+    # The stopwatch's SS button (supersets) - the name is from when it also
+    # had Go / Done to time each set. Off: Start, the rest clock, New lap and
+    # Finish only.
     stopwatch_advanced = Column(Boolean, nullable=False, default=True, server_default="1")
     # Focus mode on Training Session while the stopwatch runs: a blue rush
     # round the screen on Start, the navbar scrolls away, the screen stays on

@@ -16,7 +16,7 @@
     integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@3">
   <style>
-  /* "+2:35" under a logged set's Del box: time since the set before it
+  /* "+2:35" under a logged set's note: time since the set before it
      (Customization on /profile). Small and grey - a glance, not a column. */
   .wd-set-gap {
     font-size: .7rem;
@@ -317,7 +317,20 @@
                 width: 100%;
               }
 
-              .table-responsive th { width: 20%; }
+              .table-responsive th { width: 25%; }
+
+              /* "SS · Calf Raise" under a set done as a superset (the stopwatch's
+                 SS): the exercise it was paired with. Yellow like the SS button. */
+              .wd-ss-tag {
+                font-size: .7rem;
+                line-height: 1.1;
+                margin-top: 3px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                color: #b38600;
+                font-weight: 600;
+              }
 
               /* the default .form-control side padding eats 24px of a 58px cell */
               .table-responsive .form-control {
@@ -338,15 +351,15 @@
                     <th class="col-1">{{ _('Sec') if is_timed(selected_exercise) else _('Reps') }}</th>
                     <th class="col-1">RPE</th>
                     <th class="col-3">{{ _("Notes") }}</th>
-                    <th class="col-1">{{ _("Del") }}</th>
                   </tr>
                 </thead>
                 <tbody>
 
                   {% if sets_for_jinja is not none %}
+                  {% set ss = superset_partners(sets_for_jinja) %}
                   {% for set in sets_for_jinja %}
 
-                  <tr>
+                  <tr data-wd-set="{{ set.entry_id }}" data-wd-set-label="{{ exercise_label(selected_exercise) }}: {{ (set.weight|string ~ ' ' ~ (set.unit or 'kg') ~ ' × ') if set.weight }}{{ set.reps if set.reps is not none else '-' }}{{ ' s' if is_timed(selected_exercise) }}">
                     <td><input type="text" inputmode="decimal" autocomplete="off" data-wd-number="decimal" data-min="0" class="form-control text-center"
                         name="update_weight_{{ set.entry_id }}"
                         placeholder="{{set.weight}}{% if set.unit and set.unit != 'kg' %} {{ set.unit }}{% endif %}" /></td>
@@ -358,12 +371,10 @@
                         placeholder="{{set.rpe}}" /></td>
 
                     <td><textarea rows="1" class="form-control text-center" data-note
-                        name="update_notes_{{ set.entry_id }}" placeholder="{{set.notes}}"></textarea></td>
-
-                    <td class="w-auto">
-                      <input class="form-check-input" type="checkbox" name="delete" value="{{ set.entry_id }}" />
+                        name="update_notes_{{ set.entry_id }}" placeholder="{{set.notes}}"></textarea>
                       {% if set_gaps.get(set.entry_id) %}<div class="wd-set-gap" title="{{ _("Since the previous set") }}">{{ set_gaps[set.entry_id] }}</div>{% endif %}
-                    </td>
+                      {% if ss.get(set.entry_id) %}<span class="wd-ss-tag" title="{{ _("Superset with {name}", name=exercise_label(ss[set.entry_id])) }}">SS · {{ exercise_label(ss[set.entry_id]) }}</span>{% endif %}</td>
+
 
                   </tr>
 
@@ -398,7 +409,6 @@
                           placeholder="{{ placeholders.notes }}"></textarea>
                       </div>
                     </td>
-                    <td>.</td>
                   </tr>
 
                   {% else %}
@@ -430,7 +440,6 @@
                           placeholder="..."></textarea>
                       </div>
                     </td>
-                    <td>.</td>
                   </tr>
                   {% endif %}
 
@@ -509,8 +518,14 @@
                         <td>
                           <button type="submit" name="chosen_exercise" value="{{item.exercise}}"
                             class="btn p-0 border-0 shadow-none w-100 d-flex align-items-center gap-2 text-start {% if item.exercise == selected_exercise %}text-success-emphasis fw-bold{% endif %}">
+                            {# Moving, like on Training Session, when "Animate icons" is on in
+                               Customization - never with "reduce motion" on: <picture> then
+                               picks the still drawing, no script needed. #}
                             {% set icon = exercise_icon(item.exercise) %}
-                            {% if icon %}<img src="{{ icon }}" width="34" height="34" alt="" aria-hidden="true" style="flex: 0 0 34px;">{% endif %}
+                            {% set moving = exercise_icon_moving(item.exercise) if icon and current_user.animate_session_icons else none %}
+                            {% if icon %}<picture style="flex: 0 0 34px; line-height: 0;">
+                              {%- if moving %}<source srcset="{{ moving }}" media="(prefers-reduced-motion: no-preference)">{% endif -%}
+                              <img src="{{ icon }}" width="34" height="34" alt="" aria-hidden="true"></picture>{% endif %}
                             <span>{{ exercise_label(item.exercise) }}</span>
                           </button>
                         </td>
@@ -558,8 +573,7 @@
           <script src="{{ url_for('static', filename='js/exerciseSuggestions.js') }}"></script>
           <script>
             // The search box only exists once today's freestyle session is confirmed.
-            // Moving icons only while looking for an exercise - "Today's exercises"
-            // above keeps the still ones.
+            // The suggestions play their icons too, while in view.
             const newExerciseInput = document.getElementById('new_exercise');
             if (newExerciseInput) {
               wireExerciseSuggestions(newExerciseInput, document.getElementById('exercise_suggestions'), {
@@ -624,6 +638,7 @@
             integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
             crossorigin="anonymous"></script>
 
+  {% include "partials/_set_swipe_delete.html" %}
 </body>
 
 </html>

@@ -134,8 +134,11 @@
                     <div class="form-text">{{ _("Exercise names in your language, where a translation exists. Off: the English names.") }}</div>
                 </div>
 
+                <!-- The switches are grouped by the page they change: Training
+                     Session alone, the two training pages (the stopwatch and
+                     what hangs on it), then the workout plan. -->
                 <hr class="my-4">
-                <div class="wd-group mb-3">{{ _("Exercise icons") }}</div>
+                <div class="wd-group mb-3">{{ _("Training Session") }}</div>
 
                 <div class="form-check form-switch wd-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="showSessionIcons"
@@ -154,17 +157,29 @@
                     <div class="form-text">{{ _("The icons play the exercise's rep. Not with “reduce motion” on.") }}</div>
                 </div>
 
-                <!-- Also on Create Workout itself, above the plan. -->
+                <!-- Names off leaves the icons alone in that table - but an
+                     exercise with no icon (or icons switched off) still shows
+                     its name, so a row is never blank. -->
                 <div class="form-check form-switch wd-switch mt-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="showPlanIcons"
-                        name="show_plan_icons" value="1" {{ 'checked' if current_user.show_plan_icons }}>
-                    <label class="form-check-label" for="showPlanIcons">{{ _("Icons in the workout plan") }}</label>
-                    <div class="form-text">{{ _("The exercise's drawing beside its name on Create Workout.") }}</div>
+                    <input class="form-check-input" type="checkbox" role="switch" id="showSessionNames"
+                        name="show_session_names" value="1" {{ 'checked' if current_user.show_session_names }}>
+                    <label class="form-check-label" for="showSessionNames">{{ _("Exercise names in training session") }}</label>
+                    <div class="form-text">{{ _("The names in the exercise list under the sets. Off: the icons alone, where there is one.") }}</div>
+                </div>
+
+                <!-- Training Session only, but it runs off the stopwatch, so it
+                     is greyed out while the stopwatch (next group) is off. -->
+                <div class="form-check form-switch wd-switch mt-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="focusMode"
+                        name="focus_mode" value="1" {{ 'checked' if current_user.focus_mode }}
+                        {{ 'disabled' if not current_user.show_stopwatch }}>
+                    <label class="form-check-label" for="focusMode">{{ _("Focus mode") }}</label>
+                    <div class="form-text">{{ _("On Training Session, from the stopwatch's Start: the top bar scrolls away, the screen stays on, and the stopwatch bar lights up when the rest is up.") }}</div>
                 </div>
 
                 <hr class="my-4">
                 <div class="d-flex align-items-center gap-2 mb-3">
-                    <div class="wd-group">{{ _("Timing") }}</div>
+                    <div class="wd-group">{{ _("Training Session") }} &amp; {{ _("Intuitive Training") }}</div>
                     <button type="button" class="wd-info" data-bs-toggle="collapse" data-bs-target="#timingInfo"
                         aria-expanded="false" aria-controls="timingInfo"
                         aria-label="{{ _("What these switches do") }}" title="{{ _("What these switches do") }}">
@@ -177,9 +192,8 @@
                 <div class="collapse" id="timingInfo">
                     <div class="wd-info-panel small mb-3">
                         <p><strong>{{ _("Stopwatch") }}</strong> &mdash; {{ _("a simple bar at the bottom of Training Session and Intuitive Training: Start, the rest since your last set (green within the prescribed pause, red over it), ⟳ new lap for warm-up sets you do not log, ⏻ to finish.") }}</p>
-                        <p><strong>{{ _("Advanced stopwatch") }}</strong> &mdash; {{ _("adds the buttons that time each set: Go when it starts, Done when it ends (the rest runs from Done, however long you take to write the set down), ✕ for a Go tapped by mistake, and SS to link the sets of a superset.") }}</p>
-                        <p><strong>{{ _("Time between sets") }}</strong> &mdash; {{ _('"+2:35" under each logged set: the time since the one before.') }}</p>
-                        <p class="mb-0"><strong>{{ _("Focus mode") }}</strong> &mdash; {{ _("from the stopwatch's Start, Training Session gives the screen to the sets: the top bar scrolls away, the screen stays on, and the stopwatch bar lights up when the rest is up.") }}</p>
+                        <p><strong>{{ _("Superset button (SS)") }}</strong> &mdash; {{ _("tap SS when you switch to the next exercise of a superset: the two sets are linked and each shows \"SS\" and the other exercise.") }}</p>
+                        <p class="mb-0"><strong>{{ _("Time between sets") }}</strong> &mdash; {{ _('"+2:35" under each logged set: the time since the one before.') }}</p>
                     </div>
                 </div>
 
@@ -196,8 +210,8 @@
                     <input class="form-check-input" type="checkbox" role="switch" id="stopwatchAdvanced"
                         name="stopwatch_advanced" value="1" {{ 'checked' if current_user.stopwatch_advanced }}
                         {{ 'disabled' if not current_user.show_stopwatch }}>
-                    <label class="form-check-label" for="stopwatchAdvanced">{{ _("Advanced stopwatch") }}</label>
-                    <div class="form-text">{{ _("Go and Done to time each set, SS for supersets.") }}</div>
+                    <label class="form-check-label" for="stopwatchAdvanced">{{ _("Superset button (SS)") }}</label>
+                    <div class="form-text">{{ _("SS on the stopwatch links the sets of a superset.") }}</div>
                 </div>
 
                 <div class="form-check form-switch wd-switch mt-3">
@@ -207,12 +221,15 @@
                     <div class="form-text">{{ _('"+2:35" under each logged set: the time since the one before.') }}</div>
                 </div>
 
-                <div class="form-check form-switch wd-switch mt-3">
-                    <input class="form-check-input" type="checkbox" role="switch" id="focusMode"
-                        name="focus_mode" value="1" {{ 'checked' if current_user.focus_mode }}
-                        {{ 'disabled' if not current_user.show_stopwatch }}>
-                    <label class="form-check-label" for="focusMode">{{ _("Focus mode") }}</label>
-                    <div class="form-text">{{ _("On Training Session, from the stopwatch's Start: the top bar scrolls away, the screen stays on, and the stopwatch bar lights up when the rest is up.") }}</div>
+                <hr class="my-4">
+                <div class="wd-group mb-3">{{ _("Workout Plan") }}</div>
+
+                <!-- Also on Create Workout itself, above the plan. -->
+                <div class="form-check form-switch wd-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="showPlanIcons"
+                        name="show_plan_icons" value="1" {{ 'checked' if current_user.show_plan_icons }}>
+                    <label class="form-check-label" for="showPlanIcons">{{ _("Icons in the workout plan") }}</label>
+                    <div class="form-text">{{ _("The exercise's drawing beside its name on Create Workout.") }}</div>
                 </div>
 
                 <div class="small text-center mt-3" id="customizationStatus" aria-live="polite">&nbsp;</div>
