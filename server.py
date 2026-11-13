@@ -786,7 +786,7 @@ def training_session():
 
     # Data for preview
     # A level of a progression ladder: History shows the last 3 trainings
-    # of the whole ladder (any level, today left out) instead.
+    # of this level (today left out) instead of only the last one.
     history_groups = ladder_history(chosen_exercise)
     last_exercise = None if history_groups else last_exercise_preview(chosen_exercise, workout_id, chosen_day)
 

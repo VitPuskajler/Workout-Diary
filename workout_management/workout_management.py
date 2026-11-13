@@ -5136,16 +5136,17 @@ class WorkoutManagement:
 
     def ladder_history(self, chosen_exercise, sessions=3):
         """History for a level of a progression ladder: the last `sessions`
-        trainings (today's left out) in which ANY level of its ladder was
-        done, newest first - [{"date", "exercise", "entries": [...]}], one
-        group per training and level. None when the exercise is in no
-        ladder or nothing was logged yet."""
-        from workout_management.progressions import level_of, sibling_ids
+        trainings (today's left out) of THIS level - each level has its own
+        history, the others' sets are not mixed in. Newest first:
+        [{"date", "exercise", "entries": [...]}], one group per training.
+        None when the exercise is in no ladder or this level was never
+        logged before today."""
+        from workout_management.progressions import level_of
 
         level = level_of(chosen_exercise) if chosen_exercise else None
         if not level:
             return None
-        ids = sibling_ids(level["exercise_id"])
+        ids = [level["exercise_id"]]
         today = datetime.combine(date.today(), datetime.min.time())
         rows = (
             db.session.query(ExerciseEntries, Sessions.session_date, Exercise.exercise_name)
