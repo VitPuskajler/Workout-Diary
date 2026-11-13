@@ -2148,15 +2148,21 @@ class WorkoutManagement:
     # {date, reps, weight, rpe, notes, entry_id, unit} row shape - shared by
     # exercise_progress_data() for both the exercises still on the plan and
     # the ones since removed from it.
-    def _entries_for_exercise(self, sessions, exercise_id):
+    def _entries_for_exercise(self, sessions, exercise_id, level_labels=None):
+        """The sets of one exercise in these sessions, for /progress. With
+        level_labels ({exercise_id: label}, the levels of a progression
+        ladder) the sets of every level in it are taken, each tagged with
+        its level's label as "level"."""
+        ids = list(level_labels) if level_labels else [exercise_id]
         small_data_list = []
         for sess in sessions:
             find_exe = (
                 db.session.query(ExerciseEntries)
                 .filter(
                     ExerciseEntries.session_id == sess.session_id,
-                    ExerciseEntries.exercise_id == exercise_id,
+                    ExerciseEntries.exercise_id.in_(ids),
                 )
+                .order_by(ExerciseEntries.set_number.asc(), ExerciseEntries.entry_id.asc())
                 .all()
             )
             for som in find_exe:
@@ -2170,6 +2176,9 @@ class WorkoutManagement:
                         "notes": som.notes or "",
                         "unit": som.unit or "kg",
                         "band_kg": som.band_kg,
+                        "level": (level_labels or {}).get(som.exercise_id),
+                        # done at another level than the plan row's own
+                        "other_level": som.exercise_id != exercise_id,
                     }
                 )
         return small_data_list
@@ -2247,14 +2256,34 @@ class WorkoutManagement:
                         )
 
                         if exercises_in_workout:
+                            # A plan row that is a level of a progression
+                            # ladder shows the sets of every level of it -
+                            # tuck in weeks 1-3, advanced tuck from week 4 -
+                            # in one table, each date tagged with its level,
+                            # instead of the earlier levels trailing at the
+                            # end as "(removed from plan)". Only when the day
+                            # holds one level of that ladder; two rows of one
+                            # ladder keep to their own sets.
+                            from workout_management.progressions import ladder_of, level_of
+
+                            def ladder_id(exercise_id):
+                                level = level_of(self.find_exercise_name_db(exercise_id)[0])
+                                return level["ladder"] if level else None
+
+                            row_ladders = [ladder_id(x.exercise_id) for x in exercises_in_workout]
                             active_exercise_ids = set()
-                            for exrs in exercises_in_workout:
+                            for exrs, row_ladder in zip(exercises_in_workout, row_ladders):
                                 active_exercise_ids.add(exrs.exercise_id)
                                 exercise_name = self.find_exercise_name_db(
                                     exrs.exercise_id
                                 )[0]
+                                level_labels = None
+                                if row_ladder is not None and row_ladders.count(row_ladder) == 1:
+                                    level_labels = {lv["exercise_id"]: lv["label"]
+                                                    for lv in ladder_of(exercise_name)["levels"]}
+                                    active_exercise_ids.update(level_labels)
                                 result_set[exercise_name] = self._entries_for_exercise(
-                                    all_sessions, exrs.exercise_id
+                                    all_sessions, exrs.exercise_id, level_labels
                                 )
 
                             # An exercise removed from the plan mid-mesocycle

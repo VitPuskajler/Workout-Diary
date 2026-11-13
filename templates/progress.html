@@ -411,13 +411,6 @@
          compete with the exercise tables below - tap the header to open it. #}
       {% if session_summary %}
       <style>
-        /* "band −20.5 kg" under the date of a set done with a band (band_kg) */
-        .wd-band-tag {
-          font-size: .7rem;
-          line-height: 1.1;
-          white-space: nowrap;
-          color: var(--bs-secondary-color, #6c757d);
-        }
         .wd-durations {
           max-width: 26rem;
           margin: 0 auto 1.5rem;
@@ -479,7 +472,25 @@
       </details>
       {% endif %}
 
+      <style>
+        /* Under a set's date: "band −20.5 kg" (band_kg), and the level of a
+           progression ladder the set was done at when the table holds more
+           than one level, or another one than the plan's (tuck, then
+           advanced tuck). */
+        .wd-band-tag,
+        .wd-level-tag {
+          font-size: .7rem;
+          line-height: 1.1;
+          white-space: nowrap;
+          color: var(--bs-secondary-color, #6c757d);
+        }
+        .wd-level-tag {
+          font-weight: 600;
+          color: var(--bs-primary-text-emphasis);
+        }
+      </style>
       {% for key, value in progress.items() %}
+        {% set levels = (value or []) | map(attribute='level') | select | unique | list %}
         {% set session_dates = value | map(attribute='date') | unique | list %}
         {% set recent_dates = session_dates[-2:] %}
         {% set has_more_sessions = session_dates | length > 2 %}
@@ -510,7 +521,7 @@
                 {% if value %}
                   {% for data in value %}
                     <tr class="{{ 'wd-has-note' if data.notes else '' }} {{ '' if data.date in recent_dates else 'wd-hist-older' }}" data-entry-id="{{ data.entry_id }}" data-unit="{{ data.unit or 'kg' }}">
-                      <td class="col-2">{{ data.date }}{% if data.band_kg %}<div class="wd-band-tag" title="{{ _("Band that helps, in kg") if band_mode(key) == 'assist' else _("Band that resists, in kg") }}">{{ _("band") }} {{ '−' if band_mode(key) == 'assist' else '+' }}{{ data.band_kg }} kg</div>{% endif %}</td>
+                      <td class="col-2">{{ data.date }}{% if data.level and (levels|length > 1 or data.other_level) %}<div class="wd-level-tag">{{ data.level }}</div>{% endif %}{% if data.band_kg %}<div class="wd-band-tag" title="{{ _("Band that helps, in kg") if band_mode(key) == 'assist' else _("Band that resists, in kg") }}">{{ _("band") }} {{ '−' if band_mode(key) == 'assist' else '+' }}{{ data.band_kg }} kg</div>{% endif %}</td>
                       <td class="col-2" data-field="reps"><span class="wd-view-value">{{ data.reps }}</span></td>
                       <td class="col-2" data-field="weight"><span class="wd-view-value">{{ data.weight }}</span></td>
                       <td class="col-2" data-field="rpe"><span class="wd-view-value">{{ data.rpe }}</span></td>
