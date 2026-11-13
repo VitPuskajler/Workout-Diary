@@ -79,13 +79,17 @@
       max-width: 720px;
     }
 
-    /* Under the name: History, the level icon right of it. */
+    /* Under the name: History in the middle, the level icon on the same
+       line at the right edge - far enough not to be hit by mistake. */
     .wd-level-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      justify-content: center;
-      gap: .6rem;
+      max-width: 720px;
     }
+
+    .wd-level-row > .wd-history-slot { grid-column: 2; display: flex; align-items: center; gap: .5rem; }
+    .wd-level-row > .wd-level-btn { grid-column: 3; justify-self: end; }
 
     .wd-level-btn {
       display: inline-flex;
@@ -232,7 +236,7 @@
     <h1 class="wd-ex-title" id="wdExTitle">{{ exercise_label(chosen_exercise) if chosen_exercise else _("Select an exercise") }}</h1>
   </div>
 
-  {# Under the name: History, and right of it - for a level of a
+  {# Under the name: History, and at the right edge - for a level of a
      progression ladder, until its first set today - the level icon. It
      opens the level picker (#wdLevelModal, after #wd-live); a level other
      than the current one is asked about once more, then the hidden
@@ -241,10 +245,12 @@
   {% if levels or last_exercise %}
   <div class="container px-3 mb-2 wd-level-row">
     {% if last_exercise %}
-    <button class="btn btn-secondary btn-sm" type="submit" name="preview_button" data-bs-toggle="collapse"
-      data-bs-target="#collapseExample">
-      {{ _("History") }}
-    </button>
+    <div class="wd-history-slot">
+      <button class="btn btn-secondary btn-sm" type="submit" name="preview_button" data-bs-toggle="collapse"
+        data-bs-target="#collapseExample">
+        {{ _("History") }}
+      </button>
+    </div>
     {% endif %}
     {% if levels %}
     <button type="button" class="wd-level-btn" data-bs-toggle="modal" data-bs-target="#wdLevelModal"
@@ -941,7 +947,7 @@
       link.href = "{{ url_for('progress') }}";
       link.className = "wd-progress-link align-self-center small fw-bold text-success text-decoration-none";
       link.textContent = {{ _("Progress")|tojson }};
-      historyBtn.after(link);     // History's right, between it and the harder-level icon
+      historyBtn.after(link);     // right of History, in its own slot
     }
     wdOfferProgress();
     document.addEventListener("wd-swapped", wdOfferProgress);
