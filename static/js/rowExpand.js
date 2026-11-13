@@ -27,6 +27,11 @@
                              aligned with reading line-height. On a 390px
                              phone that is ~44 characters per line instead of
                              ~12, and 4 lines instead of 12.
+     wd-rows wd-note-takeover
+                             the opened row shows only its note: the other
+                             cells step aside and the note spans the whole
+                             row (Training Session's History - there you
+                             open a row to read the note, not the numbers).
 
    Then one line before </body>:
      <script src="{{ url_for('static', filename='js/rowExpand.js') }}"></script>
@@ -101,7 +106,15 @@
         ";border-bottom:0}}" +
       TABLE + " > tbody > tr.wd-open > td:first-child{border-left:" + EDGE + "}" +
       TABLE + " > tbody > tr.wd-open > td:last-child{border-right:" + EDGE + "}" +
-      TABLE + " > tbody > tr.wd-note-row > td{border:" + EDGE + ";border-top:0}";
+      TABLE + " > tbody > tr.wd-note-row > td{border:" + EDGE + ";border-top:0}" +
+
+      // --- takeover mode: the open row is its note alone, full width, set
+      //     for reading.
+      TABLE + ".wd-note-takeover > tbody > tr.wd-open > td.wd-taken{display:none}" +
+      TABLE + ".wd-note-takeover > tbody > tr.wd-open > td.wd-notes{border-left:" + EDGE +
+        ";border-right:" + EDGE + ";padding:.6rem .85rem}" +
+      TABLE + ".wd-note-takeover > tbody > tr.wd-open > td.wd-notes > div{line-height:1.6;" +
+        "margin:0 auto;max-width:70ch;cursor:text}";
     document.head.appendChild(css);
   }
 
@@ -143,6 +156,19 @@
 
     var table = row.closest("table");
     if (!table) { return; }
+
+    // Takeover: the other cells step aside, the note spans the row.
+    if (table.classList.contains("wd-note-takeover")) {
+      var own = row.querySelector(".wd-notes");
+      if (own) {
+        for (var c = 0; c < row.cells.length; c++) {
+          if (row.cells[c] !== own) { row.cells[c].classList.add("wd-taken"); }
+        }
+        own.dataset.wdSpan = own.colSpan;
+        own.colSpan = row.cells.length;
+      }
+      return;
+    }
 
     // Above the phone breakpoint a wd-wide-note table behaves just like a
     // plain in-place one - the CSS above already unclamps the cell, so all
@@ -206,6 +232,13 @@
     }
 
     row.classList.remove("wd-open");
+    var taken = row.querySelectorAll("td.wd-taken");
+    for (var t = 0; t < taken.length; t++) { taken[t].classList.remove("wd-taken"); }
+    var spanned = row.querySelector(".wd-notes[data-wd-span]");
+    if (spanned) {
+      spanned.colSpan = Number(spanned.dataset.wdSpan) || 1;
+      delete spanned.dataset.wdSpan;
+    }
     var next = row.nextElementSibling;
     if (next && next.classList.contains("wd-note-row")) {
       next.parentNode.removeChild(next);
