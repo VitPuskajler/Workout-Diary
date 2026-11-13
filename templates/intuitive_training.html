@@ -318,8 +318,10 @@
               }
 
               .table-responsive th { width: 25%; }
-            /* Five columns when the exercise takes a band (band_mode) */
-            .table-responsive .wd-has-band th { width: 20%; }
+              /* A set done with a band: the band's kg in the Kg column, in
+                 the band's colour so it is not read as a weight. */
+              .wd-band-input::placeholder,
+              .wd-band-input { color: var(--bs-purple, #6f42c1) !important; }
 
               /* "SS · Calf Raise" under a set done as a superset (the stopwatch's
                  SS): the exercise it was paired with. Yellow like the SS button. */
@@ -341,17 +343,24 @@
               }
             </style>
             <div class="table-responsive">
+              {# A band exercise: Kg -> Lbs -> Other -> Band in the Kg header's
+                 toggle, as on Training Session. #}
               {% set band = band_mode(selected_exercise) %}
-            <table class="table table-striped text-center mb-5{{ ' wd-has-band' if band }}">
+              {% set band_label = _("Band") ~ (' −' if band == 'assist' else ' +') %}
+              {% set last_band = (sets_for_jinja[-1].band_kg if sets_for_jinja else (placeholders.band_kg if placeholders else none)) if band else none %}
+              {% set start_unit = 'band' if last_band else default_unit %}
+            <table class="table table-striped text-center mb-5">
                 <thead>
                   <tr>
                     <th class="col-2">
-                      <button type="button" id="weightUnitToggle" data-unit="{{ default_unit }}"
+                      <button type="button" id="weightUnitToggle" data-unit="{{ start_unit }}"
+                        data-band="{{ band or '' }}" data-band-label="{{ band_label }}"
+                        data-band-last="{{ last_band or 0 }}"
                         class="btn btn-sm btn-link p-0 fw-bold text-decoration-none text-reset"
-                        title="{{ _("Click to switch the unit new sets are logged in") }}">{% if default_unit == 'lbs'
-                        %}Lbs{% elif default_unit == 'other' %}{{ _("Other") }}{% else %}Kg{% endif %}</button>
+                        title="{{ _("Click to switch the unit new sets are logged in") }}">{% if start_unit == 'band'
+                        %}{{ band_label }}{% elif start_unit == 'lbs'
+                        %}Lbs{% elif start_unit == 'other' %}{{ _("Other") }}{% else %}Kg{% endif %}</button>
                     </th>
-                    {% if band %}<th title="{{ _("Band that helps, in kg") if band == 'assist' else _("Band that resists, in kg") }}">{{ _("Band") }} {{ '−' if band == 'assist' else '+' }}</th>{% endif %}
                   <th class="col-1">{{ _('Sec') if is_timed(selected_exercise) else _('Reps') }}</th>
                     <th class="col-1">RPE</th>
                     <th class="col-3">{{ _("Notes") }}</th>
@@ -364,12 +373,16 @@
                   {% for set in sets_for_jinja %}
 
                   <tr data-wd-set="{{ set.entry_id }}" data-wd-set-label="{{ exercise_label(selected_exercise) }}: {{ (set.weight|string ~ ' ' ~ (set.unit or 'kg') ~ ' × ') if set.weight }}{{ set.reps if set.reps is not none else '-' }}{{ ' s' if is_timed(selected_exercise) }}{{ (' · ' ~ _('band') ~ ' ' ~ set.band_kg|string ~ ' kg') if set.band_kg }}">
+                    {% if set.band_kg %}
+                    <td><input type="text" inputmode="decimal" autocomplete="off" data-wd-number="decimal" data-min="0" data-max="200" class="form-control text-center wd-band-input"
+                        name="update_band_{{ set.entry_id }}"
+                        title="{{ _("Band that helps, in kg") if band == 'assist' else _("Band that resists, in kg") }}"
+                        placeholder="{{ '−' if band == 'assist' else '+' }}{{ set.band_kg }}" /></td>
+                    {% else %}
                     <td><input type="text" inputmode="decimal" autocomplete="off" data-wd-number="decimal" data-min="0" class="form-control text-center"
                         name="update_weight_{{ set.entry_id }}"
                         placeholder="{{set.weight}}{% if set.unit and set.unit != 'kg' %} {{ set.unit }}{% endif %}" /></td>
-
-                    {% if band %}<td><input type="text" inputmode="decimal" autocomplete="off" data-wd-number="decimal" data-min="0" data-max="200" class="form-control text-center" name="update_band_{{ set.entry_id }}"
-                      placeholder="{{ set.band_kg if set.band_kg else '–' }}" /></td>{% endif %}
+                    {% endif %}
 
                   <td><input type="text" inputmode="numeric" autocomplete="off" data-wd-number="whole" data-min="0" class="form-control text-center" name="update_reps_{{ set.entry_id }}"
                         placeholder="{{set.reps}}" /></td>
@@ -393,13 +406,11 @@
                   <tr class="table-success">
                     <td>
                       <div class="center-container">
-                        <input type="text" inputmode="decimal" autocomplete="off" data-wd-number="decimal" data-min="0" data-max="501" name="kg" id="weightInput"
-                          class="form-control text-center text-warning" placeholder="{{ placeholders.weight }}" />
-                        <input type="hidden" name="unit" id="weightUnitField" value="{{ default_unit }}" />
+                        <input type="text" inputmode="decimal" autocomplete="off" data-wd-number="decimal" data-min="0" data-max="{{ 200 if start_unit == 'band' else 501 }}" name="kg" id="weightInput"
+                          class="form-control text-center text-warning{{ ' wd-band-input' if start_unit == 'band' }}" placeholder="{{ (placeholders.band_kg or 0) if start_unit == 'band' else placeholders.weight }}" />
+                        <input type="hidden" name="unit" id="weightUnitField" value="{{ start_unit }}" />
                       </div>
                     </td>
-                  {% if band %}<td><div class="center-container"><input type="text" inputmode="decimal" autocomplete="off" data-wd-number="decimal" data-min="0" data-max="200" name="band"
-                      class="form-control text-center text-warning" placeholder="{{ (placeholders.band_kg if placeholders else 0) or 0 }}" /></div></td>{% endif %}
                     <td>
                       <div class="center-container">
                         <input type="text" inputmode="numeric" autocomplete="off" data-wd-number="whole" data-min="0" name="reps" class="form-control text-center text-warning"
@@ -425,12 +436,10 @@
                     <td>
                       <div class="col-12 center-container">
                         <input type="text" inputmode="decimal" autocomplete="off" data-wd-number="decimal" data-min="0" data-max="501" name="kg" id="weightInput"
-                          class="form-control text-center bg-success-subtle text-warning" placeholder="0" />
-                        <input type="hidden" name="unit" id="weightUnitField" value="{{ default_unit }}" />
+                          class="form-control text-center bg-success-subtle text-warning{{ ' wd-band-input' if start_unit == 'band' }}" placeholder="0" />
+                        <input type="hidden" name="unit" id="weightUnitField" value="{{ start_unit }}" />
                       </div>
                     </td>
-                  {% if band %}<td><div class="center-container"><input type="text" inputmode="decimal" autocomplete="off" data-wd-number="decimal" data-min="0" data-max="200" name="band"
-                      class="form-control text-center text-warning" placeholder="{{ (placeholders.band_kg if placeholders else 0) or 0 }}" /></div></td>{% endif %}
 
                     <td>
                       <div class="col-10 center-container">
@@ -609,8 +618,9 @@
 
               const KG_PER_LB = 0.45359237;
               const LABELS = { kg: "Kg", lbs: "Lbs", other: {{ _("Other")|tojson }} };
-              const NEXT_UNIT = { kg: "lbs", lbs: "other", other: "kg" };
-              const MAX_BY_UNIT = { kg: 501, lbs: 1100, other: 50 };
+              // A band exercise: Other -> Band -> Kg (see the header).
+              const NEXT_UNIT = { kg: "lbs", lbs: "other", other: "kg", band: "kg" };
+              const MAX_BY_UNIT = { kg: 501, lbs: 1100, other: 50, band: 200 };
 
               if (weightInput) {
                 weightInput.dataset.max = MAX_BY_UNIT[toggle.dataset.unit] || 501;
@@ -618,7 +628,7 @@
 
               toggle.addEventListener("click", () => {
                 const from = toggle.dataset.unit;
-                const to = NEXT_UNIT[from] || "kg";
+                const to = (from === "other" && toggle.dataset.band) ? "band" : (NEXT_UNIT[from] || "kg");
 
                 if (weightInput) {
                   // Only kg <-> lbs have a real conversion factor - "other" is a
@@ -627,14 +637,17 @@
                   const current = parseFloat(weightInput.placeholder);
                   if (from === "kg" && to === "lbs" && !isNaN(current)) {
                     weightInput.placeholder = (current / KG_PER_LB).toFixed(1);
+                  } else if (to === "band") {
+                    weightInput.placeholder = toggle.dataset.bandLast || "0";
                   } else {
                     weightInput.placeholder = "0";
                   }
                   weightInput.dataset.max = MAX_BY_UNIT[to];
+                  weightInput.classList.toggle("wd-band-input", to === "band");
                 }
 
                 toggle.dataset.unit = to;
-                toggle.textContent = LABELS[to];
+                toggle.textContent = to === "band" ? toggle.dataset.bandLabel : LABELS[to];
                 unitField.value = to;
               });
             });

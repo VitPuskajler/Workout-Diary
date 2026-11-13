@@ -1206,6 +1206,15 @@ class WorkoutManagement:
         if exercise is None:
             return None
 
+        # "Band" picked in the Kg header's toggle (an exercise with a
+        # band_mode): the number in the Kg field is the band's kg, the set
+        # itself has no weight.
+        if submitted_data.get("unit") == "band":
+            submitted_data = dict(submitted_data)
+            submitted_data["band"] = submitted_data.get("kg")
+            submitted_data["kg"] = ""
+            submitted_data["unit"] = "kg"
+
         # training_session.html's Confirm button is also how you save edits
         # to already-logged sets and apply checked deletions - the "current
         # exercise" inputs at the bottom are blank placeholders until you
