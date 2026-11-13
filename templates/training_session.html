@@ -90,11 +90,10 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 44px;
-      height: 44px;
-      padding: 0;
+      height: 38px;
+      padding: 0 .45rem;
       border: 1px solid var(--bs-border-color);
-      border-radius: .75rem;
+      border-radius: .6rem;
       background: var(--bs-body-bg);
       box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075);
     }
@@ -225,10 +224,20 @@
 
   {# The exercise's name as the page's title - picking another exercise is
      the plan table below and the arrows. A level of a progression ladder
-     gets an icon on each side, until its first set today: effort bars,
-     one bar = the easier level (left), all bars = the harder one (right).
+     gets an icon on each side, until its first set today: one bar per
+     level of the ladder, filled up to the level that icon goes to - easier
+     on the left, harder on the right (all faint when there is none).
      They change the plan row (change_plan_level()), like the arrows on
      Create Workout. #}
+  {% macro level_bars(target) -%}
+  {%- set count = level_pos[1] -%}
+  <svg viewBox="0 0 {{ count * 5 - 1.5 }} 20" width="{{ count * 5 - 1.5 }}" height="20" aria-hidden="true">
+    {%- for i in range(count) %}
+    {%- set h = 20 * (i + 1) / count if count > 1 else 20 %}
+    <rect x="{{ i * 5 }}" y="{{ 20 - h }}" width="3.5" height="{{ h }}" rx="1" fill="currentColor"{% if target is none or i > target %} opacity=".22"{% endif %}/>
+    {%- endfor %}
+  </svg>
+  {%- endmacro %}
   <div class="container mb-2 px-3 pt-1">
     <div class="wd-ex-title-row">
       {% if level_steps %}
@@ -237,11 +246,7 @@
         class="wd-level-btn wd-level-down" {% if not easier %}disabled{% endif %}
         title="{{ _("Easier level") }}{{ (': ' ~ exercise_label(easier)) if easier }}"
         aria-label="{{ _("Easier level") }}{{ (': ' ~ exercise_label(easier)) if easier }}">
-        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
-              <rect x="3" y="14" width="4.5" height="7" rx="1" fill="currentColor"/>
-              <rect x="9.75" y="9" width="4.5" height="12" rx="1" fill="currentColor" opacity=".25"/>
-              <rect x="16.5" y="3" width="4.5" height="18" rx="1" fill="currentColor" opacity=".25"/>
-            </svg>
+        {{ level_bars(level_pos[0] - 1 if easier else none) }}
       </button>
       {% endif %}
       <h1 class="wd-ex-title">{{ exercise_label(chosen_exercise) if chosen_exercise else _("Select an exercise") }}</h1>
@@ -250,11 +255,7 @@
         class="wd-level-btn wd-level-up" {% if not harder %}disabled{% endif %}
         title="{{ _("Harder level") }}{{ (': ' ~ exercise_label(harder)) if harder }}"
         aria-label="{{ _("Harder level") }}{{ (': ' ~ exercise_label(harder)) if harder }}">
-        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
-              <rect x="3" y="14" width="4.5" height="7" rx="1" fill="currentColor"/>
-              <rect x="9.75" y="9" width="4.5" height="12" rx="1" fill="currentColor"/>
-              <rect x="16.5" y="3" width="4.5" height="18" rx="1" fill="currentColor"/>
-            </svg>
+        {{ level_bars(level_pos[0] + 1 if harder else none) }}
       </button>
       {% endif %}
     </div>

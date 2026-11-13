@@ -43,7 +43,7 @@ from models.models import (BODY_MEASUREMENTS, WEIGH_TIMES, BodyMeasurement, Body
                            Mesocycles, load_user, utcnow)
 from workout_management.workout_management import  WorkoutManagement, english_exercise_name, fold_text, localized_name_column
 from workout_management.progressions import catalog_info as progression_catalog_info, ladders as progression_ladders
-from workout_management.progressions import neighbours as level_neighbours
+from workout_management.progressions import neighbours as level_neighbours, position as level_position
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -800,6 +800,7 @@ def training_session():
         exercises_to_display=exercises_in_workout,
         chosen_exercise=chosen_exercise,
         level_steps=level_steps,
+        level_pos=level_position(chosen_exercise) if level_steps else None,
         sets_for_jinja=sets_for_jinja,
         set_gaps=db_operations.set_gaps(sets_for_jinja) if current_user.show_set_gaps else {},
         preview=preview,
