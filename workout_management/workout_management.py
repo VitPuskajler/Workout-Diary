@@ -5163,42 +5163,6 @@ class WorkoutManagement:
                 # No sessions exists for this user
                 return None
 
-    def ladder_history(self, chosen_exercise, sets=3):
-        """History for a level of a progression ladder: the last `sets` sets
-        of THIS level logged before today (today's session left out) - each
-        level has its own history, the others' sets are not mixed in.
-        [{"date", "exercise", "entries": [...]}]: grouped by training, the
-        newest training first, the sets of one training in their order.
-        None when the exercise is in no ladder or this level was never
-        logged before today."""
-        from workout_management.progressions import level_of
-
-        level = level_of(chosen_exercise) if chosen_exercise else None
-        if not level:
-            return None
-        today = datetime.combine(date.today(), datetime.min.time())
-        rows = (
-            db.session.query(ExerciseEntries, Sessions.session_date, Exercise.exercise_name)
-            .join(Sessions, Sessions.session_id == ExerciseEntries.session_id)
-            .join(Exercise, Exercise.exercise_id == ExerciseEntries.exercise_id)
-            .filter(
-                Sessions.user_id == self.current_user_id_db(),
-                Sessions.session_date < today,
-                ExerciseEntries.exercise_id == level["exercise_id"],
-            )
-            .order_by(desc(Sessions.session_date), Sessions.session_id.desc(),
-                      ExerciseEntries.set_number.desc(), ExerciseEntries.entry_id.desc())
-            .limit(sets)
-            .all()
-        )
-        groups = []
-        for entry, session_date, name in rows:
-            if not groups or groups[-1]["session_id"] != entry.session_id:
-                groups.append({"session_id": entry.session_id, "date": session_date,
-                               "exercise": name, "entries": []})
-            groups[-1]["entries"].insert(0, entry)     # rows come last set first
-        return groups or None
-
     def arrow_buttons_next_exercise(self, move: str, chosen_exercise, chosen_day):
         """Name of the exercise one step before/after the current one, or None at the ends.
 

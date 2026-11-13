@@ -79,14 +79,6 @@
       max-width: 720px;
     }
 
-    /* Ladder history: one heading row per training - its date. */
-    .wd-history-head th {
-      font-size: .8rem;
-      font-weight: 600;
-      text-align: left;
-      color: var(--bs-secondary-color);
-    }
-
     /* Under the name: easier level at the left edge, History in the
        middle, harder level at the right edge. */
     .wd-level-row {
@@ -259,7 +251,7 @@
 
   {# Under the name: the easier level's icon at the left edge, History in
      the middle, the harder level's icon at the right edge. #}
-  {% if level_steps or last_exercise or history_groups %}
+  {% if level_steps or last_exercise %}
   {% set easier, harder = level_steps if level_steps else (none, none) %}
   <div class="container px-3 mb-2 wd-level-row">
     <div class="wd-level-slot">
@@ -272,7 +264,7 @@
       </button>
       {% endif %}
     </div>
-    {% if last_exercise or history_groups %}
+    {% if last_exercise %}
     <button class="btn btn-secondary btn-sm" type="submit" name="preview_button" data-bs-toggle="collapse"
       data-bs-target="#collapseExample">
       {{ _("History") }}
@@ -310,7 +302,8 @@
             {% for exercise in last_exercise %}
             <tr>
               <td>
-                <div> {{exercise.weight}}{% if exercise.unit and exercise.unit != "kg" %} {{ exercise.unit }}{% endif %} </div>
+                {% if exercise.band_kg %}<div class="wd-band-input">{{ '−' if band_mode(chosen_exercise) == 'assist' else '+' }}{{ exercise.band_kg }}</div>
+                {% else %}<div> {{exercise.weight}}{% if exercise.unit and exercise.unit != "kg" %} {{ exercise.unit }}{% endif %} </div>{% endif %}
               </td>
               <td>
                 <div> {{exercise.reps}} </div>
@@ -332,49 +325,6 @@
   </div>
   {% endif %}
 
-  {# A level of a progression ladder: the last 3 sets of this level
-     (ladder_history()), under the date of their training. #}
-  {% if history_groups %}
-  <div class="d-flex justify-content-center">
-    <div class="collapse" id="collapseExample">
-      <div class="card card-body">
-        <table class="table table-info table-striped text-center mb-1 wd-rows">
-          <thead>
-            <th>Kg</th>
-            <th>{{ _('Sec') if is_timed(chosen_exercise) else _('Reps') }}</th>
-            <th>RPE</th>
-            <th>{{ _("Note") }}</th>
-          </thead>
-          <tbody>
-            {% set band = band_mode(chosen_exercise) %}
-            {% for group in history_groups %}
-            <tr class="wd-history-head">
-              <th colspan="4">{{ group.date.strftime('%d.%m.%Y') }}</th>
-            </tr>
-            {% for exercise in group.entries %}
-            <tr>
-              <td>
-                {% if exercise.band_kg %}<div class="wd-band-input">{{ '−' if band == 'assist' else '+' }}{{ exercise.band_kg }}</div>
-                {% else %}<div> {{exercise.weight}}{% if exercise.unit and exercise.unit != "kg" %} {{ exercise.unit }}{% endif %} </div>{% endif %}
-              </td>
-              <td>
-                <div> {{exercise.reps}} </div>
-              </td>
-              <td>
-                <div> {{exercise.rpe}} </div>
-              </td>
-              <td class="wd-notes">
-                <div> {{exercise.notes if exercise.notes else "-" }} </div>
-              </td>
-            </tr>
-            {% endfor %}
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  {% endif %}
 
 
   <!-- Exercise icons in the plan table, as switched on in Customization.
