@@ -43,6 +43,75 @@
       /* Ensure above other fixed elements */
     }
 
+    /* The exercise's name on top: a condensed sporty italic (Barlow
+       Condensed, SIL Open Font License, in static/fonts). */
+    @font-face {
+      font-family: "Barlow Condensed";
+      font-style: italic;
+      font-weight: 700;
+      font-display: swap;
+      src: url("{{ url_for('static', filename='fonts/barlow-condensed-700i-latin.woff2') }}") format("woff2");
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+
+    @font-face {
+      font-family: "Barlow Condensed";
+      font-style: italic;
+      font-weight: 700;
+      font-display: swap;
+      src: url("{{ url_for('static', filename='fonts/barlow-condensed-700i-latin-ext.woff2') }}") format("woff2");
+      unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+    }
+
+    .wd-ex-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .75rem;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .wd-ex-title {
+      font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+      font-style: italic;
+      font-weight: 700;
+      font-size: clamp(1.7rem, 7vw, 2.6rem);
+      line-height: 1.05;
+      letter-spacing: .01em;
+      text-transform: uppercase;
+      text-align: center;
+      margin: 0;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .wd-level-btn {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 1px solid var(--bs-border-color);
+      border-radius: .75rem;
+      background: var(--bs-body-bg);
+      box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075);
+    }
+
+    .wd-level-down { color: var(--bs-success); }
+    .wd-level-up { color: var(--bs-danger); }
+
+    .wd-level-btn:disabled {
+      color: var(--bs-border-color);
+      box-shadow: none;
+    }
+
+    @media (hover: hover) {
+      .wd-level-btn:hover:not(:disabled) { border-color: currentColor; }
+    }
+
     /* Centering the container */
     .center-container {
       margin-left: auto;
@@ -155,24 +224,40 @@
 
   <!-- -------------------------------------------------------------------------- -->
 
-  <div class="container mb-2 p-3">
-    <div class="row">
-      <div class="col-md-9 col-sm-12 mx-auto">
-        <form action="{{ url_for('training_session')}}" method="get">
-          <select class="form-select text-center fw-bolder" aria-label="{{ _("Exercise") }}"
-            onchange="this.form.submit()" name="chosen_exercise">
-
-            <option value="">{{ exercise_label(chosen_exercise) if chosen_exercise else _("Select an exercise") }}</option>
-
-            {% for exercise in exercises_to_display %}
-            {% if chosen_exercise != exercise %}
-            <option value="{{ exercise }}">{{ exercise_label(exercise) }}</option>
-            {% endif %}
-            {% endfor %}
-
-          </select>
-        </form>
-      </div>
+  {# The exercise's name as the page's title - picking another exercise is
+     the plan table below and the arrows. A level of a progression ladder
+     gets an icon on each side, until its first set today: effort bars,
+     one bar = the easier level (left), all bars = the harder one (right).
+     They change the plan row (change_plan_level()), like the arrows on
+     Create Workout. #}
+  <div class="container mb-2 px-3 pt-1">
+    <div class="wd-ex-title-row">
+      {% if level_steps %}
+      {% set easier, harder = level_steps %}
+      <button type="submit" form="wdSetForm" name="change_level" value="{{ easier or '' }}"
+        class="wd-level-btn wd-level-down" {% if not easier %}disabled{% endif %}
+        title="{{ _("Easier level") }}{{ (': ' ~ exercise_label(easier)) if easier }}"
+        aria-label="{{ _("Easier level") }}{{ (': ' ~ exercise_label(easier)) if easier }}">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+              <rect x="3" y="14" width="4.5" height="7" rx="1" fill="currentColor"/>
+              <rect x="9.75" y="9" width="4.5" height="12" rx="1" fill="currentColor" opacity=".25"/>
+              <rect x="16.5" y="3" width="4.5" height="18" rx="1" fill="currentColor" opacity=".25"/>
+            </svg>
+      </button>
+      {% endif %}
+      <h1 class="wd-ex-title">{{ exercise_label(chosen_exercise) if chosen_exercise else _("Select an exercise") }}</h1>
+      {% if level_steps %}
+      <button type="submit" form="wdSetForm" name="change_level" value="{{ harder or '' }}"
+        class="wd-level-btn wd-level-up" {% if not harder %}disabled{% endif %}
+        title="{{ _("Harder level") }}{{ (': ' ~ exercise_label(harder)) if harder }}"
+        aria-label="{{ _("Harder level") }}{{ (': ' ~ exercise_label(harder)) if harder }}">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+              <rect x="3" y="14" width="4.5" height="7" rx="1" fill="currentColor"/>
+              <rect x="9.75" y="9" width="4.5" height="12" rx="1" fill="currentColor"/>
+              <rect x="16.5" y="3" width="4.5" height="18" rx="1" fill="currentColor"/>
+            </svg>
+      </button>
+      {% endif %}
     </div>
   </div>
 

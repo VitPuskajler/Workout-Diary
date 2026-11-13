@@ -43,6 +43,7 @@ from models.models import (BODY_MEASUREMENTS, WEIGH_TIMES, BodyMeasurement, Body
                            Mesocycles, load_user, utcnow)
 from workout_management.workout_management import  WorkoutManagement, english_exercise_name, fold_text, localized_name_column
 from workout_management.progressions import catalog_info as progression_catalog_info, ladders as progression_ladders
+from workout_management.progressions import neighbours as level_neighbours
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -145,6 +146,7 @@ find_workout_name_from_user = db_operations.find_workout_name_from_user
 add_exercise = db_operations.add_exercise
 delete_exercise = db_operations.delete_exercise
 reorder_exercises = db_operations.reorder_exercises
+change_plan_level = db_operations.change_plan_level
 load_mesocycle_templates = db_operations.load_mesocycle_templates
 apply_mesocycle_template = db_operations.apply_mesocycle_template
 mesocycles_for_copy = db_operations.mesocycles_for_copy
@@ -742,6 +744,15 @@ def training_session():
         elif 'repeat_button' in request.form:
             # If repeat button was clicked, last set will me "repeated"
             repeat_set(chosen_exercise, workout_id, chosen_day)
+        elif 'change_level' in request.form:
+            # The level icons beside the exercise's name: the easier / harder
+            # level of its ladder goes into the plan row - only before the
+            # first set of it today (change_plan_level() checks).
+            new_exercise = change_plan_level(
+                exercises_from_user, chosen_exercise, request.form.get("change_level"),
+                jinja_sets_function(chosen_day, chosen_exercise))
+            if new_exercise:
+                session["chosen_exercise"] = new_exercise
         elif 'save_order' in request.form:
             # Reorder mode under the plan table: order_<day> is the day's
             # workout_exercise_ids in their new order. Saved to the plan
@@ -756,6 +767,12 @@ def training_session():
         return redirect(url_for("training_session"))
 
     sets_for_jinja = jinja_sets_function(chosen_day, chosen_exercise)
+
+    # (easier, harder) level of the exercise's ladder for the icons beside
+    # its name - offered until the first set of it is logged today.
+    level_steps = None
+    if chosen_exercise in exercises_in_workout and not sets_for_jinja:
+        level_steps = level_neighbours(chosen_exercise, exercises_in_workout)
 
     # Reset placeholders to zero after the first set is saved
     if sets_for_jinja:
@@ -782,6 +799,7 @@ def training_session():
         chosen_day=chosen_day,
         exercises_to_display=exercises_in_workout,
         chosen_exercise=chosen_exercise,
+        level_steps=level_steps,
         sets_for_jinja=sets_for_jinja,
         set_gaps=db_operations.set_gaps(sets_for_jinja) if current_user.show_set_gaps else {},
         preview=preview,

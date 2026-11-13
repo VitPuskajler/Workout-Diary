@@ -483,6 +483,35 @@ class WorkoutManagement:
         for workout_id in touched_workouts:
             self._compact_workout_order(workout_id)
 
+    def change_plan_level(self, day_rows, chosen_exercise, target, sets_logged):
+        """The level icons in Training Session: put the easier / harder level
+        of chosen_exercise's ladder into its plan row - the same change as
+        the arrows on Create Workout, so the plan keeps it next time too.
+
+        Only before the first set of the exercise today (sets_logged empty):
+        a set already logged stays the level it was done at, and changing in
+        the middle of an exercise is left for later. `day_rows` are the
+        day's plan rows ({"id", "exercise"}, built from the user's own plan),
+        `target` comes from the browser and must be a neighbour level that
+        neighbours() offers. Returns the new exercise name, or None."""
+        from workout_management.progressions import neighbours
+
+        if not chosen_exercise or sets_logged:
+            return None
+        steps = neighbours(chosen_exercise, [r["exercise"] for r in day_rows])
+        if not steps or not target or target not in steps:
+            return None
+        row = next((r for r in day_rows if r["exercise"] == chosen_exercise), None)
+        exercise_id = self.find_exercise_id_db(target)
+        if not row or not exercise_id:
+            return None
+        plan_row = db.session.get(WorkoutExercises, row["id"])
+        if plan_row is None:
+            return None
+        plan_row.exercise_id = exercise_id[0]
+        db.session.commit()
+        return target
+
     def reorder_exercises(self, submitted_data, weekly, workouts_id):
         """Apply the order the user dragged the exercise rows into.
 

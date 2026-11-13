@@ -106,3 +106,22 @@ def catalog_info():
                 "goal_sets": lv["goal_sets"], "goal_value": lv["goal_value"],
             }
     return out
+
+
+def neighbours(exercise_name, taken=()):
+    """(easier, harder): the English names of the levels just below and just
+    above this one, for the level icons in Training Session. Each is None at
+    the end of the ladder, or when that level is already another row of the
+    same day (`taken`) - one plan day never holds a level twice. None when
+    the exercise is in no ladder."""
+    ladder = ladder_of(exercise_name)
+    if not ladder:
+        return None
+    names = [lv["exercise"] for lv in ladder["levels"]]
+    i = names.index(exercise_name)
+    taken = set(taken) - {exercise_name}
+
+    def free(j):
+        return names[j] if 0 <= j < len(names) and names[j] not in taken else None
+
+    return free(i - 1), free(i + 1)
