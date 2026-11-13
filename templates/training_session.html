@@ -63,26 +63,28 @@
       unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
     }
 
-    .wd-ex-title-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: .75rem;
-      max-width: 720px;
-      margin: 0 auto;
-    }
-
+    /* One line always: a name too long for the screen gets a smaller font
+       (fitExerciseTitle() below), down to about 18px. */
     .wd-ex-title {
       font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
       font-style: italic;
       font-weight: 700;
-      font-size: clamp(1.7rem, 7vw, 2.6rem);
-      line-height: 1.05;
+      font-size: 2.5rem;
+      line-height: 1.1;
       letter-spacing: .01em;
       text-align: center;
-      margin: 0;
-      min-width: 0;
-      overflow-wrap: anywhere;
+      white-space: nowrap;
+      overflow: hidden;
+      margin: 0 auto;
+      max-width: 720px;
+    }
+
+    /* The level icons, under the name: easier left, harder right. */
+    .wd-level-row {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: .35rem;
     }
 
     .wd-level-btn {
@@ -152,7 +154,8 @@
     </symbol>
   </svg>
 
-  <div class="p-4 mb-5">
+  {# Room for the fixed navbar above the day's dropdown - not more. #}
+  <div class="p-4 mb-3">
     <nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-dark" aria-label="{{ _("Main navigation") }}">
       <div class="container-fluid">
         <a class="navbar-brand" href="{{ url_for('home') }}">Workout Periodization</a>
@@ -224,7 +227,7 @@
 
   {# The exercise's name as the page's title - picking another exercise is
      the plan table below and the arrows. A level of a progression ladder
-     gets an icon on each side, until its first set today: one bar per
+     gets two icons under it, until its first set today: one bar per
      level of the ladder, filled up to the level that icon goes to - easier
      on the left, harder on the right (all faint when there is none).
      They change the plan row (change_plan_level()), like the arrows on
@@ -238,27 +241,25 @@
     {%- endfor %}
   </svg>
   {%- endmacro %}
-  <div class="container mb-2 px-3 pt-1">
-    <div class="wd-ex-title-row">
-      {% if level_steps %}
-      {% set easier, harder = level_steps %}
+  <div class="container mb-3 px-3 pt-1">
+    <h1 class="wd-ex-title" id="wdExTitle">{{ exercise_label(chosen_exercise) if chosen_exercise else _("Select an exercise") }}</h1>
+    {% if level_steps %}
+    {% set easier, harder = level_steps %}
+    <div class="wd-level-row">
       <button type="submit" form="wdSetForm" name="change_level" value="{{ easier or '' }}"
         class="wd-level-btn wd-level-down" {% if not easier %}disabled{% endif %}
         title="{{ _("Easier level") }}{{ (': ' ~ exercise_label(easier)) if easier }}"
         aria-label="{{ _("Easier level") }}{{ (': ' ~ exercise_label(easier)) if easier }}">
         {{ level_bars(level_pos[0] - 1 if easier else none) }}
       </button>
-      {% endif %}
-      <h1 class="wd-ex-title">{{ exercise_label(chosen_exercise) if chosen_exercise else _("Select an exercise") }}</h1>
-      {% if level_steps %}
       <button type="submit" form="wdSetForm" name="change_level" value="{{ harder or '' }}"
         class="wd-level-btn wd-level-up" {% if not harder %}disabled{% endif %}
         title="{{ _("Harder level") }}{{ (': ' ~ exercise_label(harder)) if harder }}"
         aria-label="{{ _("Harder level") }}{{ (': ' ~ exercise_label(harder)) if harder }}">
         {{ level_bars(level_pos[0] + 1 if harder else none) }}
       </button>
-      {% endif %}
     </div>
+    {% endif %}
   </div>
 
   {% if last_exercise %}
@@ -1078,6 +1079,27 @@
   <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
   <!-- Confirm / Repeat / arrows without a reload - after the stopwatch, see the file -->
   {% include "partials/_set_swipe_delete.html" %}
+  <script>
+    // The exercise's name on one line: a name wider than the screen gets a
+    // smaller font, step by step down to 45 % (about 18px). Refitted when
+    // the window changes width and after a set swaps the page part in.
+    (function () {
+      function fitExerciseTitle() {
+        const title = document.getElementById("wdExTitle");
+        if (!title) return;
+        title.style.fontSize = "";
+        let scale = 1;
+        while (title.scrollWidth > title.clientWidth && scale > 0.45) {
+          scale -= 0.05;
+          title.style.fontSize = (2.5 * scale).toFixed(3) + "rem";
+        }
+      }
+      fitExerciseTitle();
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitExerciseTitle);
+      window.addEventListener("resize", fitExerciseTitle);
+      document.addEventListener("wd-swapped", fitExerciseTitle);
+    })();
+  </script>
   <script src="{{ url_for('static', filename='js/liveForm.js') }}"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
