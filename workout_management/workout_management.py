@@ -5163,11 +5163,12 @@ class WorkoutManagement:
                 # No sessions exists for this user
                 return None
 
-    def ladder_history(self, chosen_exercise, sessions=3):
-        """History for a level of a progression ladder: the last `sessions`
-        trainings (today's left out) of THIS level - each level has its own
-        history, the others' sets are not mixed in. Newest first:
-        [{"date", "exercise", "entries": [...]}], one group per training.
+    def ladder_history(self, chosen_exercise, sets=3):
+        """History for a level of a progression ladder: the last `sets` sets
+        of THIS level logged before today (today's session left out) - each
+        level has its own history, the others' sets are not mixed in.
+        [{"date", "exercise", "entries": [...]}]: grouped by training, the
+        newest training first, the sets of one training in their order.
         None when the exercise is in no ladder or this level was never
         logged before today."""
         from workout_management.progressions import level_of
@@ -5175,7 +5176,6 @@ class WorkoutManagement:
         level = level_of(chosen_exercise) if chosen_exercise else None
         if not level:
             return None
-        ids = [level["exercise_id"]]
         today = datetime.combine(date.today(), datetime.min.time())
         rows = (
             db.session.query(ExerciseEntries, Sessions.session_date, Exercise.exercise_name)
@@ -5184,24 +5184,19 @@ class WorkoutManagement:
             .filter(
                 Sessions.user_id == self.current_user_id_db(),
                 Sessions.session_date < today,
-                ExerciseEntries.exercise_id.in_(ids),
+                ExerciseEntries.exercise_id == level["exercise_id"],
             )
             .order_by(desc(Sessions.session_date), Sessions.session_id.desc(),
-                      ExerciseEntries.set_number.asc(), ExerciseEntries.entry_id.asc())
+                      ExerciseEntries.set_number.desc(), ExerciseEntries.entry_id.desc())
+            .limit(sets)
             .all()
         )
-        groups, seen_sessions = [], []
+        groups = []
         for entry, session_date, name in rows:
-            if entry.session_id not in seen_sessions:
-                if len(seen_sessions) == sessions:
-                    break
-                seen_sessions.append(entry.session_id)
-            group = groups[-1] if groups else None
-            if not group or group["session_id"] != entry.session_id or group["exercise"] != name:
-                group = {"session_id": entry.session_id, "date": session_date,
-                         "exercise": name, "entries": []}
-                groups.append(group)
-            group["entries"].append(entry)
+            if not groups or groups[-1]["session_id"] != entry.session_id:
+                groups.append({"session_id": entry.session_id, "date": session_date,
+                               "exercise": name, "entries": []})
+            groups[-1]["entries"].insert(0, entry)     # rows come last set first
         return groups or None
 
     def arrow_buttons_next_exercise(self, move: str, chosen_exercise, chosen_day):

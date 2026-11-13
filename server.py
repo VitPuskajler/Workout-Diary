@@ -785,8 +785,8 @@ def training_session():
     sets_to_do_jinja = sets_to_do(chosen_exercise, chosen_day)
 
     # Data for preview
-    # A level of a progression ladder: History shows the last 3 trainings
-    # of this level (today left out) instead of only the last one.
+    # A level of a progression ladder: History shows the last 3 sets of
+    # this level (today left out) instead of its last training.
     history_groups = ladder_history(chosen_exercise)
     last_exercise = None if history_groups else last_exercise_preview(chosen_exercise, workout_id, chosen_day)
 
