@@ -201,6 +201,7 @@ last_mesocycle_by_default = db_operations.last_mesocycle_by_default
 user_last_session_id = db_operations.user_last_session_id
 suggest_training_focus = db_operations.suggest_training_focus
 last_exercise_preview = db_operations.last_exercise_preview
+ladder_history = db_operations.ladder_history
 arrow_buttons_next_exercise = db_operations.arrow_buttons_next_exercise
 custom_session_dates = db_operations.custom_session_dates
 last_trained_day = db_operations.last_trained_day
@@ -784,7 +785,10 @@ def training_session():
     sets_to_do_jinja = sets_to_do(chosen_exercise, chosen_day)
 
     # Data for preview
-    last_exercise = last_exercise_preview(chosen_exercise, workout_id, chosen_day)
+    # A level of a progression ladder: History shows the last 3 trainings
+    # of the whole ladder (any level, today left out) instead.
+    history_groups = ladder_history(chosen_exercise)
+    last_exercise = None if history_groups else last_exercise_preview(chosen_exercise, workout_id, chosen_day)
 
     # Kg/Lbs/Other toggle above the weight column - defaults to whatever unit
     # this exercise was last logged in.
@@ -806,6 +810,7 @@ def training_session():
         preview=preview,
         placeholders=exercise_placeholders,
         last_exercise =last_exercise,
+        history_groups=history_groups,
         default_unit=default_unit,
         # the day's index, for the reorder mode's order_<day> field
         order_day=workout_key,

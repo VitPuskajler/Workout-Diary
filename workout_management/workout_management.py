@@ -5134,6 +5134,46 @@ class WorkoutManagement:
                 # No sessions exists for this user
                 return None
 
+    def ladder_history(self, chosen_exercise, sessions=3):
+        """History for a level of a progression ladder: the last `sessions`
+        trainings (today's left out) in which ANY level of its ladder was
+        done, newest first - [{"date", "exercise", "entries": [...]}], one
+        group per training and level. None when the exercise is in no
+        ladder or nothing was logged yet."""
+        from workout_management.progressions import level_of, sibling_ids
+
+        level = level_of(chosen_exercise) if chosen_exercise else None
+        if not level:
+            return None
+        ids = sibling_ids(level["exercise_id"])
+        today = datetime.combine(date.today(), datetime.min.time())
+        rows = (
+            db.session.query(ExerciseEntries, Sessions.session_date, Exercise.exercise_name)
+            .join(Sessions, Sessions.session_id == ExerciseEntries.session_id)
+            .join(Exercise, Exercise.exercise_id == ExerciseEntries.exercise_id)
+            .filter(
+                Sessions.user_id == self.current_user_id_db(),
+                Sessions.session_date < today,
+                ExerciseEntries.exercise_id.in_(ids),
+            )
+            .order_by(desc(Sessions.session_date), Sessions.session_id.desc(),
+                      ExerciseEntries.set_number.asc(), ExerciseEntries.entry_id.asc())
+            .all()
+        )
+        groups, seen_sessions = [], []
+        for entry, session_date, name in rows:
+            if entry.session_id not in seen_sessions:
+                if len(seen_sessions) == sessions:
+                    break
+                seen_sessions.append(entry.session_id)
+            group = groups[-1] if groups else None
+            if not group or group["session_id"] != entry.session_id or group["exercise"] != name:
+                group = {"session_id": entry.session_id, "date": session_date,
+                         "exercise": name, "entries": []}
+                groups.append(group)
+            group["entries"].append(entry)
+        return groups or None
+
     def arrow_buttons_next_exercise(self, move: str, chosen_exercise, chosen_day):
         """Name of the exercise one step before/after the current one, or None at the ends.
 

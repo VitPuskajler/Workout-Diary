@@ -79,6 +79,14 @@
       max-width: 720px;
     }
 
+    /* Ladder history: one heading row per training - date and level. */
+    .wd-history-head th {
+      font-size: .8rem;
+      font-weight: 600;
+      text-align: left;
+      color: var(--bs-secondary-color);
+    }
+
     /* Under the name: easier level at the left edge, History in the
        middle, harder level at the right edge. */
     .wd-level-row {
@@ -251,7 +259,7 @@
 
   {# Under the name: the easier level's icon at the left edge, History in
      the middle, the harder level's icon at the right edge. #}
-  {% if level_steps or last_exercise %}
+  {% if level_steps or last_exercise or history_groups %}
   {% set easier, harder = level_steps if level_steps else (none, none) %}
   <div class="container px-3 mb-2 wd-level-row">
     <div class="wd-level-slot">
@@ -264,7 +272,7 @@
       </button>
       {% endif %}
     </div>
-    {% if last_exercise %}
+    {% if last_exercise or history_groups %}
     <button class="btn btn-secondary btn-sm" type="submit" name="preview_button" data-bs-toggle="collapse"
       data-bs-target="#collapseExample">
       {{ _("History") }}
@@ -318,6 +326,50 @@
             {% endfor %}
           </tbody>
 
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# A level of a progression ladder: the last 3 trainings of the whole
+     ladder (ladder_history()), each headed by its date and level. #}
+  {% if history_groups %}
+  <div class="d-flex justify-content-center">
+    <div class="collapse" id="collapseExample">
+      <div class="card card-body">
+        <table class="table table-info table-striped text-center mb-1 wd-rows">
+          <thead>
+            <th>Kg</th>
+            <th>{{ _('Sec') if is_timed(chosen_exercise) else _('Reps') }}</th>
+            <th>RPE</th>
+            <th>{{ _("Note") }}</th>
+          </thead>
+          <tbody>
+            {% set band = band_mode(chosen_exercise) %}
+            {% for group in history_groups %}
+            <tr class="wd-history-head">
+              <th colspan="4">{{ group.date.strftime('%d.%m.%Y') }} · {{ exercise_label(group.exercise) }}</th>
+            </tr>
+            {% for exercise in group.entries %}
+            <tr>
+              <td>
+                {% if exercise.band_kg %}<div class="wd-band-input">{{ '−' if band == 'assist' else '+' }}{{ exercise.band_kg }}</div>
+                {% else %}<div> {{exercise.weight}}{% if exercise.unit and exercise.unit != "kg" %} {{ exercise.unit }}{% endif %} </div>{% endif %}
+              </td>
+              <td>
+                <div> {{exercise.reps}} </div>
+              </td>
+              <td>
+                <div> {{exercise.rpe}} </div>
+              </td>
+              <td class="wd-notes">
+                <div> {{exercise.notes if exercise.notes else "-" }} </div>
+              </td>
+            </tr>
+            {% endfor %}
+            {% endfor %}
+          </tbody>
         </table>
       </div>
     </div>
@@ -866,14 +918,14 @@
       if (!allDone) { return; }
 
       var historyBtn = document.querySelector("button[name='preview_button']");
-      var container = historyBtn && historyBtn.closest(".d-flex");
+      var container = historyBtn && historyBtn.parentElement;
       if (!container || container.querySelector(".wd-progress-link")) { return; }
 
       var link = document.createElement("a");
       link.href = "{{ url_for('progress') }}";
       link.className = "wd-progress-link align-self-center small fw-bold text-success text-decoration-none";
       link.textContent = {{ _("Progress")|tojson }};
-      container.appendChild(link);
+      historyBtn.after(link);     // History's right, between it and the harder-level icon
     }
     wdOfferProgress();
     document.addEventListener("wd-swapped", wdOfferProgress);
