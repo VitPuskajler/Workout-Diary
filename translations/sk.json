@@ -565,5 +565,9 @@
   "Exercise names in training session": "Názvy cvikov v tréningu",
   "The names in the exercise list under the sets. Off: the icons alone, where there is one.": "Názvy v zozname cvikov pod sériami. Vypnuté: len ikony, kde nejaká je.",
   "Save order": "Uložiť poradie",
-  "Finish changing the order first - tap the green button at the bottom to save it.": "Najskôr ukonči zmenu poradia - ulož ju zeleným tlačidlom dole."
+  "Finish changing the order first - tap the green button at the bottom to save it.": "Najskôr ukonči zmenu poradia - ulož ju zeleným tlačidlom dole.",
+  "Band": "Guma",
+  "band": "guma",
+  "Band that helps, in kg": "Guma, ktorá pomáha (kg)",
+  "Band that resists, in kg": "Guma, ktorá bráni (kg)"
 }

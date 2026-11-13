@@ -759,7 +759,7 @@ def training_session():
 
     # Reset placeholders to zero after the first set is saved
     if sets_for_jinja:
-        exercise_placeholders = {'weight': 0, 'reps': 0, 'rpe': 0, 'notes': '...'}
+        exercise_placeholders = {'weight': 0, 'reps': 0, 'rpe': 0, 'notes': '...', 'band_kg': 0}
     else:
         exercise_placeholders = current_exercise_info(chosen_exercise, chosen_day)
 
@@ -947,6 +947,18 @@ def inject_timed_exercises():
         return exercise_name in g.timed_exercise_names
 
     return {"is_timed": is_timed}
+
+
+@app.context_processor
+def inject_band_modes():
+    """band_mode("Push-Up") in any template: "assist" (the band helps),
+    "resist" (it makes the set harder) or None (no bands on this exercise)."""
+    def band_mode(exercise_name):
+        if not hasattr(g, "band_modes"):
+            g.band_modes = db_operations.band_modes()
+        return g.band_modes.get(exercise_name)
+
+    return {"band_mode": band_mode}
 
 
 EXERCISE_ICON_DIR = os.path.join(basedir, "static", "icons", "exercises")
@@ -2371,7 +2383,7 @@ def intuitive_training():
 
     # Reset placeholders to zero after the first set is saved
     if sets_for_jinja:
-        exercise_placeholders = {'weight': 0, 'reps': 0, 'rpe': 0, 'notes': '...'}
+        exercise_placeholders = {'weight': 0, 'reps': 0, 'rpe': 0, 'notes': '...', 'band_kg': 0}
     else:
         exercise_placeholders = current_exercise_info(selected_exercise, "c")
 

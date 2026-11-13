@@ -1188,6 +1188,7 @@ class WorkoutManagement:
             submitted_data.get("reps"),
             submitted_data.get("rpe"),
             submitted_data.get("notes"),
+            submitted_data.get("band"),
         )
         if all(value is None or str(value).strip() == "" for value in new_set_fields):
             return None
@@ -1251,6 +1252,9 @@ class WorkoutManagement:
                 notes=submitted_data.get("notes", ""),
                 unit=unit,
             )
+            # Band in kg (band_mode says whether it helps or resists); blank
+            # or 0 = no band.
+            exercise_entry_add.band_kg = _optional_number(submitted_data.get("band"), float, 0.0) or None
             self._stamp_stopwatch(exercise_entry_add, session_id)
             db.session.add(exercise_entry_add)
             db.session.commit()
@@ -1379,6 +1383,7 @@ class WorkoutManagement:
                 notes="",
                 unit=source_entry.unit,
             )
+            new_entry.band_kg = source_entry.band_kg
             self._stamp_stopwatch(new_entry, target_session_id)
             db.session.add(new_entry)
             db.session.commit()
@@ -1677,6 +1682,7 @@ class WorkoutManagement:
                 weight = (submitted_data.get(f"update_weight_{entry_id}") or "").replace(",", ".") or None
                 rpe = (submitted_data.get(f"update_rpe_{entry_id}") or "").replace(",", ".") or None
                 notes = submitted_data.get(f"update_notes_{entry_id}", None)
+                band = (submitted_data.get(f"update_band_{entry_id}") or "").replace(",", ".") or None
 
                 entry = db.session.get(ExerciseEntries, entry_id)
                 if value and entry:
@@ -1685,6 +1691,9 @@ class WorkoutManagement:
                         entry.weight = weight if weight else entry.weight
                         entry.rpe = rpe if rpe else entry.rpe
                         entry.notes = notes if notes else entry.notes
+                        if band is not None:
+                            # 0 takes the band off the set
+                            entry.band_kg = float(band) or None
 
                         db.session.commit()
                     except Exception as e:
@@ -2122,6 +2131,7 @@ class WorkoutManagement:
                         "rpe": som.rpe or 0,
                         "notes": som.notes or "",
                         "unit": som.unit or "kg",
+                        "band_kg": som.band_kg,
                     }
                 )
         return small_data_list
@@ -2365,6 +2375,7 @@ class WorkoutManagement:
                     "rpe": entry.rpe or 0,
                     "notes": entry.notes or "",
                     "unit": entry.unit or "kg",
+                    "band_kg": entry.band_kg,
                 }
             )
         return result
@@ -3323,6 +3334,17 @@ class WorkoutManagement:
         if range_start is not None:
             return query.filter(Sessions.session_date >= range_start)
         return query
+
+    def band_modes(self):
+        """{exercise name: "assist" | "resist"} for the exercises a band is
+        used on (exercises.band_mode) - the training pages show a Band column
+        only for those."""
+        rows = (
+            db.session.query(Exercise.exercise_name, Exercise.band_mode)
+            .filter(Exercise.band_mode.isnot(None))
+            .all()
+        )
+        return {name: mode for name, mode in rows}
 
     def timed_exercise_names(self):
         """Names of the exercises measured in seconds (holds) instead of reps.
