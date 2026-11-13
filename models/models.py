@@ -113,6 +113,10 @@ class Exercise(UserMixin, db.Model):
     # row stays so the sets logged with it keep their name.
     # See temp/add_exercise_icon_columns.py.
     is_deleted = Column(Boolean, nullable=False, default=False, server_default="0")
+    # What a band does on this exercise: "assist" (helps - pull-up work,
+    # muscle-ups), "resist" (makes it harder - push-ups) or NULL (no bands).
+    # See temp/add_calisthenics_ladders.py.
+    band_mode = Column(String(10), nullable=True)
 
     def __init__(self, exercise, muscle_group):
         self.exercise_name = exercise
@@ -202,6 +206,10 @@ class ExerciseEntries(UserMixin, db.Model):
     # after, the stopwatch's SS button. NULL for an ordinary set. See
     # temp/add_customization_columns.py.
     superset_of = Column(Integer, db.ForeignKey("exercise_entries.entry_id"), nullable=True)
+    # Band resistance in kg on this set (NULL = no band, two bands = their
+    # sum). A band is load, not a level: whether it helps or resists is the
+    # exercise's band_mode. See temp/add_calisthenics_ladders.py.
+    band_kg = Column(Float, nullable=True)
 
     def __init__(self, session_id, exercise_id, set_number, reps, weight, rpe, notes, unit="kg"):
         self.session_id = session_id
