@@ -105,7 +105,13 @@ HIDE = {
 
 BAND_MODE = {
     "assist": ["Explosive Pull-Up", "Archer Pull-Up", "Negative One-Arm Pull-Up",
-               "One-Arm Pull-Up", "Strict Muscle-Up", "Slow Muscle-Up", "Kipping Muscle-Up"],
+               "One-Arm Pull-Up", "Strict Muscle-Up", "Slow Muscle-Up", "Kipping Muscle-Up",
+               # every level of both front lever ladders (added 2026-11-13)
+               "Tuck Front Lever", "Advanced Tuck Front Lever", "One Leg Front Lever",
+               "Straddle Front Lever", "Front Lever",
+               "Tuck Front Lever Negative", "Advanced Tuck Front Lever Negative",
+               "One Leg Front Lever Negative", "Straddle Front Lever Negative",
+               "Front Lever Negative"],
     "resist": ["Bench Push-Up", "Push-Up", "Decline Push-Up", "Decline Push-Up (handles)"],
 }
 
@@ -226,6 +232,23 @@ def make_plan(conn):
                 "FROM workout_exercises we JOIN workouts w ON w.workout_id = we.workout_id "
                 "WHERE we.exercise_id = ?", (ex_id,)):
             p.plan_rows.append((we_id, workout, name, target, target_id))
+
+    # A move of one user's sets (MOVES with a user) must take that user's
+    # plan rows along: Vito's Bench Push-Up sets were all done feet on the
+    # bench with handles, and a plan row left on Bench Push-Up then reads as
+    # the easiest level of the Push-Up ladder (added 2026-11-13).
+    for src, dst, only_user in MOVES:
+        if not only_user:
+            continue
+        src_id, dst_id = exercise_id(conn, src), resolve(dst)
+        if src_id is None or dst_id is None:
+            continue
+        for (we_id, workout) in conn.execute(
+                "SELECT we.workout_exercise_id, w.workout_name || ' #' || w.workout_id "
+                "FROM workout_exercises we JOIN workouts w ON w.workout_id = we.workout_id "
+                "JOIN users u ON u.user_id = w.user_id "
+                "WHERE we.exercise_id = ? AND u.username = ?", (src_id, only_user)):
+            p.plan_rows.append((we_id, workout, src, dst, dst_id))
 
     for mode, names in BAND_MODE.items():
         for name in names:
