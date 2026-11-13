@@ -43,7 +43,7 @@ from models.models import (BODY_MEASUREMENTS, WEIGH_TIMES, BodyMeasurement, Body
                            Mesocycles, load_user, utcnow)
 from workout_management.workout_management import  WorkoutManagement, english_exercise_name, fold_text, localized_name_column
 from workout_management.progressions import catalog_info as progression_catalog_info, ladders as progression_ladders
-from workout_management.progressions import neighbours as level_neighbours, position as level_position
+from workout_management.progressions import choices as level_choices
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -768,11 +768,11 @@ def training_session():
 
     sets_for_jinja = jinja_sets_function(chosen_day, chosen_exercise)
 
-    # (easier, harder) level of the exercise's ladder for the icons beside
-    # its name - offered until the first set of it is logged today.
-    level_steps = None
+    # The levels of the exercise's ladder for the level picker beside
+    # History - offered until the first set of it is logged today.
+    levels = None
     if chosen_exercise in exercises_in_workout and not sets_for_jinja:
-        level_steps = level_neighbours(chosen_exercise, exercises_in_workout)
+        levels = level_choices(chosen_exercise, exercises_in_workout)
 
     # Reset placeholders to zero after the first set is saved
     if sets_for_jinja:
@@ -799,8 +799,7 @@ def training_session():
         chosen_day=chosen_day,
         exercises_to_display=exercises_in_workout,
         chosen_exercise=chosen_exercise,
-        level_steps=level_steps,
-        level_pos=level_position(chosen_exercise) if level_steps else None,
+        levels=levels,
         sets_for_jinja=sets_for_jinja,
         set_gaps=db_operations.set_gaps(sets_for_jinja) if current_user.show_set_gaps else {},
         preview=preview,

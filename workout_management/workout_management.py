@@ -492,14 +492,14 @@ class WorkoutManagement:
         a set already logged stays the level it was done at, and changing in
         the middle of an exercise is left for later. `day_rows` are the
         day's plan rows ({"id", "exercise"}, built from the user's own plan),
-        `target` comes from the browser and must be a neighbour level that
-        neighbours() offers. Returns the new exercise name, or None."""
-        from workout_management.progressions import neighbours
+        `target` comes from the browser and must be another free level of
+        the same ladder (choices()). Returns the new exercise name, or None."""
+        from workout_management.progressions import choices
 
-        if not chosen_exercise or sets_logged:
+        if not chosen_exercise or sets_logged or not target:
             return None
-        steps = neighbours(chosen_exercise, [r["exercise"] for r in day_rows])
-        if not steps or not target or target not in steps:
+        levels = choices(chosen_exercise, [r["exercise"] for r in day_rows]) or []
+        if not any(lv["exercise"] == target and lv["free"] and not lv["current"] for lv in levels):
             return None
         row = next((r for r in day_rows if r["exercise"] == chosen_exercise), None)
         exercise_id = self.find_exercise_id_db(target)
