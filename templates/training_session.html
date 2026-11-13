@@ -79,12 +79,17 @@
       max-width: 720px;
     }
 
-    /* The level icons, under the name: easier left, harder right. */
+    /* Under the name: easier level at the left edge, History in the
+       middle, harder level at the right edge. */
     .wd-level-row {
       display: flex;
-      justify-content: center;
-      gap: 1rem;
-      margin-top: .35rem;
+      align-items: center;
+      gap: .5rem;
+      max-width: 720px;
+    }
+
+    .wd-level-slot {
+      flex: 1 1 0;
     }
 
     .wd-level-btn {
@@ -227,7 +232,8 @@
 
   {# The exercise's name as the page's title - picking another exercise is
      the plan table below and the arrows. A level of a progression ladder
-     gets two icons under it, until its first set today: one bar per
+     gets two icons under it (at the page's edges, History between them),
+     until its first set today: one bar per
      level of the ladder, filled up to the level that icon goes to - easier
      on the left, harder on the right (all faint when there is none).
      They change the plan row (change_plan_level()), like the arrows on
@@ -243,32 +249,43 @@
   {%- endmacro %}
   <div class="container mb-3 px-3 pt-1">
     <h1 class="wd-ex-title" id="wdExTitle">{{ exercise_label(chosen_exercise) if chosen_exercise else _("Select an exercise") }}</h1>
-    {% if level_steps %}
-    {% set easier, harder = level_steps %}
-    <div class="wd-level-row">
+  </div>
+
+  {# Under the name: the easier level's icon at the left edge, History in
+     the middle, the harder level's icon at the right edge. #}
+  {% if level_steps or last_exercise %}
+  {% set easier, harder = level_steps if level_steps else (none, none) %}
+  <div class="container px-3 mb-2 wd-level-row">
+    <div class="wd-level-slot">
+      {% if level_steps %}
       <button type="submit" form="wdSetForm" name="change_level" value="{{ easier or '' }}"
         class="wd-level-btn wd-level-down" {% if not easier %}disabled{% endif %}
         title="{{ _("Easier level") }}{{ (': ' ~ exercise_label(easier)) if easier }}"
         aria-label="{{ _("Easier level") }}{{ (': ' ~ exercise_label(easier)) if easier }}">
         {{ level_bars(level_pos[0] - 1 if easier else none) }}
       </button>
+      {% endif %}
+    </div>
+    {% if last_exercise %}
+    <button class="btn btn-secondary btn-sm" type="submit" name="preview_button" data-bs-toggle="collapse"
+      data-bs-target="#collapseExample">
+      {{ _("History") }}
+    </button>
+    {% endif %}
+    <div class="wd-level-slot text-end">
+      {% if level_steps %}
       <button type="submit" form="wdSetForm" name="change_level" value="{{ harder or '' }}"
         class="wd-level-btn wd-level-up" {% if not harder %}disabled{% endif %}
         title="{{ _("Harder level") }}{{ (': ' ~ exercise_label(harder)) if harder }}"
         aria-label="{{ _("Harder level") }}{{ (': ' ~ exercise_label(harder)) if harder }}">
         {{ level_bars(level_pos[0] + 1 if harder else none) }}
       </button>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
+  {% endif %}
 
   {% if last_exercise %}
-  <div class="d-flex justify-content-center mb-2 gap-2">
-    <button class="btn btn-secondary btn-sm" type="submit" name="preview_button" data-bs-toggle="collapse"
-      data-bs-target="#collapseExample">
-      {{ _("History") }}
-    </button>
-  </div>
   <div class="d-flex justify-content-center">
     <div class="collapse" id="collapseExample">
       <div class="card card-body">
