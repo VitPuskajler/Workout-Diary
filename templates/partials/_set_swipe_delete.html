@@ -84,52 +84,79 @@
       pending = null;
     }
 
-    var drag = null;      // {row, x, y, horizontal}
-    document.addEventListener("pointerdown", function (e) {
-      var row = e.target.closest && e.target.closest("tr[data-wd-set]");
-      if (!row || modal.classList.contains("open")) return;
-      // A mouse on a field is selecting text, not swiping.
-      if (e.pointerType === "mouse" && e.target.closest("input, textarea, select, button")) return;
-      drag = { row: row, x: e.clientX, y: e.clientY, horizontal: null };
-    });
+    // One drag, fed by touch events on a phone and pointer events for a
+    // mouse. Touch has to be touch events: Safari on an iPhone takes a
+    // sideways move inside the table over for its own scrolling (it ignores
+    // touch-action there) and cancels the pointer after a few pixels - only
+    // preventDefault() on a non-passive touchmove keeps the finger ours.
+    var drag = null;      // {row, x, y, horizontal, width}
 
-    document.addEventListener("pointermove", function (e) {
-      if (!drag) return;
-      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    function begin(target, x, y) {
+      var row = target.closest && target.closest("tr[data-wd-set]");
+      if (!row || modal.classList.contains("open")) return;
+      drag = { row: row, x: x, y: y, horizontal: null, width: 0 };
+    }
+    // false: not (or no longer) a swipe of ours - let the page have it.
+    function move(x, y) {
+      if (!drag) return false;
+      var dx = x - drag.x, dy = y - drag.y;
       if (drag.horizontal === null) {
-        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return false;
         drag.horizontal = Math.abs(dx) > Math.abs(dy) && dx < 0;
-        if (!drag.horizontal) { drag = null; return; }   // a scroll or a right swipe
+        if (!drag.horizontal) { drag = null; return false; }   // a scroll or a right swipe
         drag.row.classList.add("wd-set-swiping");
         // The field the finger started on must not keep the keyboard open.
         if (document.activeElement && drag.row.contains(document.activeElement)) document.activeElement.blur();
       }
-      var width = Math.max(0, Math.min(MAX, -dx));
-      strip(drag.row).style.width = width + "px";
-      drag.row.classList.toggle("wd-set-armed", width >= ARM);
-    });
-
+      drag.width = Math.max(0, Math.min(MAX, -dx));
+      strip(drag.row).style.width = drag.width + "px";
+      drag.row.classList.toggle("wd-set-armed", drag.width >= ARM);
+      return true;
+    }
     var swallowClick = false;
-    function end(e) {
+    function finish(cancelled) {
       if (!drag) return;
       var row = drag.row;
       if (drag.horizontal) {
-        var el = strip(row);
-        var armed = e.type === "pointerup" && (parseFloat(el.style.width) || 0) >= ARM;
+        var armed = !cancelled && drag.width >= ARM;
         row.classList.remove("wd-set-swiping", "wd-set-armed");
-        el.style.width = "";                 // slides back in
+        strip(row).style.width = "";         // slides back in
         swallowClick = true;
         setTimeout(function () { swallowClick = false; }, 400);
         if (armed) ask(row);
       }
       drag = null;
     }
-    document.addEventListener("pointerup", end);
-    document.addEventListener("pointercancel", end);
+
+    document.addEventListener("touchstart", function (e) {
+      if (e.touches.length !== 1) { drag = null; return; }
+      begin(e.target, e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+    document.addEventListener("touchmove", function (e) {
+      if (!drag) return;
+      if (e.touches.length !== 1) { finish(true); return; }
+      if (move(e.touches[0].clientX, e.touches[0].clientY) && e.cancelable) e.preventDefault();
+    }, { passive: false });
+    document.addEventListener("touchend", function () { finish(false); });
+    document.addEventListener("touchcancel", function () { finish(true); });
+
+    // A mouse (a PC): pointer events. Not on a field - that is selecting text.
+    document.addEventListener("pointerdown", function (e) {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      if (e.target.closest && e.target.closest("input, textarea, select, button")) return;
+      begin(e.target, e.clientX, e.clientY);
+    });
+    document.addEventListener("pointermove", function (e) {
+      if (e.pointerType === "mouse") move(e.clientX, e.clientY);
+    });
+    document.addEventListener("pointerup", function (e) { if (e.pointerType === "mouse") finish(false); });
+    document.addEventListener("pointercancel", function (e) { if (e.pointerType === "mouse") finish(true); });
 
     // The click that ends a swipe must not focus a field or press a button.
     document.addEventListener("click", function (e) {
       if (!swallowClick) return;
+      // A quick tap on the pop-up's own buttons is a real one.
+      if (e.target.closest && e.target.closest(".wd-set-del-dialog")) return;
       swallowClick = false;
       e.preventDefault();
       e.stopPropagation();

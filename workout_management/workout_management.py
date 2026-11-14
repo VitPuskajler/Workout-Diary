@@ -1081,23 +1081,50 @@ class WorkoutManagement:
         age = utcnow() - moment
         return moment if timedelta(0) <= age <= timedelta(hours=12) else None
 
+    @staticmethod
+    def _sset_groups():
+        """The stopwatch's hidden `sset` field: [["A", "B"], ...] - groups of
+        2 or more exercise names. Anything garbled counts as no groups."""
+        try:
+            groups = json.loads(request.form.get("sset") or "[]")
+        except (TypeError, ValueError):
+            return []
+        if not isinstance(groups, list):
+            return []
+        return [
+            set(group) for group in groups[:20]
+            if isinstance(group, list) and 2 <= len(group) <= 12
+            and all(isinstance(name, str) for name in group)
+        ]
+
     def _stamp_stopwatch(self, entry, session_id):
         """Copy the stopwatch's hidden fields onto a set that is about to be
-        added: `superset` links it to the set before it, and `sw_start` (the manual start) overwrites the
+        added: `sset` (the exercises paired with SSet) links it to the set
+        before it, and `sw_start` (the manual start) overwrites the
         session date when this is the session's first set. Call it BEFORE
         db.session.add(entry), so the queries below do not see the new set."""
 
-        # SS on the stopwatch: this set was done straight after the session's
-        # latest set - linked, as long as that was another exercise (SS on the
-        # same exercise is a mis-tap, not a superset).
-        if request.form.get("superset") == "1":
+        # SSet on the stopwatch: groups of exercises done back to back
+        # ([["A", "B"], ...], English names). A set of one of them logged
+        # straight after a set of another exercise of the same group is that
+        # set's partner - a superset (2) or a combo set (3 or more).
+        groups = self._sset_groups()
+        if groups:
             previous = (
-                db.session.query(ExerciseEntries)
+                db.session.query(ExerciseEntries.entry_id, Exercise.exercise_name)
+                .join(Exercise, Exercise.exercise_id == ExerciseEntries.exercise_id)
                 .filter(ExerciseEntries.session_id == session_id)
                 .order_by(ExerciseEntries.logged_at.desc(), ExerciseEntries.entry_id.desc())
                 .first()
             )
-            if previous is not None and previous.exercise_id != entry.exercise_id:
+            this_name = (
+                db.session.query(Exercise.exercise_name)
+                .filter(Exercise.exercise_id == entry.exercise_id)
+                .scalar()
+            )
+            if previous is not None and this_name and previous.exercise_name != this_name and any(
+                this_name in group and previous.exercise_name in group for group in groups
+            ):
                 entry.superset_of = previous.entry_id
 
         has_sets = (

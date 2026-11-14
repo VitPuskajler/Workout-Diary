@@ -418,7 +418,6 @@
               <tbody>
 
                 {% if sets_for_jinja is not none %}
-                {% set ss = superset_partners(sets_for_jinja) %}
                 {% for set in sets_for_jinja %}
 
                 <tr data-wd-set="{{ set.entry_id }}" data-wd-set-label="{{ exercise_label(chosen_exercise) }}: {{ (set.weight|string ~ ' ' ~ (set.unit or 'kg') ~ ' × ') if set.weight }}{{ set.reps if set.reps is not none else '-' }}{{ ' s' if is_timed(chosen_exercise) }}{{ (' · ' ~ _('band') ~ ' ' ~ set.band_kg|string ~ ' kg') if set.band_kg }}">
@@ -443,7 +442,7 @@
                   <td><textarea rows="1" class="form-control text-center" data-note
                       name="update_notes_{{ set.entry_id }}" placeholder="{{set.notes}}"></textarea>
                     {% if set_gaps.get(set.entry_id) %}<div class="wd-set-gap" title="{{ _("Since the previous set") }}">{{ set_gaps[set.entry_id] }}</div>{% endif %}
-                    {% if ss.get(set.entry_id) %}<span class="wd-ss-tag" title="{{ _("Superset with {name}", name=exercise_label(ss[set.entry_id])) }}">SS · {{ exercise_label(ss[set.entry_id]) }}</span>{% endif %}</td>
+                    </td>
 
 
                 </tr>
@@ -896,7 +895,7 @@
     })();
   </script>
 
-  {% with sw_exercise=chosen_exercise, sw_colored=true %}
+  {% with sw_exercise=chosen_exercise, sw_colored=true, sw_exercises=exercises_to_display %}
   {% include "partials/_stopwatch.html" %}
   {% endwith %}
   {% include "partials/_focus_mode.html" %}

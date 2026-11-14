@@ -192,7 +192,7 @@
                 <div class="collapse" id="timingInfo">
                     <div class="wd-info-panel small mb-3">
                         <p><strong>{{ _("Stopwatch") }}</strong> &mdash; {{ _("a simple bar at the bottom of Training Session and Intuitive Training: Start, the rest since your last set (green within the prescribed pause, red over it), ⟳ new lap for warm-up sets you do not log, ⏻ to finish.") }}</p>
-                        <p><strong>{{ _("Superset button (SS)") }}</strong> &mdash; {{ _("tap SS when you switch to the next exercise of a superset: the two sets are linked and each shows \"SS\" and the other exercise.") }}</p>
+                        <p><strong>{{ _("Superset button (SSet)") }}</strong> &mdash; {{ _("tap SSet and pair the exercises you do back to back (3 or more: a combo set). Until the workout ends their sets are linked by themselves, each showing \"SS\" and the other exercise.") }}</p>
                         <p class="mb-0"><strong>{{ _("Time between sets") }}</strong> &mdash; {{ _('"+2:35" under each logged set: the time since the one before.') }}</p>
                     </div>
                 </div>
@@ -210,8 +210,8 @@
                     <input class="form-check-input" type="checkbox" role="switch" id="stopwatchAdvanced"
                         name="stopwatch_advanced" value="1" {{ 'checked' if current_user.stopwatch_advanced }}
                         {{ 'disabled' if not current_user.show_stopwatch }}>
-                    <label class="form-check-label" for="stopwatchAdvanced">{{ _("Superset button (SS)") }}</label>
-                    <div class="form-text">{{ _("SS on the stopwatch links the sets of a superset.") }}</div>
+                    <label class="form-check-label" for="stopwatchAdvanced">{{ _("Superset button (SSet)") }}</label>
+                    <div class="form-text">{{ _("SSet on the stopwatch pairs exercises into supersets and combo sets.") }}</div>
                 </div>
 
                 <div class="form-check form-switch wd-switch mt-3">

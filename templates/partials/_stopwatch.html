@@ -37,13 +37,13 @@
   }
   .wd-sw[data-phase="off"] { justify-content: center; }
   .wd-sw[data-phase="off"] .wd-sw-stop,
-  .wd-sw[data-phase="off"] .wd-sw-lap { display: none; }
+  .wd-sw[data-phase="off"] .wd-sw-center { display: none; }
 
-  /* Corner button, ONE clock in the middle, Start on the right (only
-     while off - a running clock has SS and New lap there). */
+  /* Power button in the corner, ONE clock in the middle with New lap right
+     beside it, SSet on the right edge. Off: Start alone. */
   .wd-sw-stop, .wd-sw-main { flex: 0 0 84px; }
   /* The power icon needs ~30px; the rest of its 84 goes to the clock while
-     SS and New lap stand on the right - 1:02:04 must fit a 360px phone. */
+     New lap and SSet stand on the right - 1:02:04 must fit a 360px phone. */
   .wd-sw[data-phase="intro"] .wd-sw-stop,
   .wd-sw[data-phase="rest"] .wd-sw-stop { flex-basis: 40px; }
   .wd-sw-stop { display: flex; justify-content: flex-start; }
@@ -83,7 +83,8 @@
   .wd-sw-summary dd { margin: 0; font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; color: #3ddc84; }
 
   /* The clock is a button: tap it to swap between the lap and the total time. */
-  .wd-sw-lap { flex: 1; border: 0; background: transparent; color: inherit; padding: 4px 0; text-align: center; line-height: 1; }
+  .wd-sw-center { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .wd-sw-lap { flex: 0 1 auto; border: 0; background: transparent; color: inherit; padding: 4px 0; text-align: center; line-height: 1; }
   .wd-sw[data-view="total"] .wd-sw-lap output { color: #9aa0a6 !important; }
   .wd-sw-lap output { display: block; font-size: 1.8rem; font-weight: 600; letter-spacing: .01em; transition: color .2s; }
   .wd-sw[data-tone="ok"]   .wd-sw-lap output { color: #3ddc84; }
@@ -113,16 +114,57 @@
     .wd-sw[data-nudge="1"] { animation: none; background: #3a1a1e; }
   }
 
-  /* SS: switched to the next exercise of a superset. Only a mark - the rest
-     runs on; the next logged set is linked to the one before. Lit (yellow)
-     while on. */
-  .wd-sw-right { flex: 0 0 auto; display: flex; gap: 8px; }
+  /* SSet: the exercises done back to back this workout (supersets, combo
+     sets) - opens the pairing pop-up. Close to the bar's right edge, but
+     whole on the screen. Lit (yellow) while any are paired. */
+  .wd-sw:not([data-phase="off"]) { padding-right: 8px; }
   .wd-sw-ss {
-    display: none; border: 0; border-radius: 12px; padding: 8px 10px;
-    background: #2b2f38; color: #ffc107; font-weight: 700;
+    display: none; flex: 0 0 auto; border: 0; border-radius: 12px;
+    padding: 10px 12px; background: #2b2f38; color: #ffc107; font-weight: 700;
   }
+  .wd-sw[data-phase="intro"] .wd-sw-ss,
   .wd-sw[data-phase="rest"] .wd-sw-ss { display: block; }
   .wd-sw[data-ss="1"] .wd-sw-ss { background: #ffc107; color: #212529; }
+
+  /* The pairing pop-up. */
+  .wd-sset { width: min(92vw, 380px); text-align: left; max-height: 86vh; overflow-y: auto; }
+  .wd-sset > p { text-align: center; margin-bottom: 4px; }
+  .wd-sset-hint { font-size: .85rem; opacity: .7; text-align: center; margin-bottom: 14px; }
+  .wd-sset-groups:empty { display: none; }
+  .wd-sset-groups { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .wd-sset-group {
+    display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 10px; border-radius: 10px;
+    background: rgba(255, 193, 7, .14); border: 1px solid rgba(255, 193, 7, .5); font-size: .9rem;
+  }
+  .wd-sset-group b { color: #ffc107; font-size: .75rem; letter-spacing: .04em; text-transform: uppercase; flex: 0 0 auto; }
+  .wd-sset-group span { flex: 1; min-width: 0; }
+
+  /* A group in the day's exercise table: a thin bar of the group's colour
+     down the left edge of its rows, unbroken from the first to the last
+     (it reaches over the 1px line between them), rounded at its ends. The
+     rows themselves stay as they are - white or striped, green once done.
+     The pop-up shows the same colour in a small swatch by each group. */
+  #exercisePreview tr[data-wd-ss] > td:first-child { position: relative; }
+  #exercisePreview tr[data-wd-ss] > td:first-child::before {
+    content: ""; position: absolute; left: 3px; width: 4px; top: -1px; bottom: 0;
+    background: rgb(var(--wd-ss-rgb)); pointer-events: none;
+  }
+  #exercisePreview tr.wd-ss-first > td:first-child::before { top: 8px; border-radius: 2px 2px 0 0; }
+  #exercisePreview tr.wd-ss-last > td:first-child::before { bottom: 8px; border-radius: 0 0 2px 2px; }
+  #exercisePreview tr.wd-ss-first.wd-ss-last > td:first-child::before { border-radius: 2px; }
+  .wd-swatch { display: inline-block; flex: 0 0 auto; width: 12px; height: 12px; border-radius: 3px; }
+  .wd-sset-dialog button.wd-sset-remove { flex: 0 0 auto; background: transparent; color: #9aa0a6; padding: 2px 8px; font-size: 1.1rem; line-height: 1; }
+  .wd-sset-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .wd-sset-list:empty { display: none; }
+  .wd-sset-dialog button.wd-sset-ex {
+    text-align: left; background: #2b2f38; border: 2px solid transparent; font-weight: 500; padding: 9px 12px;
+  }
+  .wd-sset-dialog button.wd-sset-ex[aria-pressed="true"] { border-color: #ffc107; background: #3a3420; }
+  .wd-sset-ex .wd-sset-n { float: right; color: #ffc107; font-weight: 700; }
+  .wd-sset-empty { text-align: center; opacity: .75; margin-bottom: 14px; }
+  .wd-sw-dialog .wd-sset-pair { background: #ffc107; color: #212529; }
+  .wd-sw-dialog .wd-sset-pair:disabled { opacity: .35; }
+  .wd-sw-dialog .wd-sset-done { background: #2b2f38; }
 
   /* Start, with a stopwatch beside its word - only while the clock is off. */
   .wd-sw-main { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
@@ -139,7 +181,7 @@
   .wd-sw[data-phase="intro"] .wd-sw-flag,
   .wd-sw[data-phase="rest"] .wd-sw-flag { display: block; }
 
-  /* SS off in Customization: no SS button. */
+  /* SSet off in Customization: no SSet button. */
   .wd-sw[data-mode="simple"] .wd-sw-ss { display: none !important; }</style>
 
 <div class="wd-sw" id="wd-sw" data-phase="off" data-mode="{{ 'advanced' if current_user.stopwatch_advanced else 'simple' }}" role="timer" aria-label="{{ _("Workout stopwatch") }}">
@@ -150,25 +192,25 @@
       <path d="M6.3 6.8a8 8 0 1 0 11.4 0" />
     </svg>
   </button>
-  <button type="button" class="wd-sw-lap" id="wd-sw-clock" aria-label="{{ _("Switch between lap time and total time") }}">
-    <output id="wd-sw-lap">0:00</output><small id="wd-sw-label">{{ _("rest") }}</small>
-  </button>
-  <div class="wd-sw-right">
-    <button type="button" class="wd-sw-ss" id="wd-sw-ss" aria-label="{{ _("Superset: link the next set to the one before") }}" aria-pressed="false">SS</button>
+  <div class="wd-sw-center">
+    <button type="button" class="wd-sw-lap" id="wd-sw-clock" aria-label="{{ _("Switch between lap time and total time") }}">
+      <output id="wd-sw-lap">0:00</output><small id="wd-sw-label">{{ _("rest") }}</small>
+    </button>
     <button type="button" class="wd-sw-flag" id="wd-sw-flag" aria-label="{{ _("New lap") }}" title="{{ _("New lap") }}">
       <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41m-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9"/>
         <path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5 5 0 0 0 8 3M3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9z"/>
       </svg>
     </button>
-    <button type="button" class="wd-sw-main" id="wd-sw-main">
-      <svg class="wd-sw-icon" width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-        <path d="M8.5 5.6a.5.5 0 1 0-1 0v2.9h-3a.5.5 0 0 0 0 1H8a.5.5 0 0 0 .5-.5z"/>
-        <path d="M6.5 1A.5.5 0 0 1 7 .5h2a.5.5 0 0 1 0 1v.57c1.36.196 2.594.78 3.584 1.64l.012-.013.354-.354-.354-.353a.5.5 0 0 1 .707-.708l1.414 1.415a.5.5 0 1 1-.707.707l-.353-.354-.354.354-.013.012A7 7 0 1 1 7 2.071V1.5a.5.5 0 0 1-.5-.5M8 3a6 6 0 1 0 .001 12A6 6 0 0 0 8 3"/>
-      </svg>
-      <span id="wd-sw-main-label">{{ _("Start") }}</span>
-    </button>
   </div>
+  <button type="button" class="wd-sw-main" id="wd-sw-main">
+    <svg class="wd-sw-icon" width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M8.5 5.6a.5.5 0 1 0-1 0v2.9h-3a.5.5 0 0 0 0 1H8a.5.5 0 0 0 .5-.5z"/>
+      <path d="M6.5 1A.5.5 0 0 1 7 .5h2a.5.5 0 0 1 0 1v.57c1.36.196 2.594.78 3.584 1.64l.012-.013.354-.354-.354-.353a.5.5 0 0 1 .707-.708l1.414 1.415a.5.5 0 1 1-.707.707l-.353-.354-.354.354-.013.012A7 7 0 1 1 7 2.071V1.5a.5.5 0 0 1-.5-.5M8 3a6 6 0 1 0 .001 12A6 6 0 0 0 8 3"/>
+    </svg>
+    <span id="wd-sw-main-label">{{ _("Start") }}</span>
+  </button>
+  <button type="button" class="wd-sw-ss" id="wd-sw-ss" aria-label="{{ _("Supersets and combo sets") }}" aria-pressed="false">SSet</button>
 </div>
 
 <div class="wd-sw-modal" id="wd-sw-modal" role="dialog" aria-modal="true" aria-label="{{ _("Finish workout?") }}">
@@ -191,6 +233,35 @@
     </dl>
     <div class="wd-sw-actions">
       <button type="button" id="wd-sw-summary-close">{{ _("Close") }}</button>
+    </div>
+  </div>
+</div>
+
+{# The exercises SSet can pair: the day's plan (Training Session) or what
+   is on today's list (Intuitive Training) - English names, shown translated. #}
+{% set sw_ex_list = [] %}
+{% for name in (sw_exercises or []) %}{% set _ = sw_ex_list.append({"name": name, "label": exercise_label(name)}) %}{% endfor %}
+<div class="wd-sw-modal" id="wd-sset" role="dialog" aria-modal="true" aria-labelledby="wd-sset-title">
+  <div class="wd-sw-dialog wd-sset wd-sset-dialog">
+    <p id="wd-sset-title">{{ _("Supersets") }}</p>
+    <div class="wd-sset-hint">{{ _("Pick the exercises you do back to back. Their sets get linked by themselves - until this workout ends.") }}</div>
+    <div class="wd-sset-groups" id="wd-sset-groups"></div>
+    <div class="wd-sset-list" id="wd-sset-list"></div>
+    <div class="wd-sset-empty" id="wd-sset-empty" hidden>{{ _("Add at least 2 exercises first - then you can pair them.") }}</div>
+    <div class="wd-sw-actions">
+      <button type="button" class="wd-sset-done" id="wd-sset-done">{{ _("Done") }}</button>
+      <button type="button" class="wd-sset-pair" id="wd-sset-pair" disabled>{{ _("Pair") }}</button>
+    </div>
+  </div>
+</div>
+
+<div class="wd-sw-modal" id="wd-sset-combo" role="dialog" aria-modal="true" aria-labelledby="wd-sset-combo-title">
+  <div class="wd-sw-dialog">
+    <p id="wd-sset-combo-title">{{ _("A combo set?") }}</p>
+    <div class="wd-sset-hint">{{ _("A superset is 2 exercises. With 3 or more back to back it becomes a combo set.") }}</div>
+    <div class="wd-sw-actions">
+      <button type="button" class="wd-sw-continue" id="wd-sset-combo-no">{{ _("Go back") }}</button>
+      <button type="button" class="wd-sset-pair" id="wd-sset-combo-yes">{{ _("Combo set") }}</button>
     </div>
   </div>
 </div>
@@ -228,8 +299,9 @@
 
     // st = {start, seen, view}: run start, newest set time seen, and which clock is showing ("total" or the lap). {lapAt, laps}:
     // the last "New lap" tap and how many there were since the clock's start
-    // (Start, or the newest logged set) - a logged set clears them. ss:
-    // SS is on - the next logged set is a superset of the one before.
+    // (Start, or the newest logged set) - a logged set clears them. sset:
+    // the groups paired with SSet ([["A", "B"], ...], English names) - this
+    // run's, so they end with the workout.
     function load() {
       try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch (e) { return null; }
     }
@@ -281,7 +353,6 @@
           // time exercising after Finish.
           if (!st.first) st.first = STATE.last;
           st.seen = STATE.last;                   // a new rest, from this set - superset or not
-          st.ss = false;
           st.view = "lap";                        // and brings the rest clock back
           st.lapAt = null; st.laps = 0;           // laps belong to the gap before it
         }
@@ -291,8 +362,8 @@
       // A set timed with the old Go button (a run from before it was
       // removed), or SS left on and then switched off in Customization:
       // dropped - this bar cannot show them.
-      if (st && (st.setAt || (SIMPLE && st.ss))) {
-        delete st.setAt; if (SIMPLE) st.ss = false; save();
+      if (st && (st.setAt || st.ss !== undefined || (SIMPLE && st.sset))) {
+        delete st.setAt; delete st.ss; if (SIMPLE) delete st.sset; save();
       }
     }
     seeSets();
@@ -343,8 +414,10 @@
       document.documentElement.dataset.wdSw = p;
       if (nudge && lastNudge === false) document.dispatchEvent(new Event("wd-sw-rest-up"));
       lastNudge = nudge;
-      bar.dataset.ss = st && st.ss ? "1" : "";
-      ssBtn.setAttribute("aria-pressed", st && st.ss ? "true" : "false");
+      var paired = !!(st && st.sset && st.sset.length);
+      if (typeof paintGroups === "function") paintGroups();
+      bar.dataset.ss = paired ? "1" : "";
+      ssBtn.setAttribute("aria-pressed", paired ? "true" : "false");
     }
 
     mainBtn.addEventListener("click", function () {
@@ -364,15 +437,199 @@
       save(); render();
     });
 
-    // Superset: just switched to the next exercise. Only a mark: the rest
-    // runs on from the set before (green, then red). Logged, the set is
-    // linked to the one before it (the hidden "superset" field below).
-    // Tapped again: off.
+    // SSet: pair the exercises done back to back (2 = a superset, 3 or
+    // more = a combo set - it asks first). For the rest of this workout a
+    // set logged straight after a set of an exercise of its group is linked
+    // to it (the hidden "sset" field below). Tapped again: the groups can be
+    // taken apart.
+    var EXERCISES = {{ sw_ex_list|tojson }};
+    var ssetModal = document.getElementById("wd-sset");
+    var comboModal = document.getElementById("wd-sset-combo");
+    var groupsEl = document.getElementById("wd-sset-groups");
+    var listEl = document.getElementById("wd-sset-list");
+    var pairBtn = document.getElementById("wd-sset-pair");
+    var ST = {{ {"Combo": _("Combo"), "Take apart": _("Take apart")}|tojson }};
+    var picked = [], comboOk = false, pendingPick = null;
+
+    // One colour per group, in the order they were paired: the bar by its
+    // rows and the pop-up's swatch. None of them green -
+    // the colour of a done exercise, which must still show through.
+    // Blue, amber and teal first: over a done (green) row they only shift it a
+    // little - purple and pink, green's opposites, turn it grey, so they come
+    // only after them.
+    var TINTS = [[66, 99, 235], [240, 140, 0], [16, 152, 173], [174, 62, 201], [230, 73, 128], [134, 142, 150]];
+    function groupRgb(index) { return TINTS[index % TINTS.length].join(", "); }
+
+    // Training Session's exercise table (#exercisePreview): the exercises of
+    // a group one under the other - where the group's first one is in the
+    // plan, in the order they were picked - with its group's coloured bar
+    // on the left (the CSS above). Only on this page and only for this workout: the plan
+    // in the database keeps its order. Called whenever the groups change and
+    // after a set saved without a reload swaps the table in anew.
+    var paintedKey = null;
+    function paintGroups(force, plain) {
+      var table = document.getElementById("exercisePreview");
+      var body = table && table.tBodies[0];
+      if (!body) return;
+      // Reordering the plan (the page's own mode): the plan's order, no
+      // frames - so a save never stores the supersets' order by accident.
+      var reordering = document.body.classList.contains("wd-reorder");
+      var groups = (!reordering && !plain && st && st.sset) || [];
+      var key = JSON.stringify(groups);
+      if (!force && key === paintedKey) return;
+      paintedKey = key;
+
+      var rows = Array.prototype.slice.call(body.rows);
+      // The plan's order, remembered on each row the first time it is seen
+      // (a swapped-in table comes in the plan's order again).
+      rows.forEach(function (row, index) {
+        if (row.dataset.wdPlanOrder === undefined) row.dataset.wdPlanOrder = String(index);
+        row.classList.remove("wd-ss-row", "wd-ss-first", "wd-ss-last");
+        delete row.dataset.wdSs;
+        row.style.removeProperty("--wd-ss-rgb");
+      });
+      rows.sort(function (a, b) { return a.dataset.wdPlanOrder - b.dataset.wdPlanOrder; });
+
+      var rowOf = {}, groupOf = {};
+      rows.forEach(function (row) {
+        var button = row.querySelector("button[name=chosen_exercise]");
+        if (button) rowOf[button.value] = row;
+      });
+      groups.forEach(function (group, index) {
+        group.forEach(function (name) { groupOf[name] = index; });
+      });
+
+      var order = [], placed = [];
+      rows.forEach(function (row) {
+        if (placed.indexOf(row) >= 0) return;
+        var button = row.querySelector("button[name=chosen_exercise]");
+        var index = button ? groupOf[button.value] : undefined;
+        if (index === undefined) { order.push(row); placed.push(row); return; }
+        var members = groups[index].map(function (name) { return rowOf[name]; })
+          .filter(function (member) { return member && placed.indexOf(member) < 0; });
+        members.forEach(function (member, at) {
+          member.classList.add("wd-ss-row");
+          if (at === 0) member.classList.add("wd-ss-first");
+          if (at === members.length - 1) member.classList.add("wd-ss-last");
+          member.dataset.wdSs = String(index);
+          member.style.setProperty("--wd-ss-rgb", groupRgb(index));
+          order.push(member); placed.push(member);
+        });
+      });
+      order.forEach(function (row) { body.appendChild(row); });
+    }
+    document.addEventListener("wd-swapped", function () { paintGroups(true); });
+    // The reorder button: back to the plan's order BEFORE the page's own
+    // handler reads it (capture runs first), and grouped again once the
+    // mode ends without a save (a save swaps the table in anew).
+    document.addEventListener("click", function (e) {
+      if (e.target.closest && e.target.closest("#wdReorderToggle") && !document.body.classList.contains("wd-reorder")) {
+        paintGroups(true, true);
+      }
+    }, true);
+    if (window.MutationObserver) {
+      var wasReordering = document.body.classList.contains("wd-reorder");
+      new MutationObserver(function () {
+        var now = document.body.classList.contains("wd-reorder");
+        if (now !== wasReordering) { wasReordering = now; paintGroups(true); }
+      }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    }
+
+    function labelOf(name) {
+      for (var i = 0; i < EXERCISES.length; i++) if (EXERCISES[i].name === name) return EXERCISES[i].label;
+      return name;
+    }
+    function drawSset() {
+      var groups = (st && st.sset) || [];
+      var taken = {};
+      groupsEl.innerHTML = "";
+      groups.forEach(function (group, index) {
+        group.forEach(function (name) { taken[name] = true; });
+        var row = document.createElement("div");
+        row.className = "wd-sset-group";
+        var shape = document.createElement("i");
+        shape.className = "wd-swatch";
+        shape.style.background = "rgb(" + groupRgb(index) + ")";
+        shape.setAttribute("aria-hidden", "true");
+        var kind = document.createElement("b");
+        kind.textContent = group.length > 2 ? ST["Combo"] : "SSet";
+        var names = document.createElement("span");
+        names.textContent = group.map(labelOf).join(" + ");
+        var remove = document.createElement("button");
+        remove.type = "button"; remove.className = "wd-sset-remove"; remove.textContent = "\u2715";
+        remove.setAttribute("aria-label", ST["Take apart"]);
+        remove.addEventListener("click", function () {
+          st.sset.splice(index, 1); save(); drawSset(); render();
+        });
+        row.appendChild(shape); row.appendChild(kind); row.appendChild(names); row.appendChild(remove);
+        groupsEl.appendChild(row);
+      });
+      listEl.innerHTML = "";
+      var free = EXERCISES.filter(function (ex) { return !taken[ex.name]; });
+      // One left over cannot be paired with anything.
+      if (free.length < 2) free = [];
+      free.forEach(function (ex) {
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "wd-sset-ex";
+        var at = picked.indexOf(ex.name);
+        b.setAttribute("aria-pressed", at >= 0 ? "true" : "false");
+        b.textContent = ex.label;
+        if (at >= 0) {
+          var n = document.createElement("span");
+          n.className = "wd-sset-n"; n.textContent = String(at + 1);
+          b.appendChild(n);
+        }
+        b.addEventListener("click", function () { pick(ex.name); });
+        listEl.appendChild(b);
+      });
+      // Too few to pair anything (Intuitive Training before a 2nd exercise).
+      document.getElementById("wd-sset-empty").hidden = EXERCISES.length >= 2;
+      pairBtn.disabled = picked.length < 2;
+    }
+    function pick(name) {
+      var at = picked.indexOf(name);
+      if (at >= 0) {
+        picked.splice(at, 1);
+        if (picked.length < 3) comboOk = false;
+      } else if (picked.length >= 2 && !comboOk) {
+        pendingPick = name;                    // a 3rd one: a combo set - ask first
+        comboModal.classList.add("open");
+        return;
+      } else {
+        picked.push(name);
+      }
+      drawSset();
+    }
+    document.getElementById("wd-sset-combo-yes").addEventListener("click", function () {
+      comboOk = true;
+      if (pendingPick) picked.push(pendingPick);
+      pendingPick = null;
+      comboModal.classList.remove("open");
+      drawSset();
+    });
+    document.getElementById("wd-sset-combo-no").addEventListener("click", function () {
+      pendingPick = null;
+      comboModal.classList.remove("open");
+    });
+    pairBtn.addEventListener("click", function () {
+      if (!st || picked.length < 2) return;
+      st.sset = (st.sset || []).concat([picked.slice()]);
+      picked = []; comboOk = false;
+      save(); drawSset(); render();
+    });
+    function closeSset() {
+      ssetModal.classList.remove("open");
+      picked = []; comboOk = false;
+    }
+    document.getElementById("wd-sset-done").addEventListener("click", closeSset);
+    ssetModal.addEventListener("click", function (e) { if (e.target === ssetModal) closeSset(); });
+
     ssBtn.addEventListener("click", function () {
       var p = phase();
-      if (SIMPLE || p !== "rest") return;
-      st.ss = !st.ss;
-      save(); render();
+      if (SIMPLE || (p !== "intro" && p !== "rest")) return;
+      picked = []; comboOk = false;
+      drawSset();
+      ssetModal.classList.add("open");
     });
 
     // Tap the clock to peek at the total time in the gym, tap again to go back.
@@ -421,13 +678,15 @@
     // must press the button, not log a set.
     bar.addEventListener("keydown", function (e) { e.stopPropagation(); });
     document.getElementById("wd-sw-modal").addEventListener("keydown", function (e) { e.stopPropagation(); });
+    ssetModal.addEventListener("keydown", function (e) { e.stopPropagation(); });
+    comboModal.addEventListener("keydown", function (e) { e.stopPropagation(); });
     summary.addEventListener("keydown", function (e) { e.stopPropagation(); });
 
     // Ride along with every POST so the server can save them with the set.
     document.addEventListener("submit", function (e) {
       var form = e.target;
       if (!st || !form || String(form.method).toLowerCase() !== "post") return;
-      [["sw_start", st.start], ["superset", st.ss ? 1 : 0]].forEach(function (pair) {
+      [["sw_start", st.start], ["sset", st.sset && st.sset.length ? JSON.stringify(st.sset) : ""]].forEach(function (pair) {
         var old = form.querySelector('input[data-wd-sw="' + pair[0] + '"]');
         if (old) old.remove();
         if (!pair[1]) return;

@@ -224,10 +224,14 @@ def photograph(browser, base, db, user_id, lang):
     page.click("#wd-sw-flag")
     page.wait_for_timeout(1200)
     shot(bar, p("sw-lap"))
-    page.click("#wd-sw-ss")
-    page.wait_for_timeout(1200)
-    shot(bar, p("sw-ss"))
-    page.click("#wd-sw-ss")                         # SS off again
+    page.click("#wd-sw-ss")                         # SSet: the pairing pop-up
+    page.wait_for_timeout(300)
+    page.locator("#wd-sset-list .wd-sset-ex").nth(1).click()
+    page.locator("#wd-sset-list .wd-sset-ex").nth(2).click()
+    page.click("#wd-sset-pair")
+    page.wait_for_timeout(300)
+    shot(page.locator("#wd-sset .wd-sw-dialog"), p("sw-ss"))
+    page.click("#wd-sset-done")
     page.click("#wd-sw-clock")
     page.wait_for_timeout(300)
     shot(bar, p("sw-total"))

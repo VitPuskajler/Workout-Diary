@@ -323,18 +323,6 @@
               .wd-band-input::placeholder,
               .wd-band-input { color: var(--bs-purple, #6f42c1) !important; }
 
-              /* "SS · Calf Raise" under a set done as a superset (the stopwatch's
-                 SS): the exercise it was paired with. Yellow like the SS button. */
-              .wd-ss-tag {
-                font-size: .7rem;
-                line-height: 1.1;
-                margin-top: 3px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                color: #b38600;
-                font-weight: 600;
-              }
 
               /* the default .form-control side padding eats 24px of a 58px cell */
               .table-responsive .form-control {
@@ -369,7 +357,6 @@
                 <tbody>
 
                   {% if sets_for_jinja is not none %}
-                  {% set ss = superset_partners(sets_for_jinja) %}
                   {% for set in sets_for_jinja %}
 
                   <tr data-wd-set="{{ set.entry_id }}" data-wd-set-label="{{ exercise_label(selected_exercise) }}: {{ (set.weight|string ~ ' ' ~ (set.unit or 'kg') ~ ' × ') if set.weight }}{{ set.reps if set.reps is not none else '-' }}{{ ' s' if is_timed(selected_exercise) }}{{ (' · ' ~ _('band') ~ ' ' ~ set.band_kg|string ~ ' kg') if set.band_kg }}">
@@ -393,7 +380,7 @@
                     <td><textarea rows="1" class="form-control text-center" data-note
                         name="update_notes_{{ set.entry_id }}" placeholder="{{set.notes}}"></textarea>
                       {% if set_gaps.get(set.entry_id) %}<div class="wd-set-gap" title="{{ _("Since the previous set") }}">{{ set_gaps[set.entry_id] }}</div>{% endif %}
-                      {% if ss.get(set.entry_id) %}<span class="wd-ss-tag" title="{{ _("Superset with {name}", name=exercise_label(ss[set.entry_id])) }}">SS · {{ exercise_label(ss[set.entry_id]) }}</span>{% endif %}</td>
+                      </td>
 
 
                   </tr>
@@ -585,7 +572,7 @@
           {% endif %}
           {% endif %}
 
-          {% with sw_exercise=selected_exercise, sw_colored=false %}
+          {% with sw_exercise=selected_exercise, sw_colored=false, sw_exercises=exercises_overview|map(attribute='exercise')|list %}
           {% include "partials/_stopwatch.html" %}
           {% endwith %}
           <!-- -------------------------------------------------------------------------- -->
