@@ -27,6 +27,8 @@
     align-items: center; justify-content: center; background: rgba(0, 0, 0, .55);
   }
   .wd-set-del-modal.open { display: flex; }
+  /* Open: nothing behind it scrolls (see wdHoldThePage below). */
+  .wd-set-del-modal { touch-action: none; overscroll-behavior: contain; }
   .wd-set-del-dialog {
     width: min(86vw, 320px); padding: 22px 20px 18px; border-radius: 16px; text-align: center;
     background: #16181d; color: #e9ecef; box-shadow: 0 10px 40px rgba(0, 0, 0, .5);
@@ -170,6 +172,40 @@
       e.stopPropagation();
       if (e.key === "Escape") close();
     });
+
+    // While a pop-up is open the page behind it stays put. On an iPhone
+    // overflow: hidden on the body does not stop it scrolling, so the body
+    // is pinned in place (position: fixed, shifted up by how far the page
+    // was scrolled) and put back where it was once the last pop-up closes.
+    // Shared by the stopwatch's pop-ups and the delete-a-set one
+    // (partials/_stopwatch.html, partials/_set_swipe_delete.html): whichever
+    // loads first defines it, each watches its own pop-ups.
+    if (!window.wdHoldThePage) {
+      var heldAt = null;
+      window.wdHoldThePage = function () {
+        var open = !!document.querySelector(".wd-sw-modal.open, .wd-set-del-modal.open");
+        var style = document.body.style;
+        if (open && heldAt === null) {
+          heldAt = window.scrollY;
+          style.position = "fixed"; style.top = -heldAt + "px";
+          style.left = "0"; style.right = "0"; style.width = "100%";
+        } else if (!open && heldAt !== null) {
+          style.position = style.top = style.left = style.right = style.width = "";
+          // At once - Bootstrap's smooth scrolling would glide back from the top.
+          var root = document.documentElement.style, was = root.scrollBehavior;
+          root.scrollBehavior = "auto";
+          window.scrollTo(0, heldAt);
+          root.scrollBehavior = was;
+          heldAt = null;
+        }
+      };
+    }
+    if (window.MutationObserver) {
+      var watchPopups = new MutationObserver(window.wdHoldThePage);
+      document.querySelectorAll("#wd-set-del-modal").forEach(function (popup) {
+        watchPopups.observe(popup, { attributes: true, attributeFilter: ["class"] });
+      });
+    }
 
     document.getElementById("wd-set-del-ok").addEventListener("click", function () {
       var row = pending;
