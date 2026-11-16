@@ -39,6 +39,33 @@
             cursor: pointer;
         }
 
+        /* Left-handed / right-handed: a switch with a word on each side. It
+           picks a side, so it is the same blue both ways (never "off" grey)
+           and the side it points at is the one written in full colour. */
+        .wd-hand .form-check-input {
+            width: 2.6em;
+            height: 1.4em;
+            margin: 0;
+            float: none;
+            display: block;
+            cursor: pointer;
+            background-color: var(--bs-primary, #0d6efd);
+            border-color: var(--bs-primary, #0d6efd);
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e") !important;
+        }
+
+        .wd-hand-side {
+            cursor: pointer;
+            color: var(--bs-secondary-color, #6c757d);
+            user-select: none;
+        }
+
+        .wd-hand:has(input:checked) [data-hand="right"],
+        .wd-hand:not(:has(input:checked)) [data-hand="left"] {
+            color: var(--bs-body-color, #212529);
+            font-weight: 600;
+        }
+
         /* The (i) beside a group's name opens what its switches do. */
         .wd-info {
             border: 0; background: transparent; padding: 2px; line-height: 0;
@@ -177,6 +204,23 @@
                     <div class="form-text">{{ _("On Training Session, from the stopwatch's Start: the top bar scrolls away, the screen stays on, and the stopwatch bar lights up when the rest is up.") }}</div>
                 </div>
 
+                <!-- Not on/off but one side or the other: the knob on the left
+                     is left-handed (Confirm left, Repeat right - as it always
+                     was), on the right right-handed (the two swapped). Either
+                     word can be tapped too - see the script below. -->
+                <div class="wd-hand mt-4">
+                    <div class="d-flex align-items-center justify-content-center gap-3">
+                        <span class="wd-hand-side" data-hand="left">{{ _("Left-handed") }}</span>
+                        <div class="form-check form-switch m-0 p-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="rightHanded"
+                                name="right_handed" value="1" {{ 'checked' if current_user.right_handed }}
+                                aria-label="{{ _("Right-handed") }}">
+                        </div>
+                        <span class="wd-hand-side" data-hand="right">{{ _("Right-handed") }}</span>
+                    </div>
+                    <div class="form-text text-center">{{ _("The side of the Confirm button: left for a left-hander, right for a right-hander. Repeat takes the other side.") }}</div>
+                </div>
+
                 <hr class="my-4">
                 <div class="d-flex align-items-center gap-2 mb-3">
                     <div class="wd-group">{{ _("Training Session") }} &amp; {{ _("Intuitive Training") }}</div>
@@ -279,6 +323,18 @@
             }
 
             form.addEventListener("submit", function (event) { event.preventDefault(); });
+
+            // Left-handed / Right-handed: a tap on either word moves the
+            // switch to that side, and saves like a flip of the switch itself.
+            var hand = document.getElementById("rightHanded");
+            form.querySelectorAll(".wd-hand-side").forEach(function (side) {
+                side.addEventListener("click", function () {
+                    var right = side.dataset.hand === "right";
+                    if (hand.checked === right) { return; }
+                    hand.checked = right;
+                    hand.dispatchEvent(new Event("change", { bubbles: true }));
+                });
+            });
 
             // A new language reloads the page, to show it in that language.
             var language = form.querySelector("input[name=language]:checked");

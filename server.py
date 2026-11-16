@@ -1493,7 +1493,7 @@ def change_password():
 
 # The switches on /customization -> Users columns.
 CUSTOMIZATION_SWITCHES = ("show_session_icons", "show_session_names", "animate_session_icons", "show_stopwatch", "show_set_gaps",
-                          "translate_exercises", "show_plan_icons", "focus_mode", "stopwatch_advanced")
+                          "translate_exercises", "show_plan_icons", "focus_mode", "stopwatch_advanced", "right_handed")
 
 # The switches that also sit on another page (Create Workout) and are saved
 # from there one at a time - see save_one_switch().

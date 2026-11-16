@@ -583,7 +583,9 @@
             </style>
 
 
-            <div class="d-flex justify-content-center mb-2 gap-2" style="padding-top: 1.5em;">
+            {# Right-handed (Customization): the two swap sides, Confirm under
+               the right thumb. Only the look - the order in the page stays. #}
+            <div class="d-flex justify-content-center mb-2 gap-2{{ ' flex-row-reverse' if current_user.right_handed }}" style="padding-top: 1.5em;">
               <button type="submit" name="confirm_button"
                 class="btn btn-success btn-lg col-6 col-lg-4 col-md-6 col-sm-6">{{ _("Confirm") }}</button>
               <button type="submit" name="repeat_button"

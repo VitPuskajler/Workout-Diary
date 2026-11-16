@@ -483,7 +483,9 @@
               </style>
               {% endif %}
 
-              <div class="d-flex justify-content-center mb-2 gap-2" style="padding-top: 1.5em;">
+              {# Right-handed (Customization): the two swap sides, as on
+                 Training Session. #}
+              <div class="d-flex justify-content-center mb-2 gap-2{{ ' flex-row-reverse' if current_user.right_handed }}" style="padding-top: 1.5em;">
                 <button type="submit" class="btn btn-success btn-lg {% if selected_exercise is not none %}col-6{% else %}col-8{% endif %} col-lg-4 col-md-6">{{ _("Confirm") }}</button>
                 {% if selected_exercise is not none %}
                 <button type="submit" name="repeat_button"

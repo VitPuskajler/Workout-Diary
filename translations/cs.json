@@ -581,5 +581,8 @@
   "Band that resists, in kg": "Guma, která brání (kg)",
   "Choose the level": "Vybrat úroveň",
   "Current level": "Aktuální úroveň",
-  "Already in today's plan": "Už je v dnešním plánu"
+  "Already in today's plan": "Už je v dnešním plánu",
+  "Left-handed": "Levák",
+  "Right-handed": "Pravák",
+  "The side of the Confirm button: left for a left-hander, right for a right-hander. Repeat takes the other side.": "Strana tlačítka Potvrdit: vlevo pro leváka, vpravo pro praváka. Znovu je na opačné straně."
 }

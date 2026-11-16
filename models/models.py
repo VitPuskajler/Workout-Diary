@@ -64,6 +64,10 @@ class Users(UserMixin, db.Model):
     # and the edges pulse blue once the rest is up. Off until switched on.
     # See temp/add_focus_mode_column.py.
     focus_mode = Column(Boolean, nullable=False, default=False, server_default="0")
+    # Which side Confirm sits on in Training Session and Intuitive Training. Off (left-handed, as
+    # it always was): Confirm left, Repeat right. On: the two swapped.
+    # See temp/add_right_handed_column.py.
+    right_handed = Column(Boolean, nullable=False, default=False, server_default="0")
     # "en", "sk" or "cs" - see translations/i18n.py.
     language = Column(String(5), nullable=False, default="en", server_default="en")
     # Exercise names in the user's language (Exercise.name_sk / name_cs) where
