@@ -9,6 +9,11 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
   <style>
+    /* Last / Max under each exercise name on the plan */
+    .plan-weights { display: block; font-size: .75rem; color: var(--bs-secondary-color); margin-top: 2px; }
+    .plan-weights b { color: var(--bs-body-color); font-weight: 600; }
+    .plan-pr { font-size: .6rem; vertical-align: middle; }
+
     /* Additional styles for fixed-bottom container */
     .fixed-bottom {
       position: fixed;
@@ -154,6 +159,15 @@
 
 
           {% if table_population %}
+          {# One logged set as "82.5 kg × 6", "BW × 12", "1:30" or "45 s" #}
+          {% macro plan_set(s) -%}
+            {%- if s.timed -%}
+              {%- if s.weight %}{{ "%g"|format(s.weight) }} {{ s.unit }} &middot; {% endif -%}
+              {%- if s.reps >= 60 %}{{ s.reps // 60 }}:{{ "%02d"|format(s.reps % 60) }}{% else %}{{ s.reps }} s{% endif -%}
+            {%- else -%}
+              {%- if s.weight %}{{ "%g"|format(s.weight) }} {{ s.unit }}{% else %}{{ _("BW") }}{% endif %} &times; {{ s.reps }}
+            {%- endif -%}
+          {%- endmacro %}
           {% for workout_name, exercises in table_population.items() %}
           <div class="container p-3">
             <div class="row justify-content-center">
@@ -170,7 +184,21 @@
                   <tbody>
                     {% for exercise_name, details in exercises.items() %}
                     <tr>
-                      <td>{{ exercise_label(exercise_name) }}</td>
+                      {% set weights = plan_weights.get(exercise_name) %}
+                      <td>
+                        {{ exercise_label(exercise_name) }}
+                        {% if weights and weights.pr %}<span class="badge text-bg-success plan-pr">{{ _("PR") }}</span>{% endif %}
+                        {# Last = heaviest set of the latest session, Max = heaviest ever.
+                           See WorkoutManagement.plan_weights. #}
+                        <span class="plan-weights">
+                          {% if weights %}
+                          <span class="text-nowrap">{{ _("Last") }} <b>{{ plan_set(weights.last) }}</b></span> &middot;
+                          <span class="text-nowrap">{{ _("Max") }} <b>{{ plan_set(weights.max) }}</b></span>
+                          {% else %}
+                          {{ _("Not trained yet") }}
+                          {% endif %}
+                        </span>
+                      </td>
                       <td>{{ details.sets }}</td>
                       <td>{{ details.rest }}</td>
                     </tr>

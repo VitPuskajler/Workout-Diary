@@ -2127,6 +2127,80 @@ class WorkoutManagement:
 
         return workouts_from_db
 
+    def plan_weights(self, exercise_names) -> dict:
+        """Last and Max for each exercise on the Workout Plan page.
+
+        {exercise name: {"last": set, "max": set, "pr": bool}}, where a set is
+        {"weight", "unit", "reps", "timed"} and only exercises the user has
+        ever logged are in it.
+
+          last - the heaviest set of the latest session with this exercise
+          max  - the heaviest set ever (all mesocycles), more reps breaks a tie
+          pr   - that latest session beat every session before it
+
+        Heaviest is compared in kg, so 100 lbs loses to 50 kg. Holds compare
+        seconds (stored in reps); exercises never done with a weight compare
+        reps.
+        """
+        names = set(exercise_names)
+        user_id = self.current_user_id_db()
+        if not names or user_id is None:
+            return {}
+
+        rows = (
+            db.session.query(
+                Exercise.exercise_name,
+                Exercise.is_timed,
+                ExerciseEntries.session_id,
+                ExerciseEntries.weight,
+                ExerciseEntries.unit,
+                ExerciseEntries.reps,
+            )
+            .join(ExerciseEntries, ExerciseEntries.exercise_id == Exercise.exercise_id)
+            .join(Sessions, Sessions.session_id == ExerciseEntries.session_id)
+            .filter(
+                Sessions.user_id == user_id,
+                Exercise.exercise_name.in_(names),
+                ExerciseEntries.reps.isnot(None),
+            )
+            .order_by(Sessions.session_date, ExerciseEntries.set_number, ExerciseEntries.entry_id)
+            .all()
+        )
+
+        by_exercise = {}
+        for row in rows:
+            by_exercise.setdefault(row.exercise_name, []).append(row)
+
+        def weight_kg(row):
+            weight = row.weight or 0
+            return lbs_to_kg(weight) if row.unit == "lbs" else weight
+
+        result = {}
+        for name, sets in by_exercise.items():
+            timed = bool(sets[0].is_timed)
+            if timed or not any(row.weight for row in sets):
+                key = lambda row: row.reps or 0
+            else:
+                key = lambda row: (weight_kg(row), row.reps or 0)
+
+            last_session = sets[-1].session_id
+            latest = [row for row in sets if row.session_id == last_session]
+            earlier = [row for row in sets if row.session_id != last_session]
+
+            last = max(latest, key=key)
+            best = max(sets, key=key)
+
+            def as_dict(row):
+                return {"weight": row.weight or 0, "unit": row.unit or "kg",
+                        "reps": row.reps or 0, "timed": timed}
+
+            result[name] = {
+                "last": as_dict(last),
+                "max": as_dict(best),
+                "pr": bool(earlier) and key(last) > key(max(earlier, key=key)),
+            }
+        return result
+
     def workout_day_information(
         self, chosen_mesocycle: str, mesocycle_info: dict
     ) -> dict:

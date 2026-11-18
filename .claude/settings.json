@@ -7,7 +7,7 @@
           {
             "type": "command",
             "if": "Bash(git *)",
-            "command": "python \"$CLAUDE_PROJECT_DIR/tools/pre_commit_ui_check.py\"",
+            "command": "P=\"$CLAUDE_PROJECT_DIR/.venv/bin/python\"; [ -x \"$P\" ] || P=\"$CLAUDE_PROJECT_DIR/.venv/Scripts/python.exe\"; [ -x \"$P\" ] || P=python; \"$P\" \"$CLAUDE_PROJECT_DIR/tools/pre_commit_ui_check.py\"",
             "timeout": 300,
             "statusMessage": "UI check: PC, Android, iPhone..."
           }

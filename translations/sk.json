@@ -584,5 +584,10 @@
   "Already in today's plan": "Už je v dnešnom pláne",
   "Left-handed": "Ľavák",
   "Right-handed": "Pravák",
-  "The side of the Confirm button: left for a left-hander, right for a right-hander. Repeat takes the other side.": "Strana tlačidla Potvrdiť: vľavo pre ľaváka, vpravo pre praváka. Znova je na opačnej strane."
+  "The side of the Confirm button: left for a left-hander, right for a right-hander. Repeat takes the other side.": "Strana tlačidla Potvrdiť: vľavo pre ľaváka, vpravo pre praváka. Znova je na opačnej strane.",
+  "Last": "Naposledy",
+  "Max": "Max",
+  "PR": "Rekord",
+  "BW": "VH",
+  "Not trained yet": "Ešte necvičené"
 }

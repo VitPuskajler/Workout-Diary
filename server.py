@@ -366,7 +366,10 @@ def workout_plan_page():
         year=YEAR,
         dropdown=dropdown_menu_info,
         chosen_mesocycle=chosen_mesocycle,
-        table_population=table_population
+        table_population=table_population,
+        plan_weights=db_operations.plan_weights(
+            name for exercises in (table_population or {}).values() for name in exercises
+        ),
     )
 
 # ----------------------------------------------------------------------
