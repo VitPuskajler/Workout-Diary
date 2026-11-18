@@ -48,6 +48,12 @@
       pointer-events: none;
       transition: opacity .15s;
     }
+    /* A row held by a finger: the body itself is the page's scroller for
+       the length of the drag - an iPhone does not let a script scroll the
+       page while a finger is down, but it does scroll an element. */
+    html.wd-body-scroll { overflow: hidden; height: 100%; }
+    html.wd-body-scroll body { position: fixed; inset: 0; overflow-y: auto; overscroll-behavior: none; }
+
     .wd-toast {
       position: fixed;
       left: 50%;
@@ -1572,11 +1578,10 @@
 
       let startNext = null;   // the row's neighbour before the drag, to put it back
 
-      // A phone (a finger, not a mouse): once a held row reaches the top or
-      // bottom of the screen - it is on its way to another day - every day
-      // folds down to a "Drop here · Full Body B" box, so all of them fit on
-      // the screen: an iPhone does not let the page scroll while a finger
-      // holds a row. Until then the days stay open, to reorder within one.
+      // A phone (a finger, not a mouse) whose page still will not scroll
+      // while a row is held at the screen's edge: every day folds down to a
+      // "Drop here · Full Body B" box, so all of them fit on the screen.
+      // Only the fallback - scrolling the body (below) comes first.
       const FOLD_DAYS = window.matchMedia("(pointer: coarse)");
       const planArea = document.getElementById("wd_plan_area");
 
@@ -1608,6 +1613,26 @@
         document.querySelectorAll(".wd-fold-hide").forEach((t) => t.classList.remove("wd-fold-hide"));
         document.querySelectorAll(".wd-drop-day").forEach((t) => t.classList.remove("wd-drop-day"));
         document.querySelectorAll(".wd-drop-table").forEach((t) => t.classList.remove("wd-drop-table"));
+      }
+
+      // A finger (phone): for the length of the drag the body - not the
+      // page - scrolls, the same spot on screen. An iPhone ignores a script
+      // scrolling the page while a finger holds something (tested: scrollY
+      // stuck), an element it scrolls.
+      let bodyScroller = false;
+      function pageToBody() {
+        if (!FOLD_DAYS.matches) return;
+        const y = window.scrollY;
+        document.documentElement.classList.add("wd-body-scroll");
+        document.body.scrollTop = y;
+        bodyScroller = true;
+      }
+      function bodyToPage() {
+        if (!bodyScroller) return;
+        const y = document.body.scrollTop;
+        document.documentElement.classList.remove("wd-body-scroll");
+        bodyScroller = false;
+        window.scrollTo(0, y);
       }
 
       // ---- the page scrolls while a row is held near the top or bottom of
@@ -1647,17 +1672,32 @@
           }
           return y;
         }
-        // window.scrollBy first - on an iPhone, writing scrollingElement's
-        // scrollTop reads back changed while the page does not move.
+        function scroller() {
+          return bodyScroller ? document.body : (document.scrollingElement || document.documentElement);
+        }
+        // true: it moved. window.scrollBy first - on an iPhone, writing
+        // scrollingElement's scrollTop reads back changed while the page
+        // does not move.
         function scrollPage(delta) {
+          if (bodyScroller) {
+            const before = document.body.scrollTop;
+            document.body.scrollTop = before + delta;
+            return document.body.scrollTop !== before;
+          }
           const before = window.scrollY;
           window.scrollBy(0, delta);
           if (window.scrollY === before) {
             const el = document.scrollingElement || document.documentElement;
             el.scrollTop = el.scrollTop + delta;
           }
+          return window.scrollY !== before;
+        }
+        function atEnd(speed) {
+          const el = scroller();
+          return speed < 0 ? el.scrollTop <= 0 : el.scrollTop >= el.scrollHeight - el.clientHeight - 1;
         }
         let frames = 0;
+        let stuck = 0;                         // frames the page should have moved and did not
         function step() {
           frame = requestAnimationFrame(step);
           const at = fingerY();
@@ -1666,12 +1706,16 @@
             const top = zoneTop() + EDGE, bottom = zoneBottom() - EDGE;
             if (at < top) speed = -MAX_SPEED * Math.min(1, (top - at) / EDGE);
             else if (at > bottom) speed = MAX_SPEED * Math.min(1, (at - bottom) / EDGE);
-            if (speed && FOLD_DAYS.matches) foldDays();
-            else if (speed) scrollPage(Math.round(speed) || Math.sign(speed));
+            // Scrolling first. Only a phone whose page will not move at
+            // all (the fallback) folds the days into "Drop here" boxes.
+            if (speed && !document.body.classList.contains("wd-dragging")) {
+              if (scrollPage(Math.round(speed) || Math.sign(speed)) || atEnd(speed)) stuck = 0;
+              else if (++stuck > 12 && FOLD_DAYS.matches) foldDays();
+            }
           }
           if (box) box.textContent = "#" + (++frames) + " y " + (at === null ? "-" : Math.round(at)) +
-            " speed " + Math.round(speed) + " scrollY " + Math.round(window.scrollY) +
-            " top " + Math.round((document.scrollingElement || document.documentElement).scrollTop) +
+            " speed " + Math.round(speed) + " body " + bodyScroller + " stuck " + stuck +
+            " top " + Math.round(scroller().scrollTop) +
             " ghost " + !!document.querySelector(".sortable-fallback");
         }
         const EVENTS = ["pointermove", "touchmove", "mousemove"];
@@ -1679,6 +1723,7 @@
           start: function () {
             y = null;
             frames = 0;
+            stuck = 0;
             EVENTS.forEach((t) => document.addEventListener(t, track, { passive: true, capture: true }));
             if (DEBUG && !box) {
               box = document.createElement("div");
@@ -1711,10 +1756,12 @@
           scroll: false,
           onStart: function (evt) {
             startNext = evt.item.nextElementSibling;
+            pageToBody();
             autoScroll.start();
           },
           onEnd: function (evt) {
             autoScroll.stop();
+            bodyToPage();
             const folded = document.body.classList.contains("wd-dragging");
             unfoldDays();
             const row = evt.item, from = evt.from, to = evt.to;
