@@ -39,6 +39,31 @@
     /* Edit + Save, floating at the bottom of the screen. Above the page,
        below any dialog and its veil. The plan gets room at its end so its
        last row can be scrolled out from under them. */
+    /* Saving without leaving the page (AJAX): the plan dims and holds still
+       until the answer is back; a small note above the Save bar says how
+       it went. */
+    #wd_plan_area.wd-saving tbody[data-day],
+    #wd_plan_area.wd-saving .wd-day-name {
+      opacity: .55;
+      pointer-events: none;
+      transition: opacity .15s;
+    }
+    .wd-toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+      transform: translateX(-50%);
+      z-index: 1030;
+      padding: .35rem .9rem;
+      border-radius: 50rem;
+      font-size: .9rem;
+      box-shadow: 0 .3rem .9rem rgba(0, 0, 0, .2);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    .wd-toast.is-on { opacity: 1; }
+
     .wd-action-bar {
       position: fixed;
       left: 50%;
@@ -538,7 +563,7 @@
     </nav>
   </div>
   {% include "partials/_impersonation_banner.html" %}
-  {% include "partials/_flashes.html" %}
+  <div id="wd_flashes">{% include "partials/_flashes.html" %}</div>
 
   <!-- Container for the main content -->
   <div class="container">
@@ -566,7 +591,8 @@
   <div class="container">
     <div class="row justify-content-center">
       <div class="col-12 col-md-7">
-        <form action="{{ url_for('create_workout') }}" method="POST" class="mb-4">
+        <form action="{{ url_for('create_workout') }}" method="POST" class="mb-4"
+          id="wd_rename_form" data-wd-no-loader>
           <input type="hidden" name="action" value="rename_mesocycle" />
           <label for="mesocycle_name"
             class="form-label d-block text-center text-body-secondary small mb-1">
@@ -622,7 +648,7 @@
       <div class="col-12 col-md-7{{ '' if current_user.show_plan_icons else ' wd-no-icons' }}"
         data-wd-editable="create_workout" id="wd_plan_area">
         {% for x in range(week) %}
-        <form action="{{ url_for('create_workout') }}" method="POST" data-wd-plan>
+        <form action="{{ url_for('create_workout') }}" method="POST" data-wd-plan data-wd-no-loader>
           {# The day's name. #}
           <div class="mb-2 wd-day-name">
           {% if w_names[x] is not none %}
@@ -825,13 +851,15 @@
       xhr.send();
     }
 
-    document.querySelectorAll(".wd-timed-toggle").forEach(function (button) {
+    // Delegated: the add rows are replaced after every save.
+    document.addEventListener("click", function (e) {
+      const button = e.target.closest && e.target.closest(".wd-timed-toggle");
+      if (!button) return;
       const day = button.id.replace("timed_toggle_", "");
-      button.addEventListener("click", function () {
-        const timed = button.dataset.mode !== "sec";
-        setTimedToggle(day, timed);
-        document.getElementById(`new_timed_${day}`).value = timed ? "1" : "0";
-      });
+      const timed = button.dataset.mode !== "sec";
+      setTimedToggle(day, timed);
+      document.getElementById(`new_timed_${day}`).value = timed ? "1" : "0";
+      if (window.wdRefreshSaveButtons) window.wdRefreshSaveButtons();
     });
   </script>
 
@@ -878,6 +906,11 @@
         });
       };
       document.querySelectorAll("tbody[data-day] img[data-wd-moving]").forEach(window.wdWireRowIcon);
+      // A save puts in fresh rows (see loadPlan()).
+      document.addEventListener("wd:plan-swapped", function () {
+        tapped = null;
+        document.querySelectorAll("tbody[data-day] img[data-wd-moving]").forEach(window.wdWireRowIcon);
+      });
       document.addEventListener("click", function (e) {
         if (!tapped || (e.target.closest && e.target.closest("tbody[data-day] img[data-wd-moving]"))) return;
         play(tapped, false);
@@ -949,10 +982,14 @@
           }
         });
         names.forEach((button) => observer.observe(button));
+        document.addEventListener("wd:plan-swapped", function () {
+          document.querySelectorAll("tbody[data-day] .wd-ex-name").forEach((button) => observer.observe(button));
+        });
       } else {
-        const fitAll = () => names.forEach(fitExerciseName);
+        const fitAll = () => document.querySelectorAll(".wd-ex-name").forEach(fitExerciseName);
         fitAll();
         window.addEventListener("resize", fitAll);
+        document.addEventListener("wd:plan-swapped", fitAll);
       }
       // Fonts loading late change text widths.
       if (document.fonts && document.fonts.ready) {
@@ -1308,6 +1345,10 @@
       }
 
       document.querySelectorAll("input[data-wd-exercise]").forEach(showStepper);
+      document.addEventListener("wd:plan-swapped", function () {
+        target = null;
+        document.querySelectorAll("tbody[data-day] input[data-wd-exercise]").forEach(showStepper);
+      });
 
       document.addEventListener("click", function (e) {
         const step = e.target.closest && e.target.closest(".wd-ex-step");
@@ -1814,7 +1855,7 @@
 
     // "next" is written only when the dialog sends you somewhere, so it must
     // not count as a change on its own.
-    const savedState = snapshot();
+    let savedState = snapshot();
     const nextField = document.getElementById("wd_next");
 
     function isDirty() {
@@ -1900,13 +1941,101 @@
       });
     }
 
-    // The x by the edge: back to the plan as saved, in one tap - the page
-    // loads afresh from the database, as the dialog's Discard does.
+    // ---- saving without leaving the page
+    //
+    // Save posts the plan with fetch(); the route answers as it always did,
+    // with a redirect back here, which fetch follows - so the answer is this
+    // page, fresh from the database. Its days (rows, names, order) replace
+    // the ones on screen; the rest of the page - Edit mode, the scroll,
+    // the open dialogs' wiring - stays as it is. Whatever needs wiring on
+    // the new rows listens for "wd:plan-swapped".
+    const planArea = document.getElementById("wd_plan_area");
+    const flashBox = document.getElementById("wd_flashes");
+    let busy = false;
+    let toastTimer = 0;
+
+    function toast(text, ok) {
+      let el = document.getElementById("wd_toast");
+      if (!el) {
+        el = document.createElement("div");
+        el.id = "wd_toast";
+        el.setAttribute("role", "status");
+        document.body.appendChild(el);
+      }
+      el.className = "wd-toast " + (ok ? "text-bg-success" : "text-bg-danger");
+      el.textContent = text;
+      requestAnimationFrame(() => el.classList.add("is-on"));
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove("is-on"), ok ? 1500 : 4000);
+    }
+
+    // The fresh page's days into this one. false: it does not fit (another
+    // number of days) - then only a reload will do.
+    function swapPlan(doc) {
+      const fresh = doc.querySelectorAll("tbody[data-day]");
+      const mine = document.querySelectorAll("tbody[data-day]");
+      if (!fresh.length || fresh.length !== mine.length) return false;
+      mine.forEach(function (tbody, i) {
+        tbody.innerHTML = fresh[i].innerHTML;
+        tbody.dataset.dayName = fresh[i].dataset.dayName || "";
+      });
+      const names = doc.querySelectorAll("#wd_plan_area .wd-day-name");
+      document.querySelectorAll("#wd_plan_area .wd-day-name").forEach(function (box, i) {
+        if (names[i]) box.innerHTML = names[i].innerHTML;
+      });
+      doc.querySelectorAll('#wd_plan_area input[id^="order_"]').forEach(function (field) {
+        const own = document.getElementById(field.id);
+        if (own) own.value = field.value;
+      });
+      const flashes = doc.getElementById("wd_flashes");
+      if (flashBox && flashes) flashBox.innerHTML = flashes.innerHTML;
+      document.dispatchEvent(new CustomEvent("wd:plan-swapped"));
+      savedState = snapshot();
+      refreshSaveButtons();
+      return true;
+    }
+
+    // request: a fetch() promise for this page. message: the toast once it
+    // is in, or none.
+    function loadPlan(request, message) {
+      if (busy) return;
+      busy = true;
+      if (planArea) planArea.classList.add("wd-saving");
+      request
+        .then(function (response) {
+          if (!response.ok) throw new Error(response.status);
+          // Sent elsewhere - logged out, or no plan any more: go there.
+          if (new URL(response.url).pathname !== window.location.pathname) {
+            leaving = true;
+            window.location.href = response.url;
+            return;
+          }
+          return response.text().then(function (html) {
+            const doc = new DOMParser().parseFromString(html, "text/html");
+            if (!swapPlan(doc)) {
+              leaving = true;
+              window.location.reload();
+              return;
+            }
+            if (message) toast(message, true);
+          });
+        })
+        .catch(function () {
+          // Nothing on screen is lost: the edits are still there to save again.
+          toast({{ _("Could not save, try again.")|tojson }}, false);
+        })
+        .finally(function () {
+          busy = false;
+          if (planArea) planArea.classList.remove("wd-saving");
+        });
+    }
+    window.wdLoadPlan = loadPlan;
+
+    // The x by the edge: back to the plan as saved, in one tap - the days
+    // load afresh from the database.
     document.querySelectorAll("[data-wd-discard]").forEach(function (button) {
       button.addEventListener("click", function () {
-        leaving = true;
-        if (window.showLoader) window.showLoader();
-        window.location.replace(window.location.pathname);
+        loadPlan(fetch(window.location.pathname, { credentials: "same-origin" }));
       });
     });
 
@@ -1919,10 +2048,22 @@
       e.returnValue = "";
     });
 
-    // A normal submit is a save, not an escape.
+    // Save. Only the unsaved-changes dialog's Save, on the way to another
+    // page ("next" is set), goes the old way - it leaves anyway.
     if (planForm) {
-      planForm.addEventListener("submit", function () {
-        leaving = true;
+      planForm.addEventListener("submit", function (e) {
+        if (nextField && nextField.value) {
+          leaving = true;
+          if (window.showLoader) window.showLoader();
+          return;
+        }
+        e.preventDefault();
+        if (busy) return;
+        loadPlan(fetch(planForm.getAttribute("action"), {
+          method: "POST",
+          body: new FormData(planForm),
+          credentials: "same-origin",
+        }), {{ _("Saved")|tojson }});
       });
     }
 
@@ -1984,7 +2125,7 @@
       const button = document.querySelector("[data-wd-rename]");
       if (!box || !button) return;
 
-      const original = box.value;
+      let original = box.value;
       function refresh() {
         const changed = box.value.trim() !== original.trim();
         button.classList.toggle("btn-primary", changed);
@@ -1992,6 +2133,49 @@
       }
       box.addEventListener("input", refresh);
       refresh();
+
+      // Renamed without leaving the page: the route's message ("Renamed
+      // to ...") comes back in the fresh page and is shown here.
+      const form = document.getElementById("wd_rename_form");
+      const flashBox = document.getElementById("wd_flashes");
+      let busy = false;
+      if (!form) return;
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (busy) return;
+        busy = true;
+        button.disabled = true;
+        fetch(form.getAttribute("action"), { method: "POST", body: new FormData(form), credentials: "same-origin" })
+          .then(function (response) {
+            if (!response.ok) throw new Error(response.status);
+            if (new URL(response.url).pathname !== window.location.pathname) {
+              window.location.href = response.url;
+              return;
+            }
+            return response.text().then(function (html) {
+              const doc = new DOMParser().parseFromString(html, "text/html");
+              const flashes = doc.getElementById("wd_flashes");
+              if (flashBox && flashes) flashBox.innerHTML = flashes.innerHTML;
+              const fresh = doc.getElementById("mesocycle_name");
+              if (fresh) box.value = fresh.value;
+              original = box.value;
+              refresh();
+            });
+          })
+          .catch(function () {
+            if (flashBox) {
+              const alert = document.createElement("div");
+              alert.className = "alert alert-danger mb-3 py-2";
+              alert.setAttribute("role", "alert");
+              alert.textContent = {{ _("Could not save, try again.")|tojson }};
+              flashBox.replaceChildren(alert);
+            }
+          })
+          .finally(function () {
+            busy = false;
+            button.disabled = false;
+          });
+      });
     })();
   </script>
 
