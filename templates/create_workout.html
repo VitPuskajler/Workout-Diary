@@ -1481,6 +1481,52 @@
 
       let startNext = null;   // the row's neighbour before the drag, to put it back
 
+      // ---- the page scrolls while a row is held near the top or bottom of
+      // the screen, so it can be carried to a day further up or down. Not
+      // Sortable's own autoscroll: on a phone it only woke within 30 px of
+      // the edge - under the navbar and the Save bar - and often not at all
+      // for a finger. The nearer the edge, the faster; it stops when the
+      // finger moves back or lets go. Sortable re-checks the spot under a
+      // still finger on its own (fallback mode), so the row follows along.
+      const autoScroll = (function () {
+        let y = null, frame = 0;
+        const EDGE = 110;                      // px of zone at each end
+        const MAX_SPEED = 18;                  // px per frame at the very edge
+        function zoneTop() {
+          const nav = document.querySelector(".navbar.fixed-top");
+          return nav ? nav.getBoundingClientRect().bottom : 0;
+        }
+        function zoneBottom() {
+          const bar = document.querySelector(".wd-action-bar");
+          return bar ? bar.getBoundingClientRect().top : window.innerHeight;
+        }
+        function track(e) {
+          const point = e.touches ? e.touches[0] : e;
+          if (point) y = point.clientY;
+        }
+        function step() {
+          frame = requestAnimationFrame(step);
+          if (y === null) return;
+          const top = zoneTop() + EDGE, bottom = zoneBottom() - EDGE;
+          let speed = 0;
+          if (y < top) speed = -MAX_SPEED * Math.min(1, (top - y) / EDGE);
+          else if (y > bottom) speed = MAX_SPEED * Math.min(1, (y - bottom) / EDGE);
+          if (speed) window.scrollBy(0, Math.round(speed) || Math.sign(speed));
+        }
+        return {
+          start: function () {
+            y = null;
+            ["pointermove", "touchmove", "mousemove"].forEach((t) => document.addEventListener(t, track, { passive: true }));
+            frame = requestAnimationFrame(step);
+          },
+          stop: function () {
+            ["pointermove", "touchmove", "mousemove"].forEach((t) => document.removeEventListener(t, track));
+            cancelAnimationFrame(frame);
+            y = null;
+          },
+        };
+      })();
+
       document.querySelectorAll("tbody[data-day]").forEach(function (tbody) {
         if (!document.getElementById(`order_${tbody.dataset.day}`)) return;
         Sortable.create(tbody, {
@@ -1490,10 +1536,16 @@
           animation: 150,
           ghostClass: "wd-drag-ghost",
           chosenClass: "wd-drag-chosen",
+          // The same drag on every device (no native drag and drop), so the
+          // finger or mouse can be followed for the scrolling above.
+          forceFallback: true,
+          scroll: false,
           onStart: function (evt) {
             startNext = evt.item.nextElementSibling;
+            autoScroll.start();
           },
           onEnd: function (evt) {
+            autoScroll.stop();
             const row = evt.item, from = evt.from, to = evt.to;
             if (from === to) {
               writeOrder(from);
