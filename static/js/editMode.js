@@ -15,7 +15,10 @@
                                                     (data-wd-icon-only: the button
                                                     shows icons, the labels go to
                                                     its aria-label and title)
-       <tr data-wd-swipe>
+       <tr data-wd-swipe>                         (data-wd-swipe-right: a swipe to
+                                                    the right fires "wd:swipe-right"
+                                                    on the row, growing its
+                                                    .wd-swipe-move strip meanwhile)
          ... <td class="wd-swipe-cell"> <button class="wd-swipe-del">Delete</button>
 
    .wd-swipe-cell must be the row's last visible cell - the button grows out
@@ -26,6 +29,8 @@
 
   var OPEN_WIDTH = 88;     // px of the Delete button once the swipe is let go
   var OPEN_AT = 45;        // px of swipe that counts as "open it"
+  var RIGHT_MAX = 150;     // px the swipe-right strip (.wd-swipe-move) grows to
+  var RIGHT_AT = 80;       // px of swipe right that counts as "do it"
 
   var css =
     "[data-wd-editable]:not(.wd-edit-on) .wd-edit-only { display: none !important; }" +
@@ -132,7 +137,15 @@
       drag.horizontal = Math.abs(dx) > Math.abs(dy);
       if (!drag.horizontal) { drag = null; return; }      // a scroll, leave it be
       drag.open = drag.row.classList.contains("wd-swiped");
+      // To the right, on a closed row that takes it: the page's own
+      // action (data-wd-swipe-right) instead of Delete.
+      drag.right = dx > 0 && !drag.open && drag.row.hasAttribute("data-wd-swipe-right");
       drag.row.classList.add("wd-swiping");
+    }
+    if (drag.right) {
+      var strip = drag.row.querySelector(".wd-swipe-move");
+      if (strip) strip.style.width = Math.max(0, Math.min(RIGHT_MAX, dx)) + "px";
+      return;
     }
     var width = Math.max(0, Math.min(OPEN_WIDTH + 30, (drag.open ? OPEN_WIDTH : 0) - dx));
     var button = drag.row.querySelector(".wd-swipe-del");
@@ -142,6 +155,19 @@
   function endDrag(e) {
     if (!drag) return;
     var row = drag.row;
+    if (drag.right) {
+      var strip = row.querySelector(".wd-swipe-move");
+      var far = strip ? parseFloat(strip.style.width) || 0 : 0;
+      if (strip) strip.style.width = "";
+      row.classList.remove("wd-swiping");
+      swallowClick = true;
+      setTimeout(function () { swallowClick = false; }, 400);
+      drag = null;
+      if (e.type === "pointerup" && far >= RIGHT_AT) {
+        row.dispatchEvent(new CustomEvent("wd:swipe-right", { bubbles: true }));
+      }
+      return;
+    }
     if (drag.horizontal) {
       var button = row.querySelector(".wd-swipe-del");
       var width = button ? parseFloat(button.style.width) || 0 : 0;

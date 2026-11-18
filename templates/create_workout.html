@@ -48,12 +48,6 @@
       pointer-events: none;
       transition: opacity .15s;
     }
-    /* A row held by a finger: the body itself is the page's scroller for
-       the length of the drag - an iPhone does not let a script scroll the
-       page while a finger is down, but it does scroll an element. */
-    html.wd-body-scroll { overflow: hidden; height: 100%; }
-    html.wd-body-scroll body { position: fixed; inset: 0; overflow-y: auto; overscroll-behavior: none; }
-
     .wd-toast {
       position: fixed;
       left: 50%;
@@ -179,48 +173,16 @@
       cursor: grabbing;
     }
 
-    /* Dragging an exercise on a phone: the other days fold down to their
-       name and a "Drop here" box, so every day is on the screen at once -
-       an iPhone does not let the page scroll while a finger holds a row.
-       The day it came from stays open, to reorder within it. */
-    .wd-drop-hint { display: none; }
-    .wd-dragging tbody.wd-drop-day > tr:not(.wd-drop-hint):not(.sortable-fallback),
-    .wd-dragging table.wd-drop-table > thead { display: none; }
-    .wd-dragging tbody.wd-drop-day > tr.wd-drop-hint { display: table-row; }
-    .wd-dragging .wd-drop-wrap { margin-bottom: .75rem !important; }
-    .wd-dragging .wd-day-name,
-    .wd-dragging .wd-fold-hide,
-    .wd-dragging .wd-action-bar,
-    .wd-dragging [data-wd-discard],
-    .wd-dragging tbody.wd-drop-day > tr.wd-drag-ghost { display: none !important; }
-    .wd-drop-box {
-      border: 2px dashed var(--bs-success);
-      border-radius: var(--bs-border-radius-lg, .5rem);
-      background: var(--bs-success-bg-subtle);
-      color: var(--bs-success-text-emphasis);
-      text-align: center;
-      font-weight: 600;
-      padding: 1.1rem .5rem;
+    /* Swiping a row to the right (Edit mode) slides this in from the left;
+       let go far enough and it asks which day the exercise moves to. */
+    .wd-exercise-cell { position: relative; }
+    .wd-swipe-move {
+      position: absolute; top: 0; left: 0; bottom: 0; width: 0; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bs-primary); color: #fff; font-weight: 600; white-space: nowrap;
+      z-index: 2; pointer-events: none;
     }
-    /* The row under the finger, while the days are folded: a card with its
-       icon and name - the table around it is gone, so its cells would
-       squeeze the name to a letter. */
-    .wd-dragging tr.sortable-fallback {
-      display: flex !important;
-      align-items: center;
-      background: var(--bs-body-bg);
-      border-radius: var(--bs-border-radius-lg, .5rem);
-      box-shadow: 0 .4rem 1.2rem rgba(0, 0, 0, .25);
-      opacity: .95 !important;
-    }
-    .wd-dragging tr.sortable-fallback > td { display: block; border: 0; background: none; box-shadow: none; }
-    .wd-dragging tr.sortable-fallback > td:not(.wd-exercise-cell) { display: none; }
-    .wd-dragging tr.sortable-fallback > td.wd-exercise-cell { flex: 1; }
-    .wd-dragging tr.sortable-fallback .wd-ex-field,
-    .wd-dragging tr.sortable-fallback .wd-ex-name { width: auto; }
-    .wd-dragging tr.sortable-fallback .wd-timed-toggle { display: none; }
-
-    tbody.wd-drop-day:has(> tr.wd-drag-ghost) .wd-drop-box { background: var(--bs-success); color: #fff; }
+    #wd_move_days .btn { text-align: left; }
 
     .wd-drag-ghost > td {
       opacity: 0.35;
@@ -670,7 +632,7 @@
           {% endif %}
           </div>
 
-          <div class="mb-5 wd-drop-wrap">
+          <div class="mb-5">
           <table class="table table-striped text-center mb-2">
             <thead>
               <tr>
@@ -694,11 +656,12 @@
                  identify the row it is asked to rename, retime or delete, and
                  it is the prerequisite for reordering these rows by hand. #}
               {% for exe in user_exe[x] %}
-              <tr data-we-id="{{ exe['id'] }}" data-wd-swipe>
+              <tr data-we-id="{{ exe['id'] }}" data-wd-swipe data-wd-swipe-right>
                 <td class="wd-exercise-cell">
                   {# The name opens the list to swap the exercise; the hidden
                      field carries the choice to the server, as the typed
                      field used to. #}
+                  <span class="wd-swipe-move" aria-hidden="true">{{ _("Move") }} →</span>
                   <div class="wd-ex-pick">
                     {% set icon = exercise_icon(exe['exercise']) %}
                     {% set moving = exercise_icon_moving(exe['exercise']) if icon else none %}
@@ -732,13 +695,6 @@
                 </td>
               </tr>
               {% endfor %}
-
-              {# Shown only on a phone while an exercise from another day is
-                 being dragged - this day then folds down to its name and
-                 this box, to drop the exercise into (see the Sortable code). #}
-              <tr class="wd-drop-hint">
-                <td colspan="4"><div class="wd-drop-box">{{ _("Drop here") }}</div></td>
-              </tr>
 
               <tr>
                 <td class="wd-exercise-cell">
@@ -1543,271 +1499,85 @@
     });
   </script>
   <script>
-    // One Sortable per day, all in one group, so a row can be dragged to
-    // another day as well. Rows carry their own workout_exercise_id, so a
-    // day's order is simply the sequence of those ids - nothing here needs to
-    // work out what moved where; the server moves a row whose id turns up
-    // under another day (reorder_exercises()). The "add an exercise" row has
-    // no data-we-id, so it is not draggable and stays pinned to the bottom.
-    // Moving to another day asks first: "Move Hack Squat from Full Body A to
-    // Full Body B?" - Cancel puts the row back where it was.
+    // Drag to reorder - within a day only (each day is a group of its own).
+    // Moving an exercise to another day is a swipe to the right instead
+    // (below): a finger cannot carry a row down a long page on an iPhone,
+    // which will not scroll while the row is held.
+    function writeOrder(tbody) {
+      const field = document.getElementById(`order_${tbody.dataset.day}`);
+      if (!field) return;
+      // Not Sortable's floating copy of the dragged row (on a touch
+      // screen it sits in the table for the length of the drag).
+      field.value = Array.from(tbody.querySelectorAll("tr[data-we-id]:not(.sortable-fallback)"))
+        .map((tr) => tr.dataset.weId)
+        .join(",");
+    }
+
+    // The day's name as the page shows it: what is typed in its name box,
+    // else its saved name, else "Day 2".
+    function dayName(tbody) {
+      const box = document.querySelector(`input[name="workout_name_${tbody.dataset.day}"]`);
+      return (box && box.value.trim()) || tbody.dataset.dayName || tbody.dataset.dayLabel;
+    }
+
     if (typeof Sortable !== "undefined") {
-      function writeOrder(tbody) {
-        const field = document.getElementById(`order_${tbody.dataset.day}`);
-        if (!field) return;
-        // Not Sortable's floating copy of the dragged row (on a touch
-        // screen it sits in the table for the length of the drag).
-        field.value = Array.from(tbody.querySelectorAll("tr[data-we-id]:not(.sortable-fallback)"))
-          .map((tr) => tr.dataset.weId)
-          .join(",");
-      }
-
-      // The day's name as the page shows it: what is typed in its name box,
-      // else its saved name, else "Day 2".
-      function dayName(tbody) {
-        const box = document.querySelector(`input[name="workout_name_${tbody.dataset.day}"]`);
-        return (box && box.value.trim()) || tbody.dataset.dayName || tbody.dataset.dayLabel;
-      }
-
-      function keepAboveAddRow(tbody, row) {
-        const add = tbody.querySelector("tr:not([data-we-id])");     // the drop box row, then the add row
-        if (add && (row.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_PRECEDING)) {
-          tbody.insertBefore(row, add);
-        }
-      }
-
-      let startNext = null;   // the row's neighbour before the drag, to put it back
-
-      // A phone (a finger, not a mouse) whose page still will not scroll
-      // while a row is held at the screen's edge: every day folds down to a
-      // "Drop here · Full Body B" box, so all of them fit on the screen.
-      // Only the fallback - scrolling the body (below) comes first.
-      const FOLD_DAYS = window.matchMedia("(pointer: coarse)");
-      const planArea = document.getElementById("wd_plan_area");
-
-      // Everything above the plan (the title, the mesocycle's name, the
-      // switches) folds away too - not the fixed navbar or its spacer.
-      function markAbovePlan() {
-        for (let el = planArea; el && el !== document.body; el = el.parentElement) {
-          for (let sib = el.previousElementSibling; sib; sib = sib.previousElementSibling) {
-            if (/^(SCRIPT|STYLE|svg)$/i.test(sib.tagName) || sib.querySelector(".fixed-top") || sib.matches(".fixed-top")) continue;
-            sib.classList.add("wd-fold-hide");
-          }
-        }
-      }
-
-      function foldDays() {
-        if (!planArea || document.body.classList.contains("wd-dragging")) return;
-        markAbovePlan();
-        document.querySelectorAll("tbody[data-day]").forEach(function (tbody) {
-          tbody.classList.add("wd-drop-day");
-          tbody.closest("table").classList.add("wd-drop-table");
-          const box = tbody.querySelector(".wd-drop-box");
-          if (box) box.textContent = {{ _("Drop here")|tojson }} + " · " + dayName(tbody);
-        });
-        document.body.classList.add("wd-dragging");
-      }
-
-      function unfoldDays() {
-        document.body.classList.remove("wd-dragging");
-        document.querySelectorAll(".wd-fold-hide").forEach((t) => t.classList.remove("wd-fold-hide"));
-        document.querySelectorAll(".wd-drop-day").forEach((t) => t.classList.remove("wd-drop-day"));
-        document.querySelectorAll(".wd-drop-table").forEach((t) => t.classList.remove("wd-drop-table"));
-      }
-
-      // A finger (phone): for the length of the drag the body - not the
-      // page - scrolls, the same spot on screen. An iPhone ignores a script
-      // scrolling the page while a finger holds something (tested: scrollY
-      // stuck), an element it scrolls.
-      let bodyScroller = false;
-      function pageToBody() {
-        if (!FOLD_DAYS.matches) return;
-        const y = window.scrollY;
-        document.documentElement.classList.add("wd-body-scroll");
-        document.body.scrollTop = y;
-        bodyScroller = true;
-      }
-      function bodyToPage() {
-        if (!bodyScroller) return;
-        const y = document.body.scrollTop;
-        document.documentElement.classList.remove("wd-body-scroll");
-        bodyScroller = false;
-        window.scrollTo(0, y);
-      }
-
-      // ---- the page scrolls while a row is held near the top or bottom of
-      // the screen, so it can be carried to a day further up or down. Not
-      // Sortable's own autoscroll: on a phone it only woke within 30 px of
-      // the edge - under the navbar and the Save bar - and often not at all
-      // for a finger. The nearer the edge, the faster; it stops when the
-      // finger moves back or lets go. Sortable re-checks the spot under a
-      // still finger on its own (fallback mode), so the row follows along.
-      //
-      // iPhone: where the finger is comes from the floating copy of the row
-      // Sortable keeps under it (.sortable-fallback), not only from touch
-      // events. ?dragdebug=1 shows the numbers on screen.
-      const autoScroll = (function () {
-        let y = null, frame = 0, box = null;
-        const EDGE = 110;                      // px of zone at each end
-        const MAX_SPEED = 18;                  // px per frame at the very edge
-        const DEBUG = /[?&]dragdebug=1/.test(location.search);
-        function zoneTop() {
-          const nav = document.querySelector(".navbar.fixed-top");
-          return nav ? nav.getBoundingClientRect().bottom : 0;
-        }
-        function zoneBottom() {
-          const bar = document.querySelector(".wd-action-bar");
-          const r = bar && bar.getBoundingClientRect();
-          return r && r.height ? r.top : window.innerHeight;
-        }
-        function track(e) {
-          const point = e.touches ? e.touches[0] : e;
-          if (point && typeof point.clientY === "number") y = point.clientY;
-        }
-        function fingerY() {
-          const ghost = document.querySelector(".sortable-fallback");
-          if (ghost) {
-            const r = ghost.getBoundingClientRect();
-            if (r.height) return r.top + r.height / 2;
-          }
-          return y;
-        }
-        function scroller() {
-          return bodyScroller ? document.body : (document.scrollingElement || document.documentElement);
-        }
-        // true: it moved. window.scrollBy first - on an iPhone, writing
-        // scrollingElement's scrollTop reads back changed while the page
-        // does not move.
-        function scrollPage(delta) {
-          if (bodyScroller) {
-            const before = document.body.scrollTop;
-            document.body.scrollTop = before + delta;
-            return document.body.scrollTop !== before;
-          }
-          const before = window.scrollY;
-          window.scrollBy(0, delta);
-          if (window.scrollY === before) {
-            const el = document.scrollingElement || document.documentElement;
-            el.scrollTop = el.scrollTop + delta;
-          }
-          return window.scrollY !== before;
-        }
-        function atEnd(speed) {
-          const el = scroller();
-          return speed < 0 ? el.scrollTop <= 0 : el.scrollTop >= el.scrollHeight - el.clientHeight - 1;
-        }
-        let frames = 0;
-        let stuck = 0;                         // frames the page should have moved and did not
-        function step() {
-          frame = requestAnimationFrame(step);
-          const at = fingerY();
-          let speed = 0;
-          if (at !== null) {
-            const top = zoneTop() + EDGE, bottom = zoneBottom() - EDGE;
-            if (at < top) speed = -MAX_SPEED * Math.min(1, (top - at) / EDGE);
-            else if (at > bottom) speed = MAX_SPEED * Math.min(1, (at - bottom) / EDGE);
-            // Scrolling first. Only a phone whose page will not move at
-            // all (the fallback) folds the days into "Drop here" boxes.
-            if (speed && !document.body.classList.contains("wd-dragging")) {
-              if (scrollPage(Math.round(speed) || Math.sign(speed)) || atEnd(speed)) stuck = 0;
-              else if (++stuck > 12 && FOLD_DAYS.matches) foldDays();
-            }
-          }
-          if (box) box.textContent = "#" + (++frames) + " y " + (at === null ? "-" : Math.round(at)) +
-            " speed " + Math.round(speed) + " body " + bodyScroller + " stuck " + stuck +
-            " top " + Math.round(scroller().scrollTop) +
-            " ghost " + !!document.querySelector(".sortable-fallback");
-        }
-        const EVENTS = ["pointermove", "touchmove", "mousemove"];
-        return {
-          start: function () {
-            y = null;
-            frames = 0;
-            stuck = 0;
-            EVENTS.forEach((t) => document.addEventListener(t, track, { passive: true, capture: true }));
-            if (DEBUG && !box) {
-              box = document.createElement("div");
-              box.style.cssText = "position:fixed;top:60px;left:0;right:0;z-index:3000;background:#000c;color:#fff;font:12px monospace;padding:4px";
-              document.body.appendChild(box);
-            }
-            frame = requestAnimationFrame(step);
-          },
-          stop: function () {
-            EVENTS.forEach((t) => document.removeEventListener(t, track, { capture: true }));
-            cancelAnimationFrame(frame);
-            y = null;
-            if (box) { box.remove(); box = null; }
-          },
-        };
-      })();
-
       document.querySelectorAll("tbody[data-day]").forEach(function (tbody) {
         if (!document.getElementById(`order_${tbody.dataset.day}`)) return;
         Sortable.create(tbody, {
-          group: "wd-plan-days",
+          group: "wd-day-" + tbody.dataset.day,
           handle: ".wd-drag-handle",
           draggable: "tr[data-we-id]",
           animation: 150,
           ghostClass: "wd-drag-ghost",
           chosenClass: "wd-drag-chosen",
-          // The same drag on every device (no native drag and drop), so the
-          // finger or mouse can be followed for the scrolling above.
-          forceFallback: true,
-          scroll: false,
-          onStart: function (evt) {
-            startNext = evt.item.nextElementSibling;
-            pageToBody();
-            autoScroll.start();
-          },
-          onEnd: function (evt) {
-            autoScroll.stop();
-            bodyToPage();
-            const folded = document.body.classList.contains("wd-dragging");
-            unfoldDays();
-            const row = evt.item, from = evt.from, to = evt.to;
-            // Back from the folded days: show where the row landed.
-            if (folded) row.scrollIntoView({ block: "center" });
-            if (from === to) {
-              writeOrder(from);
-              // A drag is an unsaved change like any other edit - nothing
-              // asks, rows can be moved around freely and the order is kept
-              // only by Save. The Save button filling in is what says so.
-              if (window.wdRefreshSaveButtons) window.wdRefreshSaveButtons();
-              return;
-            }
-            keepAboveAddRow(to, row);
-            const line = document.createElement("div");
-            line.className = "text-center mt-2";
-            line.textContent = {{ _("from {source} to {target}")|tojson }}
-              .replace("{source}", dayName(from)).replace("{target}", dayName(to));
-            const name = row.querySelector(".wd-ex-name");
-            const img = row.querySelector(".wd-ex-icon img");
-            let answered = false;
-            window.wdConfirm({
-              title: {{ _("Move this exercise to another day?")|tojson }},
-              body: [
-                window.wdConfirmExercise(img ? (img.dataset.wdStill || img.getAttribute("src")) : null,
-                                         name ? name.textContent.trim() : ""),
-                line,
-              ],
-              ok: {{ _("Move")|tojson }},
-              okClass: "btn-primary",
-              onOk: function () {
-                answered = true;
-                writeOrder(from);
-                writeOrder(to);
-                if (window.wdFitExerciseName && name) window.wdFitExerciseName(name);
-                if (window.wdRefreshSaveButtons) window.wdRefreshSaveButtons();
-              },
-              onCancel: function () {
-                if (answered) return;
-                from.insertBefore(row, startNext && startNext.parentNode === from ? startNext : from.querySelector("tr:not([data-we-id])"));
-              },
-            });
+          onEnd: function () {
+            writeOrder(tbody);
+            // A drag is an unsaved change like any other edit - the Save
+            // button filling in is what says so.
+            if (window.wdRefreshSaveButtons) window.wdRefreshSaveButtons();
           },
         });
       });
     }
+
+    // ---- swipe right (Edit mode, editMode.js): "Move to which day?" - one
+    // button per other day; the x, the backdrop or Esc change nothing. A
+    // day picked moves the row there (to the end) and saves.
+    document.addEventListener("DOMContentLoaded", function () {
+      const dialogEl = document.getElementById("wd_move");
+      const exBox = document.getElementById("wd_move_exercise");
+      const daysBox = document.getElementById("wd_move_days");
+      if (!dialogEl) return;
+
+      document.addEventListener("wd:swipe-right", function (e) {
+        const row = e.target.closest("tr[data-we-id]");
+        const from = row && row.closest("tbody[data-day]");
+        if (!from) return;
+        const name = row.querySelector(".wd-ex-name");
+        const img = row.querySelector(".wd-ex-icon img");
+        exBox.replaceChildren(window.wdConfirmExercise(
+          img ? (img.dataset.wdStill || img.getAttribute("src")) : null,
+          name ? name.textContent.trim() : ""));
+        daysBox.replaceChildren();
+        document.querySelectorAll("tbody[data-day]").forEach(function (to) {
+          if (to === from) return;
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "btn btn-outline-primary";
+          button.textContent = dayName(to);
+          button.addEventListener("click", function () {
+            bootstrap.Modal.getOrCreateInstance(dialogEl).hide();
+            to.insertBefore(row, to.querySelector("tr:not([data-we-id])"));   // above the add row
+            writeOrder(from);
+            writeOrder(to);
+            const form = document.querySelector("[data-wd-plan]");
+            if (form) form.requestSubmit ? form.requestSubmit() : form.submit();
+          });
+          daysBox.appendChild(button);
+        });
+        bootstrap.Modal.getOrCreateInstance(dialogEl).show();
+      });
+    });
   </script>
 
   {# "Choose from the list": every exercise, with its icon and muscle group.
@@ -1829,6 +1599,23 @@
           </div>
           <p class="text-body-secondary small mb-2" id="wd_picker_count"></p>
           <div class="list-group wd-catalog" id="wd_picker_list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Swiped right: which day the exercise moves to. Only a day's button
+     changes anything - the x leaves the plan as it is. #}
+  <div class="modal fade" id="wd_move" tabindex="-1" aria-hidden="true" aria-labelledby="wd_move_title">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content wd-unsaved-card">
+        <div class="modal-header border-0 pb-0">
+          <p class="modal-title mb-0" id="wd_move_title">{{ _("Move this exercise to another day?") }}</p>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
+        </div>
+        <div class="modal-body text-center p-4 pt-3">
+          <div class="mb-3" id="wd_move_exercise"></div>
+          <div class="d-grid gap-2" id="wd_move_days"></div>
         </div>
       </div>
     </div>

@@ -599,7 +599,5 @@
   "Not trained in this mesocycle yet": "V tomto mezocykle ešte necvičené",
   "Day {number}": "Deň {number}",
   "Move this exercise to another day?": "Presunúť cvik do iného dňa?",
-  "Move": "Presunúť",
-  "from {source} to {target}": "z {source} do {target}",
-  "Drop here": "Pustiť sem"
+  "Move": "Presunúť"
 }
