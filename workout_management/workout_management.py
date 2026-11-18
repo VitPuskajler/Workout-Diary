@@ -2130,13 +2130,12 @@ class WorkoutManagement:
     def plan_weights(self, exercise_names) -> dict:
         """Last and Max for each exercise on the Workout Plan page.
 
-        {exercise name: {"last": set, "max": set, "pr": bool}}, where a set is
+        {exercise name: {"last": set, "max": set}}, where a set is
         {"weight", "unit", "reps", "timed"} and only exercises the user has
         ever logged are in it.
 
           last - the heaviest set of the latest session with this exercise
           max  - the heaviest set ever (all mesocycles), more reps breaks a tie
-          pr   - that latest session beat every session before it
 
         Heaviest is compared in kg, so 100 lbs loses to 50 kg. Holds compare
         seconds (stored in reps); exercises never done with a weight compare
@@ -2185,7 +2184,6 @@ class WorkoutManagement:
 
             last_session = sets[-1].session_id
             latest = [row for row in sets if row.session_id == last_session]
-            earlier = [row for row in sets if row.session_id != last_session]
 
             last = max(latest, key=key)
             best = max(sets, key=key)
@@ -2197,7 +2195,6 @@ class WorkoutManagement:
             result[name] = {
                 "last": as_dict(last),
                 "max": as_dict(best),
-                "pr": bool(earlier) and key(last) > key(max(earlier, key=key)),
             }
         return result
 
