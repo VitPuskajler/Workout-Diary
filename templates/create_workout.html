@@ -148,6 +148,49 @@
       cursor: grabbing;
     }
 
+    /* Dragging an exercise on a phone: the other days fold down to their
+       name and a "Drop here" box, so every day is on the screen at once -
+       an iPhone does not let the page scroll while a finger holds a row.
+       The day it came from stays open, to reorder within it. */
+    .wd-drop-hint { display: none; }
+    .wd-dragging tbody.wd-drop-day > tr:not(.wd-drop-hint):not(.sortable-fallback),
+    .wd-dragging table.wd-drop-table > thead { display: none; }
+    .wd-dragging tbody.wd-drop-day > tr.wd-drop-hint { display: table-row; }
+    .wd-dragging .wd-drop-wrap { margin-bottom: .75rem !important; }
+    .wd-dragging .wd-day-name,
+    .wd-dragging .wd-fold-hide,
+    .wd-dragging .wd-action-bar,
+    .wd-dragging [data-wd-discard],
+    .wd-dragging tbody.wd-drop-day > tr.wd-drag-ghost { display: none !important; }
+    .wd-drop-box {
+      border: 2px dashed var(--bs-success);
+      border-radius: var(--bs-border-radius-lg, .5rem);
+      background: var(--bs-success-bg-subtle);
+      color: var(--bs-success-text-emphasis);
+      text-align: center;
+      font-weight: 600;
+      padding: 1.1rem .5rem;
+    }
+    /* The row under the finger, while the days are folded: a card with its
+       icon and name - the table around it is gone, so its cells would
+       squeeze the name to a letter. */
+    .wd-dragging tr.sortable-fallback {
+      display: flex !important;
+      align-items: center;
+      background: var(--bs-body-bg);
+      border-radius: var(--bs-border-radius-lg, .5rem);
+      box-shadow: 0 .4rem 1.2rem rgba(0, 0, 0, .25);
+      opacity: .95 !important;
+    }
+    .wd-dragging tr.sortable-fallback > td { display: block; border: 0; background: none; box-shadow: none; }
+    .wd-dragging tr.sortable-fallback > td:not(.wd-exercise-cell) { display: none; }
+    .wd-dragging tr.sortable-fallback > td.wd-exercise-cell { flex: 1; }
+    .wd-dragging tr.sortable-fallback .wd-ex-field,
+    .wd-dragging tr.sortable-fallback .wd-ex-name { width: auto; }
+    .wd-dragging tr.sortable-fallback .wd-timed-toggle { display: none; }
+
+    tbody.wd-drop-day:has(> tr.wd-drag-ghost) .wd-drop-box { background: var(--bs-success); color: #fff; }
+
     .wd-drag-ghost > td {
       opacity: 0.35;
     }
@@ -581,7 +624,7 @@
         {% for x in range(week) %}
         <form action="{{ url_for('create_workout') }}" method="POST" data-wd-plan>
           {# The day's name. #}
-          <div class="mb-2">
+          <div class="mb-2 wd-day-name">
           {% if w_names[x] is not none %}
 
           <input type="text" name="workout_name_{{x}}" class="form-control text-center w-50 mx-auto bg-success-subtle"
@@ -595,7 +638,7 @@
           {% endif %}
           </div>
 
-          <div class="mb-5">
+          <div class="mb-5 wd-drop-wrap">
           <table class="table table-striped text-center mb-2">
             <thead>
               <tr>
@@ -657,6 +700,13 @@
                 </td>
               </tr>
               {% endfor %}
+
+              {# Shown only on a phone while an exercise from another day is
+                 being dragged - this day then folds down to its name and
+                 this box, to drop the exercise into (see the Sortable code). #}
+              <tr class="wd-drop-hint">
+                <td colspan="4"><div class="wd-drop-box">{{ _("Drop here") }}</div></td>
+              </tr>
 
               <tr>
                 <td class="wd-exercise-cell">
@@ -1473,13 +1523,51 @@
       }
 
       function keepAboveAddRow(tbody, row) {
-        const add = tbody.querySelector("tr:not([data-we-id])");
+        const add = tbody.querySelector("tr:not([data-we-id])");     // the drop box row, then the add row
         if (add && (row.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_PRECEDING)) {
           tbody.insertBefore(row, add);
         }
       }
 
       let startNext = null;   // the row's neighbour before the drag, to put it back
+
+      // A phone (a finger, not a mouse): once a held row reaches the top or
+      // bottom of the screen - it is on its way to another day - every day
+      // folds down to a "Drop here · Full Body B" box, so all of them fit on
+      // the screen: an iPhone does not let the page scroll while a finger
+      // holds a row. Until then the days stay open, to reorder within one.
+      const FOLD_DAYS = window.matchMedia("(pointer: coarse)");
+      const planArea = document.getElementById("wd_plan_area");
+
+      // Everything above the plan (the title, the mesocycle's name, the
+      // switches) folds away too - not the fixed navbar or its spacer.
+      function markAbovePlan() {
+        for (let el = planArea; el && el !== document.body; el = el.parentElement) {
+          for (let sib = el.previousElementSibling; sib; sib = sib.previousElementSibling) {
+            if (/^(SCRIPT|STYLE|svg)$/i.test(sib.tagName) || sib.querySelector(".fixed-top") || sib.matches(".fixed-top")) continue;
+            sib.classList.add("wd-fold-hide");
+          }
+        }
+      }
+
+      function foldDays() {
+        if (!planArea || document.body.classList.contains("wd-dragging")) return;
+        markAbovePlan();
+        document.querySelectorAll("tbody[data-day]").forEach(function (tbody) {
+          tbody.classList.add("wd-drop-day");
+          tbody.closest("table").classList.add("wd-drop-table");
+          const box = tbody.querySelector(".wd-drop-box");
+          if (box) box.textContent = {{ _("Drop here")|tojson }} + " · " + dayName(tbody);
+        });
+        document.body.classList.add("wd-dragging");
+      }
+
+      function unfoldDays() {
+        document.body.classList.remove("wd-dragging");
+        document.querySelectorAll(".wd-fold-hide").forEach((t) => t.classList.remove("wd-fold-hide"));
+        document.querySelectorAll(".wd-drop-day").forEach((t) => t.classList.remove("wd-drop-day"));
+        document.querySelectorAll(".wd-drop-table").forEach((t) => t.classList.remove("wd-drop-table"));
+      }
 
       // ---- the page scrolls while a row is held near the top or bottom of
       // the screen, so it can be carried to a day further up or down. Not
@@ -1503,7 +1591,8 @@
         }
         function zoneBottom() {
           const bar = document.querySelector(".wd-action-bar");
-          return bar ? bar.getBoundingClientRect().top : window.innerHeight;
+          const r = bar && bar.getBoundingClientRect();
+          return r && r.height ? r.top : window.innerHeight;
         }
         function track(e) {
           const point = e.touches ? e.touches[0] : e;
@@ -1536,7 +1625,8 @@
             const top = zoneTop() + EDGE, bottom = zoneBottom() - EDGE;
             if (at < top) speed = -MAX_SPEED * Math.min(1, (top - at) / EDGE);
             else if (at > bottom) speed = MAX_SPEED * Math.min(1, (at - bottom) / EDGE);
-            if (speed) scrollPage(Math.round(speed) || Math.sign(speed));
+            if (speed && FOLD_DAYS.matches) foldDays();
+            else if (speed) scrollPage(Math.round(speed) || Math.sign(speed));
           }
           if (box) box.textContent = "#" + (++frames) + " y " + (at === null ? "-" : Math.round(at)) +
             " speed " + Math.round(speed) + " scrollY " + Math.round(window.scrollY) +
@@ -1584,7 +1674,11 @@
           },
           onEnd: function (evt) {
             autoScroll.stop();
+            const folded = document.body.classList.contains("wd-dragging");
+            unfoldDays();
             const row = evt.item, from = evt.from, to = evt.to;
+            // Back from the folded days: show where the row landed.
+            if (folded) row.scrollIntoView({ block: "center" });
             if (from === to) {
               writeOrder(from);
               // A drag is an unsaved change like any other edit - nothing

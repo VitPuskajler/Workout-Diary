@@ -600,5 +600,6 @@
   "Day {number}": "Den {number}",
   "Move this exercise to another day?": "Přesunout cvik do jiného dne?",
   "Move": "Přesunout",
-  "from {source} to {target}": "z {source} do {target}"
+  "from {source} to {target}": "z {source} do {target}",
+  "Drop here": "Pustit sem"
 }
