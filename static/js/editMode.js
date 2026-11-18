@@ -9,7 +9,9 @@
 
    Markup:
      <div data-wd-editable="some-key">            scope; the key remembers the
-       <button type="button" data-wd-edit-toggle>   mode across a reload
+       <button type="button" data-wd-edit-toggle>   mode across a save or reload
+                                                    of the page - not once you
+                                                    leave it
                                                     (data-wd-icon-only: the button
                                                     shows icons, the labels go to
                                                     its aria-label and title)
@@ -67,10 +69,35 @@
     });
   }
 
+  // The mode outlives a save or a reload - the page comes back to itself and
+  // you are mid-edit - but not leaving: back on the page later, from another
+  // page (or the browser's Back), it starts out of Edit mode.
+  function stayedOnPage() {
+    try {
+      var nav = performance.getEntriesByType("navigation")[0];
+      if (nav && nav.type === "reload") return true;
+    } catch (e) { }
+    if (!document.referrer) return false;
+    try {
+      return new URL(document.referrer).pathname === location.pathname;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  var stayed = stayedOnPage();
   document.querySelectorAll("[data-wd-editable]").forEach(function (scope) {
     var remembered = false;
     try { remembered = sessionStorage.getItem("wd_edit_" + scope.dataset.wdEditable) === "1"; } catch (e) { }
-    setMode(scope, remembered);
+    setMode(scope, remembered && stayed);
+  });
+
+  // Back to the page from the browser's cache (Back / Forward): you had left.
+  window.addEventListener("pageshow", function (e) {
+    if (!e.persisted) return;
+    document.querySelectorAll("[data-wd-editable].wd-edit-on").forEach(function (scope) {
+      setMode(scope, false);
+    });
   });
 
   document.addEventListener("click", function (e) {

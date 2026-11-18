@@ -596,5 +596,9 @@
   "first workout": "první trénink",
   "no change": "beze změny",
   "{value} reps": "{value} opak.",
-  "Not trained in this mesocycle yet": "V tomto mezocyklu ještě necvičeno"
+  "Not trained in this mesocycle yet": "V tomto mezocyklu ještě necvičeno",
+  "Day {number}": "Den {number}",
+  "Move this exercise to another day?": "Přesunout cvik do jiného dne?",
+  "Move": "Přesunout",
+  "from {source} to {target}": "z {source} do {target}"
 }
