@@ -1488,10 +1488,17 @@
       // for a finger. The nearer the edge, the faster; it stops when the
       // finger moves back or lets go. Sortable re-checks the spot under a
       // still finger on its own (fallback mode), so the row follows along.
+      //
+      // iPhone: where the finger is comes from the floating copy of the row
+      // Sortable keeps under it (.sortable-fallback), not only from touch
+      // events, and the page is scrolled through document.scrollingElement
+      // with window.scrollTo as the fallback - Safari can leave one of them
+      // be while a finger is down. ?dragdebug=1 shows the numbers on screen.
       const autoScroll = (function () {
-        let y = null, frame = 0;
+        let y = null, frame = 0, box = null;
         const EDGE = 110;                      // px of zone at each end
         const MAX_SPEED = 18;                  // px per frame at the very edge
+        const DEBUG = /[?&]dragdebug=1/.test(location.search);
         function zoneTop() {
           const nav = document.querySelector(".navbar.fixed-top");
           return nav ? nav.getBoundingClientRect().bottom : 0;
@@ -1502,27 +1509,52 @@
         }
         function track(e) {
           const point = e.touches ? e.touches[0] : e;
-          if (point) y = point.clientY;
+          if (point && typeof point.clientY === "number") y = point.clientY;
+        }
+        function fingerY() {
+          const ghost = document.querySelector(".sortable-fallback");
+          if (ghost) {
+            const r = ghost.getBoundingClientRect();
+            if (r.height) return r.top + r.height / 2;
+          }
+          return y;
+        }
+        function scrollPage(delta) {
+          const el = document.scrollingElement || document.documentElement;
+          const before = el.scrollTop;
+          el.scrollTop = before + delta;
+          if (el.scrollTop === before) window.scrollTo(0, window.scrollY + delta);
         }
         function step() {
           frame = requestAnimationFrame(step);
-          if (y === null) return;
-          const top = zoneTop() + EDGE, bottom = zoneBottom() - EDGE;
+          const at = fingerY();
           let speed = 0;
-          if (y < top) speed = -MAX_SPEED * Math.min(1, (top - y) / EDGE);
-          else if (y > bottom) speed = MAX_SPEED * Math.min(1, (y - bottom) / EDGE);
-          if (speed) window.scrollBy(0, Math.round(speed) || Math.sign(speed));
+          if (at !== null) {
+            const top = zoneTop() + EDGE, bottom = zoneBottom() - EDGE;
+            if (at < top) speed = -MAX_SPEED * Math.min(1, (top - at) / EDGE);
+            else if (at > bottom) speed = MAX_SPEED * Math.min(1, (at - bottom) / EDGE);
+            if (speed) scrollPage(Math.round(speed) || Math.sign(speed));
+          }
+          if (box) box.textContent = "y " + (at === null ? "-" : Math.round(at)) + "  speed " + Math.round(speed) +
+            "  scroll " + Math.round(window.scrollY) + "  ghost " + !!document.querySelector(".sortable-fallback");
         }
+        const EVENTS = ["pointermove", "touchmove", "mousemove"];
         return {
           start: function () {
             y = null;
-            ["pointermove", "touchmove", "mousemove"].forEach((t) => document.addEventListener(t, track, { passive: true }));
+            EVENTS.forEach((t) => document.addEventListener(t, track, { passive: true, capture: true }));
+            if (DEBUG && !box) {
+              box = document.createElement("div");
+              box.style.cssText = "position:fixed;top:60px;left:0;right:0;z-index:3000;background:#000c;color:#fff;font:12px monospace;padding:4px";
+              document.body.appendChild(box);
+            }
             frame = requestAnimationFrame(step);
           },
           stop: function () {
-            ["pointermove", "touchmove", "mousemove"].forEach((t) => document.removeEventListener(t, track));
+            EVENTS.forEach((t) => document.removeEventListener(t, track, { capture: true }));
             cancelAnimationFrame(frame);
             y = null;
+            if (box) { box.remove(); box = null; }
           },
         };
       })();
