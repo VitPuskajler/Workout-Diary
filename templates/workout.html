@@ -289,8 +289,8 @@
             <div class="row justify-content-center">
               <div class="col-12 col-md-10 col-lg-8">
                 <h5 class="border-bottom pb-2 mb-3 text-center text-success">{{ workout_name }}</h5>
-                {# Last = heaviest set of the latest session, Max = heaviest ever.
-                   See WorkoutManagement.plan_weights. #}
+                {# Last = heaviest set of the latest session, Max = heaviest set, both
+                   in this mesocycle only. See WorkoutManagement.plan_weights. #}
                 <table class="table text-center mb-5 plan-table">
                   <thead>
                     <tr>
@@ -330,8 +330,8 @@
                       <td class="plan-w plan-last"><span class="plan-pill">{{ plan_set(w.last) }}</span></td>
                       <td class="plan-w plan-max"><span class="plan-pill">{{ plan_set(w.max) }}</span></td>
                       {% else %}
-                      <td class="plan-w plan-last plan-none" title="{{ _("Not trained yet") }}">&mdash;</td>
-                      <td class="plan-w plan-max plan-none" title="{{ _("Not trained yet") }}">&mdash;</td>
+                      <td class="plan-w plan-last plan-none" title="{{ _("Not trained in this mesocycle yet") }}">&mdash;</td>
+                      <td class="plan-w plan-max plan-none" title="{{ _("Not trained in this mesocycle yet") }}">&mdash;</td>
                       {% endif %}
                     </tr>
                     <tr class="plan-detail {{ stripe }}" id="{{ detail_id }}" hidden>

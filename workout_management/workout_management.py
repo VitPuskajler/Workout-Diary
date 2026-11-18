@@ -2136,12 +2136,13 @@ class WorkoutManagement:
         """What the Workout Plan page shows for each exercise: the Last / Max
         columns and the progress chart a tap on the row opens.
 
-        {exercise name: {"last", "max", "points"}}, only for exercises the user
-        has ever logged:
+        {exercise name: {"last", "max", "points"}}, only for exercises logged
+        in the chosen mesocycle - the plan's numbers come from that mesocycle
+        alone, so an old block (or a typo in one) never shows in a new one:
           last   - the heaviest set of the latest session with this exercise
-          max    - the heaviest set ever (all mesocycles), more reps breaks a tie
-          points - one per session of the chosen mesocycle with this exercise,
-                   oldest first (see _plan_points)
+          max    - the heaviest set of the mesocycle, more reps breaks a tie
+          points - one per session with this exercise, oldest first
+                   (see _plan_points)
         A set is {"weight", "unit", "reps", "timed"}.
 
         Heaviest is compared in kg, so 100 lbs loses to 50 kg. Holds compare
@@ -2153,6 +2154,8 @@ class WorkoutManagement:
         if not names or user_id is None:
             return {}
 
+        # Every set of these exercises, filtered to the mesocycle below -
+        # "weighted" is decided on the mesocycle's sets too.
         rows = (
             db.session.query(
                 Exercise.exercise_name,
@@ -2176,12 +2179,13 @@ class WorkoutManagement:
             .all()
         )
 
+        in_mesocycle = self._plan_mesocycle_sessions(user_id, chosen_mesocycle, mesocycle_info)
         by_exercise = {}
         for row in rows:
-            by_exercise.setdefault(row.exercise_name, []).append(row)
+            if row.session_id in in_mesocycle:
+                by_exercise.setdefault(row.exercise_name, []).append(row)
 
-        in_mesocycle = self._plan_mesocycle_sessions(user_id, chosen_mesocycle, mesocycle_info)
-        gaps = self._plan_rest_gaps({row.session_id for row in rows if row.session_id in in_mesocycle})
+        gaps = self._plan_rest_gaps({row.session_id for sets in by_exercise.values() for row in sets})
 
         result = {}
         for name, sets in by_exercise.items():
@@ -2193,9 +2197,7 @@ class WorkoutManagement:
             result[name] = {
                 "last": self._plan_set(max(latest, key=key), timed),
                 "max": self._plan_set(max(sets, key=key), timed),
-                "points": self._plan_points(
-                    [row for row in sets if row.session_id in in_mesocycle], key, timed, weighted, gaps
-                ),
+                "points": self._plan_points(sets, key, timed, weighted, gaps),
             }
         return result
 
@@ -3831,6 +3833,8 @@ class WorkoutManagement:
         """
         user_id = self.current_user_id_db()
 
+        # Every set of these exercises, filtered to the mesocycle below -
+        # "weighted" is decided on the mesocycle's sets too.
         rows = (
             db.session.query(
                 Exercise.exercise_name,
