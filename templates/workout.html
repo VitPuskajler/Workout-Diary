@@ -9,23 +9,79 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
   <style>
-    /* The plan table: Exercise | Sets | Rest | Last | Max. Built for a phone
-       first - the name takes what is left, the four number columns stay
-       narrow, a weight sits on one line with its reps on a small line below. */
+    /* The plan table. A tablet or PC: Exercise | Sets | Last | Max. A phone:
+       Exercise | Sets | Max, and a tap on the Max header turns that column
+       into Last (and back) on every day of the page - it always starts on Max.
+       Every value sits on one line ("190 kg × 8"). A tap on a row opens its
+       details: the exercise's progress in this mesocycle as a small chart -
+       a tap on a point tells that session - and the planned rest. */
     .plan-table { font-size: .9rem; }
-    .plan-table th { font-size: .7rem; font-weight: 600; white-space: nowrap; vertical-align: bottom; }
-    .plan-table th, .plan-table td { padding: .45rem .25rem; }
+    .plan-table th { font-size: .75rem; font-weight: 600; white-space: nowrap; vertical-align: bottom;
+      color: var(--bs-secondary-color); border-bottom-width: 2px; }
+    .plan-table th, .plan-table td { padding: .5rem .3rem; }
     .plan-table td { vertical-align: middle; }
     .plan-table .plan-name { text-align: left; }
     .plan-table .plan-num { width: 1%; white-space: nowrap; }
-    .plan-table .plan-w { width: 1%; white-space: nowrap; }
-    .plan-w-main { display: block; font-weight: 600; }
-    .plan-w-sub { display: block; font-size: .75rem; color: var(--bs-secondary-color); }
+    .plan-table .plan-w { width: 1%; white-space: nowrap; text-align: right; }
+    .plan-pill { display: inline-block; white-space: nowrap; font-weight: 600; font-size: .85rem;
+      padding: .15rem .55rem; border-radius: 999px;
+      background: rgba(var(--bs-success-rgb), .12); color: var(--bs-success-text-emphasis, var(--bs-success)); }
     .plan-none { color: var(--bs-secondary-color); }
+    /* The stripes by hand: Bootstrap's count every <tr>, and a details row
+       would shift them. A details row takes its exercise's stripe. */
+    .plan-table tr.plan-odd > * { --bs-table-accent-bg: rgba(var(--bs-emphasis-color-rgb, 0, 0, 0), .03); }
+    .plan-row { cursor: pointer; }
+    .plan-name-in { display: flex; align-items: center; justify-content: space-between; gap: .3rem; }
+    .plan-chev { flex: none; color: var(--bs-secondary-color); transition: transform .15s; }
+    .plan-row[aria-expanded="true"] .plan-chev { transform: rotate(90deg); }
+    .plan-detail > td { padding: 0 .3rem .6rem !important; text-align: left; }
+    .plan-panel { position: relative; border-left: 3px solid var(--bs-success); border-radius: 0 8px 8px 0;
+      background: rgba(var(--bs-success-rgb), .06); padding: .5rem .65rem; font-size: .82rem; }
+    .plan-muted { color: var(--bs-secondary-color); }
+    .plan-panel-head { display: flex; justify-content: space-between; gap: .5rem; font-size: .78rem; color: var(--bs-secondary-color); }
+    .plan-panel svg.plan-ico-s { color: var(--bs-success); }
+    .plan-chart { display: block; width: 100%; max-width: 480px; margin: .1rem auto 0; overflow: visible; }
+    .plan-chart .plan-axis { stroke: var(--bs-border-color); }
+    .plan-chart .plan-line { fill: none; stroke: var(--bs-success); stroke-width: 2; stroke-linejoin: round; }
+    .plan-chart .plan-pt { cursor: pointer; outline: none; }
+    .plan-chart .plan-pt-hit { fill: transparent; }
+    .plan-chart .plan-pt-halo { fill: rgba(var(--bs-success-rgb), .18); opacity: 0; }
+    .plan-chart .plan-pt-dot { fill: var(--bs-body-bg); stroke: var(--bs-success); stroke-width: 2; }
+    .plan-chart .plan-pt-val { font-size: 10px; fill: var(--bs-body-color); text-anchor: middle; }
+    .plan-chart .plan-pt-date { font-size: 9.5px; fill: var(--bs-secondary-color); text-anchor: middle; }
+    .plan-chart .plan-pt.is-sel .plan-pt-halo, .plan-chart .plan-pt:focus-visible .plan-pt-halo { opacity: 1; }
+    .plan-chart .plan-pt.is-sel .plan-pt-dot { fill: var(--bs-success); }
+    .plan-chart .plan-pt.is-sel .plan-pt-val { font-weight: 700; }
+    /* Many sessions: only the first, the last and the chosen one keep their
+       labels, the rest would run into each other. */
+    .plan-chart.plan-dense .plan-pt:not(.is-sel):not(.is-edge) text { display: none; }
+    .plan-pt-info { background: var(--bs-body-bg); border: 1px solid var(--bs-border-color-translucent);
+      border-radius: 8px; padding: .4rem .55rem; margin: .35rem 0 .45rem; }
+    .plan-pt-info .plan-pt-h { font-weight: 600; margin-bottom: .15rem; }
+    .plan-pt-grid { display: grid; grid-template-columns: auto 1fr; gap: .05rem .6rem; margin: 0; }
+    .plan-pt-grid dt { font-weight: 400; color: var(--bs-secondary-color); }
+    .plan-pt-grid dd { margin: 0; }
+    .plan-change { display: inline-block; font-size: .72rem; font-weight: 600; border-radius: 999px; padding: .05rem .45rem;
+      margin-left: .3rem; border: 1px solid var(--bs-border-color); vertical-align: 1px; }
+    .plan-change.up { background: var(--bs-success); border-color: var(--bs-success); color: #fff; }
+    .plan-change.down { border-color: var(--bs-warning); color: var(--bs-warning-text-emphasis, inherit); }
+    .plan-rest { display: flex; align-items: center; gap: .45rem; padding-right: 2.6rem; min-height: 1.6rem; }
+    .plan-rest svg { color: var(--bs-success); flex: none; }
+    .plan-ex-icon { position: absolute; right: .5rem; bottom: .35rem; width: 34px; height: 34px; opacity: .55; }
+    .plan-switch { border: 0; background: none; padding: 0; color: inherit; font: inherit;
+      display: inline-flex; align-items: center; gap: .25rem; }
+    @media (max-width: 767.98px) {
+      .plan-table .plan-last { display: none; }
+      .plan-show-last .plan-table .plan-last { display: table-cell; }
+      .plan-show-last .plan-table .plan-max { display: none; }
+      /* The switchable column's header is green, so it reads as the one to tap. */
+      .plan-table th.plan-w { color: var(--bs-success); }
+    }
     @media (min-width: 576px) {
       .plan-table { font-size: 1rem; }
-      .plan-table th { font-size: .9rem; }
+      .plan-table th { font-size: .85rem; }
       .plan-table th, .plan-table td { padding: .5rem .6rem; }
+      .plan-panel { font-size: .875rem; }
     }
 
     /* Additional styles for fixed-bottom container */
@@ -173,55 +229,169 @@
 
 
           {% if table_population %}
-          {# One logged set in a Last / Max cell: the weight on top, reps below -
-             "82.5 kg / × 6", "BW / × 12". A hold shows its time on top
-             ("1:30", "45 s"), and a weighted hold the weight on top, time below. #}
-          {% macro plan_cell(s) -%}
-            {%- set time -%}
-              {%- if s.reps >= 60 %}{{ s.reps // 60 }}:{{ "%02d"|format(s.reps % 60) }}{% else %}{{ s.reps }} s{% endif -%}
-            {%- endset -%}
+          {# One logged set on one line: "82.5 kg × 6", "BW × 12", a hold "1:30"
+             or "45 s", a weighted hold "20 kg · 45 s". short=true leaves the
+             unit out ("82.5×6") for a chart point and a list of sets. #}
+          {% macro clock(seconds) -%}
+            {%- if seconds >= 60 %}{{ seconds // 60 }}:{{ "%02d"|format(seconds % 60) }}{% else %}{{ seconds }} s{% endif -%}
+          {%- endmacro %}
+          {# Rest read the way people say it: "2 min", "1 min 30 s", "45 s". #}
+          {% macro rest_label(seconds) -%}
+            {%- set m, r = seconds // 60, seconds % 60 -%}
+            {%- if m and r %}{{ m }} min {{ r }} s{% elif m %}{{ m }} min{% else %}{{ r }} s{% endif -%}
+          {%- endmacro %}
+          {% macro plan_set(s, short=false) -%}
             {%- set weight -%}
-              {%- if s.weight %}{{ "%g"|format(s.weight) }} {{ s.unit }}{% else %}{{ _("BW") }}{% endif -%}
+              {%- if s.weight %}{{ "%g"|format(s.weight) }}{% if not short %} {{ s.unit }}{% endif %}{% else %}{{ _("BW") }}{% endif -%}
             {%- endset -%}
-            {%- if s.timed and not s.weight -%}
-              <span class="plan-w-main">{{ time }}</span>
-            {%- elif s.timed -%}
-              <span class="plan-w-main">{{ weight }}</span><span class="plan-w-sub">{{ time }}</span>
-            {%- else -%}
-              <span class="plan-w-main">{{ weight }}</span><span class="plan-w-sub">&times; {{ s.reps }}</span>
+            {%- if s.timed and not s.weight -%}{{ clock(s.reps) }}
+            {%- elif s.timed -%}{{ weight }} &middot; {{ clock(s.reps) }}
+            {%- elif short -%}{{ weight }}&times;{{ s.reps }}
+            {%- else -%}{{ weight }} &times; {{ s.reps }}
             {%- endif -%}
           {%- endmacro %}
+          {# All sets of a session: "34×7 · 34×6 · 34×6 kg" - the unit once at the
+             end when they share one, else on each set. #}
+          {% macro plan_sets(sets) -%}
+            {%- set units = sets | selectattr("weight") | map(attribute="unit") | unique | list -%}
+            {%- set one = (units | length) == 1 -%}
+            {%- for s in sets -%}{{ plan_set(s, short=one) }}{% if not loop.last %} &middot; {% endif %}{%- endfor -%}
+            {%- if one %} {{ units[0] }}{% endif -%}
+          {%- endmacro %}
+          {% macro plan_date(d, year=false) -%}
+            {%- set with_year = year and d.year != today.year -%}
+            {%- if current_language() == "en" -%}
+              {{ d.strftime("%b") }} {{ d.day }}{% if with_year %}, {{ d.year }}{% endif %}
+            {%- else -%}
+              {{ d.day }}. {{ d.month }}.{% if with_year %} {{ d.year }}{% endif %}
+            {%- endif -%}
+          {%- endmacro %}
+          {# The change against the mesocycle's first session: "+2 reps",
+             "−10 kg", "+4 s", "no change", "first workout". #}
+          {% macro plan_change(c) -%}
+            {%- if c is none -%}<span class="plan-change">{{ _("first workout") }}</span>
+            {%- elif c.kind == "same" -%}<span class="plan-change">{{ _("no change") }}</span>
+            {%- else -%}
+              {%- set v = c.value -%}
+              {%- set sign = "+" if v > 0 else "−" -%}
+              {%- set n = v if v > 0 else -v -%}
+              <span class="plan-change {{ 'up' if v > 0 else 'down' }}">
+                {%- if c.kind == "weight" %}{{ sign }}{{ "%g"|format(n) }} kg
+                {%- elif c.kind == "time" %}{{ sign }}{{ clock(n) }}
+                {%- else %}{{ _("{value} reps", value=sign ~ n) }}{% endif -%}
+              </span>
+            {%- endif -%}
+          {%- endmacro %}
+          <div class="plan-days">
           {% for workout_name, exercises in table_population.items() %}
+          {% set day = loop.index %}
           <div class="container px-0 py-3 p-sm-3">
             <div class="row justify-content-center">
-              <div class="col-12 col-md-8 col-sm-12">
+              <div class="col-12 col-md-10 col-lg-8">
                 <h5 class="border-bottom pb-2 mb-3 text-center text-success">{{ workout_name }}</h5>
                 {# Last = heaviest set of the latest session, Max = heaviest ever.
                    See WorkoutManagement.plan_weights. #}
-                <table class="table table-striped text-center mb-5 plan-table">
+                <table class="table text-center mb-5 plan-table">
                   <thead>
                     <tr>
                       <th class="plan-name">{{ _("Exercise") }}</th>
                       <th class="plan-num">{{ _("Sets") }}</th>
-                      <th class="plan-num">{{ _("Rest") }}</th>
-                      <th class="plan-w">{{ _("Last") }}</th>
-                      <th class="plan-w">{{ _("Max") }}</th>
+                      {% for col, label in [("last", _("Last")), ("max", _("Max"))] %}
+                      <th class="plan-w plan-{{ col }}">
+                        <span class="d-none d-md-inline">{{ label }}</span>
+                        <button type="button" class="plan-switch d-md-none" title="{{ _("Switch between Max and Last") }}">
+                          {{ label }}
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M1 11.5a.5.5 0 0 0 .5.5h11.793l-3.147 3.146a.5.5 0 0 0 .708.708l4-4a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708.708L13.293 11H1.5a.5.5 0 0 0-.5.5zm14-7a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 1 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 4H14.5a.5.5 0 0 1 .5.5z"/>
+                          </svg>
+                        </button>
+                      </th>
+                      {% endfor %}
                     </tr>
                   </thead>
                   <tbody>
                     {% for exercise_name, details in exercises.items() %}
-                    <tr>
-                      {% set weights = plan_weights.get(exercise_name) %}
-                      <td class="plan-name">{{ exercise_label(exercise_name) }}</td>
+                    {% set w = plan_weights.get(exercise_name) %}
+                    {% set points = w.points if w else [] %}
+                    {% set stripe = "plan-odd" if loop.index is odd else "" %}
+                    {% set detail_id = "plan-detail-" ~ day ~ "-" ~ loop.index %}
+                    <tr class="plan-row {{ stripe }}" tabindex="0" role="button"
+                      aria-expanded="false" aria-controls="{{ detail_id }}">
+                      <td class="plan-name">
+                        <div class="plan-name-in">
+                          <span>{{ exercise_label(exercise_name) }}</span>
+                          <svg class="plan-chev" width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                          </svg>
+                        </div>
+                      </td>
                       <td class="plan-num">{{ details.sets }}</td>
-                      <td class="plan-num">{{ details.rest }}</td>
-                      {% if weights %}
-                      <td class="plan-w">{{ plan_cell(weights.last) }}</td>
-                      <td class="plan-w">{{ plan_cell(weights.max) }}</td>
+                      {% if w %}
+                      <td class="plan-w plan-last"><span class="plan-pill">{{ plan_set(w.last) }}</span></td>
+                      <td class="plan-w plan-max"><span class="plan-pill">{{ plan_set(w.max) }}</span></td>
                       {% else %}
-                      <td class="plan-w plan-none" title="{{ _("Not trained yet") }}">&mdash;</td>
-                      <td class="plan-w plan-none" title="{{ _("Not trained yet") }}">&mdash;</td>
+                      <td class="plan-w plan-last plan-none" title="{{ _("Not trained yet") }}">&mdash;</td>
+                      <td class="plan-w plan-max plan-none" title="{{ _("Not trained yet") }}">&mdash;</td>
                       {% endif %}
+                    </tr>
+                    <tr class="plan-detail {{ stripe }}" id="{{ detail_id }}" hidden>
+                      <td colspan="4">
+                        <div class="plan-panel">
+                          {% if points %}
+                          <div class="plan-panel-head">
+                            <span>
+                              <svg class="plan-ico-s me-1" width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M0 0h1v15h15v1H0V0Zm14.817 3.113a.5.5 0 0 1 .07.704l-4.5 5.5a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61 4.15-5.073a.5.5 0 0 1 .704-.07Z"/>
+                              </svg>{{ _("Progress in this mesocycle") }}
+                            </span>
+                            {% if points | length > 1 %}<span>{{ _("tap a point") }}</span>{% endif %}
+                          </div>
+                          <svg class="plan-chart{{ ' plan-dense' if points | length > 6 }}"
+                            viewBox="0 0 {{ plan_chart.width }} {{ plan_chart.height }}" role="group"
+                            aria-label="{{ _("Progress in this mesocycle") }}">
+                            {% set base = plan_chart.height - plan_chart.bottom %}
+                            <line class="plan-axis" x1="{{ plan_chart.side }}" x2="{{ plan_chart.width - plan_chart.side }}" y1="{{ base }}" y2="{{ base }}"/>
+                            {% if points | length > 1 %}
+                            <polyline class="plan-line" points="{% for p in points %}{{ p.x }},{{ p.y }} {% endfor %}"/>
+                            {% endif %}
+                            {% for p in points %}
+                            <g class="plan-pt{{ ' is-sel' if loop.last }}{{ ' is-edge' if loop.first or loop.last }}"
+                              data-pt="{{ loop.index0 }}" tabindex="0" role="button" aria-label="{{ plan_date(p.date, year=true) }}">
+                              <circle class="plan-pt-hit" cx="{{ p.x }}" cy="{{ p.y }}" r="14"/>
+                              <circle class="plan-pt-halo" cx="{{ p.x }}" cy="{{ p.y }}" r="9"/>
+                              <circle class="plan-pt-dot" cx="{{ p.x }}" cy="{{ p.y }}" r="4"/>
+                              <text class="plan-pt-val" x="{{ p.x }}" y="{{ p.y - 10 }}">{{ plan_set(p.top, short=true) }}</text>
+                              <text class="plan-pt-date" x="{{ p.x }}" y="{{ plan_chart.height - 5 }}">{{ plan_date(p.date) }}</text>
+                            </g>
+                            {% endfor %}
+                          </svg>
+                          {% for p in points %}
+                          <div class="plan-pt-info" data-pt="{{ loop.index0 }}"{{ ' hidden' if not loop.last }}>
+                            <div class="plan-pt-h">{{ plan_date(p.date, year=true) }}{{ plan_change(p.change) }}</div>
+                            <dl class="plan-pt-grid">
+                              <dt>{{ _("Sets") }}</dt><dd>{{ plan_sets(p.sets) }}</dd>
+                              <dt>RPE</dt>
+                              <dd>{% if p.rpe_low is none %}&mdash;{% elif p.rpe_low == p.rpe_high %}{{ "%g"|format(p.rpe_low) }}{% else %}{{ "%g"|format(p.rpe_low) }}&ndash;{{ "%g"|format(p.rpe_high) }}{% endif %}</dd>
+                              <dt>{{ _("Actual rest") }}</dt>
+                              <dd>{% if p.rest is none %}&mdash;{% else %}&Oslash; {{ clock(p.rest) }}{% endif %}</dd>
+                            </dl>
+                          </div>
+                          {% endfor %}
+                          {% else %}
+                          <div class="plan-muted mb-1">{{ _("Not trained in this mesocycle yet") }}</div>
+                          {% endif %}
+                          <div class="plan-rest">
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                              <path d="M8.5 5.6a.5.5 0 1 0-1 0v2.9h-3a.5.5 0 0 0 0 1H8a.5.5 0 0 0 .5-.5V5.6z"/>
+                              <path d="M6.5 1A.5.5 0 0 1 7 .5h2a.5.5 0 0 1 0 1v.57c1.36.196 2.594.78 3.584 1.64a.715.715 0 0 1 .012-.013l.354-.354-.354-.353a.5.5 0 0 1 .707-.708l1.414 1.415a.5.5 0 1 1-.707.707l-.353-.354-.354.354a.512.512 0 0 1-.013.012A7 7 0 1 1 7 2.071V1.5a.5.5 0 0 1-.5-.5zM8 3a6 6 0 1 0 .001 12A6 6 0 0 0 8 3z"/>
+                            </svg>
+                            <span class="plan-muted">{{ _("Recommended rest") }}</span>
+                            <span>{{ rest_label(details.rest | int) }}</span>
+                          </div>
+                          {% set icon = exercise_icon(exercise_name) if current_user.show_plan_icons else none %}
+                          {% if icon %}<img class="plan-ex-icon" src="{{ icon }}" alt="" aria-hidden="true">{% endif %}
+                        </div>
+                      </td>
                     </tr>
                     {% endfor %}
                   </tbody>
@@ -230,6 +400,7 @@
             </div>
           </div>
           {% endfor %}
+          </div>
 
           <!-- One button instead of two side by side: the pair had different
                widths and crowded the page on a desktop, which is where an
@@ -302,6 +473,40 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
     crossorigin="anonymous"></script>
+  <script>
+    // Workout Plan: a tap on a row opens its details; a tap on a chart point
+    // shows that session under the chart; on a phone a tap on the Max / Last
+    // header switches that column on every day (back to Max on reload).
+    (function () {
+      const days = document.querySelector(".plan-days");
+      if (!days) return;
+      function toggle(row) {
+        const open = row.getAttribute("aria-expanded") !== "true";
+        row.setAttribute("aria-expanded", open);
+        document.getElementById(row.getAttribute("aria-controls")).hidden = !open;
+      }
+      function pick(point) {
+        const panel = point.closest(".plan-panel");
+        const i = point.dataset.pt;
+        panel.querySelectorAll(".plan-pt").forEach(function (p) { p.classList.toggle("is-sel", p === point); });
+        panel.querySelectorAll(".plan-pt-info").forEach(function (box) { box.hidden = box.dataset.pt !== i; });
+      }
+      days.addEventListener("click", function (e) {
+        if (e.target.closest(".plan-switch")) { days.classList.toggle("plan-show-last"); return; }
+        const point = e.target.closest(".plan-pt");
+        if (point) { pick(point); return; }
+        const row = e.target.closest(".plan-row");
+        if (row) toggle(row);
+      });
+      days.addEventListener("keydown", function (e) {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        const point = e.target.closest(".plan-pt");
+        const row = e.target.closest(".plan-row");
+        if (point) { e.preventDefault(); pick(point); }
+        else if (row) { e.preventDefault(); toggle(row); }
+      });
+    })();
+  </script>
   <!-- waiting overlay -->
   <script src="{{ url_for('static', filename='js/loader.js') }}"></script>
 </body>

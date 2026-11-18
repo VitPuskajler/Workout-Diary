@@ -91,7 +91,7 @@
   "Keeping the same name is fine - the older mesocycle then gets the date it was created added to its name.": "Rovnaký názov môžeš pokojne nechať - starší mezocyklus potom dostane k názvu dátum, kedy vznikol.",
   "Name of the new mesocycle": "Názov nového mezocyklu",
   "No exercises on this day yet.": "V tento deň zatiaľ nie sú žiadne cviky.",
-  "Rest": "Oddych",
+  "Rest": "Pauza",
   "Sets": "Série",
   "That mesocycle could not be copied.": "Tento mezocyklus sa nepodarilo skopírovať.",
   "That mesocycle has no workout days to copy.": "Tento mezocyklus nemá žiadne tréningové dni na skopírovanie.",
@@ -585,8 +585,17 @@
   "Left-handed": "Ľavák",
   "Right-handed": "Pravák",
   "The side of the Confirm button: left for a left-hander, right for a right-hander. Repeat takes the other side.": "Strana tlačidla Potvrdiť: vľavo pre ľaváka, vpravo pre praváka. Znova je na opačnej strane.",
-  "Last": "Naposledy",
+  "Last": "Minule",
   "Max": "Max",
   "BW": "VH",
-  "Not trained yet": "Ešte necvičené"
+  "Not trained yet": "Ešte necvičené",
+  "Switch between Max and Last": "Prepnúť medzi Max a Minule",
+  "Progress in this mesocycle": "Progres v mezocykle",
+  "tap a point": "ťukni na bod",
+  "Actual rest": "Reálna pauza",
+  "Recommended rest": "Odporúčaná pauza",
+  "first workout": "prvý tréning",
+  "no change": "bez zmeny",
+  "{value} reps": "{value} opak.",
+  "Not trained in this mesocycle yet": "V tomto mezocykle ešte necvičené"
 }

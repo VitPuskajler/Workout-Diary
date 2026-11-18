@@ -588,5 +588,14 @@
   "Last": "Naposledy",
   "Max": "Max",
   "BW": "VH",
-  "Not trained yet": "Ještě necvičeno"
+  "Not trained yet": "Ještě necvičeno",
+  "Switch between Max and Last": "Přepnout mezi Max a Naposledy",
+  "Progress in this mesocycle": "Progres v mezocyklu",
+  "tap a point": "ťukni na bod",
+  "Actual rest": "Skutečná pauza",
+  "Recommended rest": "Doporučená pauza",
+  "first workout": "první trénink",
+  "no change": "beze změny",
+  "{value} reps": "{value} opak.",
+  "Not trained in this mesocycle yet": "V tomto mezocyklu ještě necvičeno"
 }

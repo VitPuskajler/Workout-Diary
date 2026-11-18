@@ -368,8 +368,11 @@ def workout_plan_page():
         chosen_mesocycle=chosen_mesocycle,
         table_population=table_population,
         plan_weights=db_operations.plan_weights(
-            name for exercises in (table_population or {}).values() for name in exercises
+            (name for exercises in (table_population or {}).values() for name in exercises),
+            chosen_mesocycle, dropdown_menu_info,
         ),
+        plan_chart=db_operations.PLAN_CHART,
+        today=date.today(),
     )
 
 # ----------------------------------------------------------------------

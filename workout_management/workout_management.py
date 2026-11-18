@@ -2127,15 +2127,22 @@ class WorkoutManagement:
 
         return workouts_from_db
 
-    def plan_weights(self, exercise_names) -> dict:
-        """Last and Max for each exercise on the Workout Plan page.
+    # The mini chart in a Workout Plan row's details: its drawing box, in SVG
+    # units - the width the points spread over, and room above them for a
+    # value and below them for a date.
+    PLAN_CHART = {"width": 320, "height": 96, "side": 24, "top": 24, "bottom": 22}
 
-        {exercise name: {"last": set, "max": set}}, where a set is
-        {"weight", "unit", "reps", "timed"} and only exercises the user has
-        ever logged are in it.
+    def plan_weights(self, exercise_names, chosen_mesocycle=None, mesocycle_info=None) -> dict:
+        """What the Workout Plan page shows for each exercise: the Last / Max
+        columns and the progress chart a tap on the row opens.
 
-          last - the heaviest set of the latest session with this exercise
-          max  - the heaviest set ever (all mesocycles), more reps breaks a tie
+        {exercise name: {"last", "max", "points"}}, only for exercises the user
+        has ever logged:
+          last   - the heaviest set of the latest session with this exercise
+          max    - the heaviest set ever (all mesocycles), more reps breaks a tie
+          points - one per session of the chosen mesocycle with this exercise,
+                   oldest first (see _plan_points)
+        A set is {"weight", "unit", "reps", "timed"}.
 
         Heaviest is compared in kg, so 100 lbs loses to 50 kg. Holds compare
         seconds (stored in reps); exercises never done with a weight compare
@@ -2151,9 +2158,12 @@ class WorkoutManagement:
                 Exercise.exercise_name,
                 Exercise.is_timed,
                 ExerciseEntries.session_id,
+                Sessions.session_date,
+                ExerciseEntries.entry_id,
                 ExerciseEntries.weight,
                 ExerciseEntries.unit,
                 ExerciseEntries.reps,
+                ExerciseEntries.rpe,
             )
             .join(ExerciseEntries, ExerciseEntries.exercise_id == Exercise.exercise_id)
             .join(Sessions, Sessions.session_id == ExerciseEntries.session_id)
@@ -2170,33 +2180,144 @@ class WorkoutManagement:
         for row in rows:
             by_exercise.setdefault(row.exercise_name, []).append(row)
 
-        def weight_kg(row):
-            weight = row.weight or 0
-            return lbs_to_kg(weight) if row.unit == "lbs" else weight
+        in_mesocycle = self._plan_mesocycle_sessions(user_id, chosen_mesocycle, mesocycle_info)
+        gaps = self._plan_rest_gaps({row.session_id for row in rows if row.session_id in in_mesocycle})
 
         result = {}
         for name, sets in by_exercise.items():
             timed = bool(sets[0].is_timed)
-            if timed or not any(row.weight for row in sets):
-                key = lambda row: row.reps or 0
-            else:
-                key = lambda row: (weight_kg(row), row.reps or 0)
+            weighted = not timed and any(row.weight for row in sets)
+            key = (lambda row: (self._plan_kg(row), row.reps or 0)) if weighted else (lambda row: row.reps or 0)
 
-            last_session = sets[-1].session_id
-            latest = [row for row in sets if row.session_id == last_session]
-
-            last = max(latest, key=key)
-            best = max(sets, key=key)
-
-            def as_dict(row):
-                return {"weight": row.weight or 0, "unit": row.unit or "kg",
-                        "reps": row.reps or 0, "timed": timed}
-
+            latest = [row for row in sets if row.session_id == sets[-1].session_id]
             result[name] = {
-                "last": as_dict(last),
-                "max": as_dict(best),
+                "last": self._plan_set(max(latest, key=key), timed),
+                "max": self._plan_set(max(sets, key=key), timed),
+                "points": self._plan_points(
+                    [row for row in sets if row.session_id in in_mesocycle], key, timed, weighted, gaps
+                ),
             }
         return result
+
+    @staticmethod
+    def _plan_kg(row):
+        weight = row.weight or 0
+        return lbs_to_kg(weight) if row.unit == "lbs" else weight
+
+    @staticmethod
+    def _plan_set(row, timed):
+        return {"weight": row.weight or 0, "unit": row.unit or "kg", "reps": row.reps or 0, "timed": timed}
+
+    def _plan_points(self, sets, key, timed, weighted, gaps):
+        """The chart of one exercise in the chosen mesocycle - a point per
+        session, oldest first:
+          {"date", "top", "sets", "rpe_low", "rpe_high", "rest", "change", "x", "y"}
+          top    - the heaviest set of that session, the point's label
+          rest   - the average actual rest in seconds before its sets, None
+                   where the times were not logged (see _plan_rest_gaps)
+          change - against the first point: {"kind": "weight" | "reps" | "time",
+                   "value": +/-number}, {"kind": "same"} or None on the first point
+          x, y   - where the point sits in PLAN_CHART
+
+        Height is the top set's weight; where the weight never changed in the
+        mesocycle (or there is none), its reps or seconds instead."""
+        sessions = {}
+        for row in sets:
+            sessions.setdefault(row.session_id, []).append(row)
+
+        points = []
+        for session_rows in sessions.values():
+            top = max(session_rows, key=key)
+            rpes = [row.rpe for row in session_rows if row.rpe]
+            rests = [gaps[row.entry_id] for row in session_rows if row.entry_id in gaps]
+            points.append({
+                "date": session_rows[0].session_date,
+                "row": top,
+                "top": self._plan_set(top, timed),
+                "sets": [self._plan_set(row, timed) for row in session_rows],
+                "rpe_low": min(rpes) if rpes else None,
+                "rpe_high": max(rpes) if rpes else None,
+                "rest": round(sum(rests) / len(rests)) if rests else None,
+            })
+        if not points:
+            return []
+
+        by_weight = weighted and len({round(self._plan_kg(p["row"]), 2) for p in points}) > 1
+        first = points[0]["row"]
+        for i, point in enumerate(points):
+            row = point.pop("row")
+            point["value"] = self._plan_kg(row) if by_weight else (row.reps or 0)
+            if i == 0:
+                point["change"] = None
+            elif weighted and round(self._plan_kg(row), 2) != round(self._plan_kg(first), 2):
+                point["change"] = {"kind": "weight", "value": round(self._plan_kg(row) - self._plan_kg(first), 2)}
+            elif (row.reps or 0) != (first.reps or 0):
+                point["change"] = {"kind": "time" if timed else "reps", "value": (row.reps or 0) - (first.reps or 0)}
+            else:
+                point["change"] = {"kind": "same"}
+
+        box = self.PLAN_CHART
+        values = [p["value"] for p in points]
+        low, high = min(values), max(values)
+        if low == high:
+            low, high = low - 1, high + 1
+        span_x = box["width"] - 2 * box["side"]
+        span_y = box["height"] - box["top"] - box["bottom"]
+        for i, point in enumerate(points):
+            point["x"] = round(box["width"] / 2 if len(points) == 1 else box["side"] + i * span_x / (len(points) - 1), 1)
+            point["y"] = round(box["top"] + (high - point.pop("value")) / (high - low) * span_y, 1)
+        return points
+
+    def _plan_mesocycle_sessions(self, user_id, chosen_mesocycle, mesocycle_info):
+        """The ids of the user's sessions in the chosen mesocycle: those of its
+        training days, and the freestyle ("c") ones logged under it - the same
+        two sources mesocycle_report_rows() reads."""
+        workout_ids, slot = self._mesocycle_entry(chosen_mesocycle, mesocycle_info)
+        mesocycle_id = slot.get(chosen_mesocycle)
+        ids = set()
+        if workout_ids:
+            ids.update(
+                row[0] for row in db.session.query(Sessions.session_id)
+                .filter(Sessions.user_id == user_id, Sessions.workout_id.in_(workout_ids))
+            )
+        if mesocycle_id is not None:
+            ids.update(
+                row[0] for row in db.session.query(Sessions.session_id)
+                .join(SessionMesocycles, SessionMesocycles.session_id == Sessions.session_id)
+                .filter(
+                    Sessions.user_id == user_id,
+                    Sessions.workout_id == "c",
+                    SessionMesocycles.mesocycle_id == mesocycle_id,
+                )
+            )
+        return ids
+
+    @staticmethod
+    def _plan_rest_gaps(session_ids):
+        """{entry_id: seconds} - for each set, the time since the set logged
+        before it in the same session, the same gap set_gaps() shows: the rest
+        and the set itself. Only the sets after an exercise's first one in a
+        session are in it - the first one's gap is the walk over from another
+        exercise. Sets logged before the time was stored have none."""
+        if not session_ids:
+            return {}
+        rows = (
+            db.session.query(
+                ExerciseEntries.entry_id, ExerciseEntries.session_id,
+                ExerciseEntries.exercise_id, ExerciseEntries.logged_at,
+            )
+            .filter(ExerciseEntries.session_id.in_(session_ids), ExerciseEntries.logged_at.isnot(None))
+            .order_by(ExerciseEntries.session_id, ExerciseEntries.logged_at, ExerciseEntries.entry_id)
+            .all()
+        )
+        gaps, previous, seen = {}, {}, set()
+        for entry_id, session_id, exercise_id, logged_at in rows:
+            before = previous.get(session_id)
+            if before is not None and (session_id, exercise_id) in seen:
+                gaps[entry_id] = max(0, int((logged_at - before).total_seconds()))
+            previous[session_id] = logged_at
+            seen.add((session_id, exercise_id))
+        return gaps
 
     def workout_day_information(
         self, chosen_mesocycle: str, mesocycle_info: dict
