@@ -1491,9 +1491,7 @@
       //
       // iPhone: where the finger is comes from the floating copy of the row
       // Sortable keeps under it (.sortable-fallback), not only from touch
-      // events, and the page is scrolled through document.scrollingElement
-      // with window.scrollTo as the fallback - Safari can leave one of them
-      // be while a finger is down. ?dragdebug=1 shows the numbers on screen.
+      // events. ?dragdebug=1 shows the numbers on screen.
       const autoScroll = (function () {
         let y = null, frame = 0, box = null;
         const EDGE = 110;                      // px of zone at each end
@@ -1519,12 +1517,17 @@
           }
           return y;
         }
+        // window.scrollBy first - on an iPhone, writing scrollingElement's
+        // scrollTop reads back changed while the page does not move.
         function scrollPage(delta) {
-          const el = document.scrollingElement || document.documentElement;
-          const before = el.scrollTop;
-          el.scrollTop = before + delta;
-          if (el.scrollTop === before) window.scrollTo(0, window.scrollY + delta);
+          const before = window.scrollY;
+          window.scrollBy(0, delta);
+          if (window.scrollY === before) {
+            const el = document.scrollingElement || document.documentElement;
+            el.scrollTop = el.scrollTop + delta;
+          }
         }
+        let frames = 0;
         function step() {
           frame = requestAnimationFrame(step);
           const at = fingerY();
@@ -1535,13 +1538,16 @@
             else if (at > bottom) speed = MAX_SPEED * Math.min(1, (at - bottom) / EDGE);
             if (speed) scrollPage(Math.round(speed) || Math.sign(speed));
           }
-          if (box) box.textContent = "y " + (at === null ? "-" : Math.round(at)) + "  speed " + Math.round(speed) +
-            "  scroll " + Math.round(window.scrollY) + "  ghost " + !!document.querySelector(".sortable-fallback");
+          if (box) box.textContent = "#" + (++frames) + " y " + (at === null ? "-" : Math.round(at)) +
+            " speed " + Math.round(speed) + " scrollY " + Math.round(window.scrollY) +
+            " top " + Math.round((document.scrollingElement || document.documentElement).scrollTop) +
+            " ghost " + !!document.querySelector(".sortable-fallback");
         }
         const EVENTS = ["pointermove", "touchmove", "mousemove"];
         return {
           start: function () {
             y = null;
+            frames = 0;
             EVENTS.forEach((t) => document.addEventListener(t, track, { passive: true, capture: true }));
             if (DEBUG && !box) {
               box = document.createElement("div");
