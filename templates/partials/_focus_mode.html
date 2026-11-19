@@ -1,6 +1,8 @@
 {# Focus mode (Customization -> "Focus mode"), Training Session only.
 
-   While the stopwatch runs - Start tapped, Finish not yet:
+   While the stopwatch runs - Start tapped (or the first set logged),
+   Finish not yet:
+     - the training-day dropdown turns into a locked label
      - the navbar is not stuck to the top any more: it scrolls away with the
        page, leaving the whole screen to the sets
      - the screen stays on (Wake Lock - Safari 16.4+; elsewhere just nothing)
@@ -18,6 +20,29 @@
      scrolls with it. The page's own top padding still clears it. */
   html[data-wd-sw="intro"] .navbar.fixed-top,
   html[data-wd-sw="rest"] .navbar.fixed-top { position: absolute; }
+
+  /* The training-day dropdown gives way to a locked label from Start (or
+     the first set) until Finish - switching days mid-workout is a mis-tap,
+     not a plan. The label keeps the dropdown's height: nothing jumps. */
+  html[data-wd-sw="intro"] .wd-day-picker,
+  html[data-wd-sw="rest"] .wd-day-picker { display: none; }
+  html[data-wd-sw="intro"] .wd-day-locked,
+  html[data-wd-sw="rest"] .wd-day-locked { display: block; }
+  .wd-day-locked .form-select {
+    background-image: none; padding-right: .75rem;
+    color: var(--bs-secondary-color, #6c757d);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* "Finish the workout to switch the day": laid over what is below, so it
+     does not push anything either, and gone after a few seconds. */
+  .wd-day-hint {
+    position: absolute; left: 50%; top: 100%; z-index: 20;
+    transform: translate(-50%, -4px); opacity: 0; pointer-events: none;
+    padding: 4px 12px; border-radius: 999px; white-space: nowrap;
+    background: #16181d; color: #e9ecef; font-size: .78rem;
+    transition: opacity .2s ease;
+  }
+  .wd-day-hint.show { opacity: 1; }
 
   /* The sheen: a band of light crossing a bar once, left to right, clipped
      to the bar (its rounded corners too). Never in the way of a tap. */
@@ -112,6 +137,19 @@
       sync();
     });
     document.addEventListener("wd-sw-rest-up", function () { play(barSheen, "rest"); });
+
+    // A tap on the locked day says how to switch it. On document, because
+    // the label is inside #wd-live, which a logged set swaps for a new one.
+    var hintTimer = null;
+    document.addEventListener("click", function (e) {
+      var locked = e.target.closest && e.target.closest(".wd-day-locked button");
+      if (!locked) return;
+      var hint = locked.parentNode.querySelector(".wd-day-hint");
+      if (!hint) return;
+      hint.classList.add("show");
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(function () { hint.classList.remove("show"); }, 2500);
+    });
 
     // The screen stays on while the stopwatch runs. The phone drops the lock
     // whenever the page is hidden, so it is asked for again on the way back.

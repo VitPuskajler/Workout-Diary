@@ -35,6 +35,59 @@
   var deleteModal = null;
 
   var UNIT_LABELS = { kg: "Kg", lbs: "Lbs", other: wdT("Other") };
+  var KG_PER_LB = 0.45359237;
+
+  // ---- the odd unit out ---------------------------------------------------
+  // A set logged in another unit than the rest of its exercise is most
+  // likely the Kg/Lbs toggle forgotten during the workout - one set of the
+  // day, or every set of one day. Compared against the unit most of the
+  // table was logged in, and against the unit most of that day's sets were
+  // logged in. A tie means no clear "usual" unit, so it marks nothing.
+  function majority(counts) {
+    var best = null, bestN = 0, tie = false;
+    for (var unit in counts) {
+      if (!Object.prototype.hasOwnProperty.call(counts, unit)) continue;
+      if (counts[unit] > bestN) { best = unit; bestN = counts[unit]; tie = false; }
+      else if (counts[unit] === bestN) { tie = true; }
+    }
+    return tie ? null : best;
+  }
+
+  function markOddUnits(table) {
+    var rows = table.querySelectorAll("tbody > tr[data-entry-id]");
+    var all = {}, byDay = {}, weighed = [];
+    for (var i = 0; i < rows.length; i++) {
+      var td = rows[i].querySelector('[data-field="weight"]');
+      if (!td) continue;
+      td.classList.remove("wd-unit-odd");
+      td.removeAttribute("title");
+      if (!td.dataset.weight) continue;          // "-": nothing to compare
+      var unit = rows[i].dataset.unit || "kg";
+      var day = rows[i].dataset.date || "";
+      all[unit] = (all[unit] || 0) + 1;
+      byDay[day] = byDay[day] || {};
+      byDay[day][unit] = (byDay[day][unit] || 0) + 1;
+      weighed.push({ td: td, unit: unit, day: day });
+    }
+    var usual = majority(all);
+    weighed.forEach(function (w) {
+      var dayUsual = majority(byDay[w.day]) || usual;
+      if ((usual && w.unit !== usual) || (dayUsual && w.unit !== dayUsual)) {
+        w.td.classList.add("wd-unit-odd");
+        w.td.title = wdT("Another unit than the other sets of this exercise - forgot the Kg/Lbs switch?");
+      }
+    });
+  }
+
+  function markAllOddUnits() {
+    var tables = document.querySelectorAll("table.wd-editable");
+    for (var i = 0; i < tables.length; i++) markOddUnits(tables[i]);
+  }
+
+  function roundTo(num, places) {
+    var f = Math.pow(10, places);
+    return Math.round(num * f) / f;
+  }
 
   function textOf(td) {
     var span = td.querySelector(".wd-view-value");
@@ -47,6 +100,26 @@
     span.className = "wd-view-value";
     span.textContent = text;
     td.appendChild(span);
+  }
+
+  // The Weight cell as the page draws it (progress.html): the number as it
+  // was logged plus its unit ("kg" / "lbs" - "other" has none), or "-" for
+  // no weight. The bare number lives in data-weight, for editing.
+  function renderWeight(td, value, unit) {
+    var num = Number(value) || 0;
+    td.innerHTML = "";
+    td.dataset.weight = num ? String(num) : "";
+    var span = document.createElement("span");
+    span.className = "wd-view-value";
+    span.textContent = num ? String(num) : "-";
+    td.appendChild(span);
+    unit = unit || "kg";
+    if (num && (unit === "kg" || unit === "lbs")) {
+      var unitEl = document.createElement("span");
+      unitEl.className = "wd-unit wd-unit-" + unit;
+      unitEl.textContent = unit;
+      td.appendChild(unitEl);
+    }
   }
 
   function makeNumberInput(value, attrs) {
@@ -106,7 +179,8 @@
       f.reps.value !== cur.snapshot.reps ||
       f.weight.value !== cur.snapshot.weight ||
       f.rpe.value !== cur.snapshot.rpe ||
-      f.notes.value !== cur.snapshot.notes;
+      f.notes.value !== cur.snapshot.notes ||
+      cur.unitUndo.length > 0;
   }
 
   function buildViewToolbarButtons(cur) {
@@ -148,9 +222,7 @@
   }
 
   // Label for the fix-unit button: the bowed-arrow icon plus this entry's
-  // CURRENT unit, so it doubles as an indicator - /progress always shows the
-  // weight already converted to kg, so this is the only place you can see
-  // what unit a set was actually logged in.
+  // CURRENT unit.
   function fixUnitBtnHtml(unit) {
     return (
       '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" class="me-1" aria-hidden="true">' +
@@ -202,6 +274,9 @@
     if (cur.editing) return;
     cur.editing = true;
     cur.currentUnit = cur.row.dataset.unit || "kg";
+    // Unit fixes made during this edit, with the unit each set had before -
+    // ✕ Discard puts them back, ✓ Save keeps them. See submitFixUnit().
+    cur.unitUndo = [];
 
     var repsTd = cur.row.querySelector('[data-field="reps"]');
     var weightTd = cur.row.querySelector('[data-field="weight"]');
@@ -210,7 +285,7 @@
 
     cur.snapshot = {
       reps: textOf(repsTd),
-      weight: textOf(weightTd),
+      weight: weightTd.dataset.weight || "",
       rpe: textOf(rpeTd),
       notes: noteTextEl ? noteTextEl.textContent : "",
     };
@@ -258,7 +333,7 @@
     var rpeTd = cur.row.querySelector('[data-field="rpe"]');
 
     setViewSpan(repsTd, cur.snapshot.reps);
-    setViewSpan(weightTd, cur.snapshot.weight);
+    renderWeight(weightTd, cur.snapshot.weight, cur.row.dataset.unit);
     setViewSpan(rpeTd, cur.snapshot.rpe);
 
     if (cur.fields && cur.fields.noteTextEl) {
@@ -271,6 +346,7 @@
     cur.errorEl = null;
 
     buildViewToolbarButtons(cur);
+    markAllOddUnits();
 
     if (saved && cur.editBtn) {
       var original = cur.editBtn.textContent;
@@ -283,13 +359,37 @@
 
   function discardEdit(cur) {
     if (!cur.editing) return;
+    var undo = cur.unitUndo || [];
+    cur.unitUndo = [];
     exitEditMode(cur, false);
+    if (undo.length) undoUnitFixes(undo);
+  }
+
+  // A unit fix is saved the moment it is picked (it can change several sets
+  // at once), so "Discard" sends each set's old unit back, one by one.
+  function undoUnitFixes(undo) {
+    undo.forEach(function (item) {
+      fetch("/progress/fix_unit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entry_id: item.entryId, unit: item.unit, scope: "entry" }),
+      })
+        .then(function (resp) { return resp.json(); })
+        .then(function (data) {
+          if (!data || !data.ok) return;
+          for (var i = 0; i < data.updated.length; i++) {
+            applyUnitFixToRow(data.updated[i].entry_id, data.updated[i].unit, data.updated[i].weight);
+          }
+          markAllOddUnits();
+        })
+        .catch(function () { /* the rows keep showing what the server has */ });
+    });
   }
 
   function applySavedValues(cur, entry) {
     cur.snapshot = {
       reps: String(entry.reps),
-      weight: String(entry.weight),
+      weight: entry.weight ? String(entry.weight) : "",
       rpe: String(entry.rpe),
       notes: entry.notes || "",
     };
@@ -338,6 +438,7 @@
           return;
         }
         applySavedValues(cur, data.entry);
+        cur.unitUndo = [];
         exitEditMode(cur, true);
         done(true);
       })
@@ -364,6 +465,7 @@
       fields: null,
       snapshot: null,
       errorEl: null,
+      unitUndo: [],
     };
 
     buildViewToolbarButtons(current);
@@ -414,7 +516,7 @@
 
   // Push one freshly-repaired unit/weight into its row on the page. A
   // session-wide fix returns several entries, so this runs once per entry.
-  function applyUnitFixToRow(entryId, unit, weightKg) {
+  function applyUnitFixToRow(entryId, unit, weight) {
     var rows = document.querySelectorAll('tr[data-entry-id="' + entryId + '"]');
     for (var i = 0; i < rows.length; i++) {
       rows[i].dataset.unit = unit;
@@ -422,10 +524,7 @@
       if (current && current.row === rows[i] && current.editing) {
         // The row you fixed from is still open - update its live input and
         // snapshot together so this does not register as an unsaved edit.
-        if (current.fields && current.fields.weight) {
-          current.fields.weight.value = weightKg;
-        }
-        current.snapshot.weight = String(weightKg);
+        // Same number, only its unit changes - the input keeps what is in it.
         current.currentUnit = unit;
         if (current.fixUnitBtn) {
           current.fixUnitBtn.innerHTML = fixUnitBtnHtml(unit);
@@ -433,8 +532,8 @@
         continue;
       }
 
-      var span = rows[i].querySelector('[data-field="weight"] .wd-view-value');
-      if (span) span.textContent = weightKg;
+      var weightTd = rows[i].querySelector('[data-field="weight"]');
+      if (weightTd) renderWeight(weightTd, weight, unit);
     }
   }
 
@@ -451,6 +550,30 @@
     var label = UNIT_LABELS[unit];
     sessionBtn.textContent = wdT("This exercise today →") + " " + label;
     entryBtn.textContent = wdT("This set →") + " " + label;
+    showFixUnitPreview(unit);
+  }
+
+  // "100 kg → 100 lbs": the number stays - the mistake is the label, not
+  // what was typed - and what the statistics, which count in kg, make of it.
+  function showFixUnitPreview(unit) {
+    var preview = document.getElementById("progress_fix_unit_preview");
+    var note = document.getElementById("progress_fix_unit_note");
+    if (!preview || !note || !current) return;
+    var weight = Number(current.row.querySelector('[data-field="weight"]').dataset.weight) || 0;
+    if (current.fields && current.fields.weight && current.fields.weight.value.trim() !== "") {
+      weight = Number(current.fields.weight.value) || weight;
+    }
+    function shown(u) { return u === "other" ? UNIT_LABELS.other.toLowerCase() : u; }
+    if (!weight) {
+      preview.textContent = "";
+    } else {
+      preview.textContent = weight + " " + shown(current.currentUnit) + " → " + weight + " " + shown(unit);
+    }
+    var text = wdT("The number stays as you typed it, only its unit changes.");
+    if (weight && unit === "lbs") {
+      text += " " + wdT("Statistics count it as {kg} kg.").replace("{kg}", roundTo(weight * KG_PER_LB, 1));
+    }
+    note.textContent = text;
   }
 
   function openFixUnitModal() {
@@ -495,9 +618,25 @@
           errorEl.classList.remove("d-none");
           return;
         }
+        var cur = current;
         for (var i = 0; i < data.updated.length; i++) {
-          applyUnitFixToRow(data.updated[i].entry_id, data.updated[i].unit, data.updated[i].weight_kg);
+          var u = data.updated[i];
+          if (cur && cur.unitUndo) {
+            var seen = cur.unitUndo.some(function (item) { return item.entryId === u.entry_id; });
+            var row = document.querySelector('tr[data-entry-id="' + u.entry_id + '"]');
+            if (!seen && row) cur.unitUndo.push({ entryId: u.entry_id, unit: row.dataset.unit || "kg" });
+          }
+          applyUnitFixToRow(u.entry_id, u.unit, u.weight);
         }
+        // Back to their own unit everywhere: nothing left to undo for those.
+        if (cur && cur.unitUndo) {
+          cur.unitUndo = cur.unitUndo.filter(function (item) {
+            var row = document.querySelector('tr[data-entry-id="' + item.entryId + '"]');
+            return !row || (row.dataset.unit || "kg") !== item.unit;
+          });
+          refreshDirty(cur);
+        }
+        markAllOddUnits();
         fixUnitModal.hide();
       })
       .catch(function () {
@@ -565,7 +704,9 @@
         }
         deleteModal.hide();
         if (noteRow && noteRow.parentNode) { noteRow.parentNode.removeChild(noteRow); }
+        var table = row ? row.closest("table") : null;
         if (row && row.parentNode) { row.parentNode.removeChild(row); }
+        if (table) markOddUnits(table);
         if (current && current.row === row) { current = null; }
       })
       .catch(function () {
@@ -587,6 +728,7 @@
   }
 
   function start() {
+    markAllOddUnits();
     initUnsavedModal();
     initFixUnitModal();
     initDeleteConfirmModal();

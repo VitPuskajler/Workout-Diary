@@ -212,8 +212,22 @@
   {% include "partials/_flashes.html" %}
 
   <!-- ------------------------ Load Dynamically Tables ------------------------- -->
-  <div class="container text-center col-5 col-md-3 col-sm-5 mb-1 p-1">
-    <form class="mb-1" action="{{ url_for('training_session') }}" method="get">
+  {# Focus mode swaps the dropdown (wd-day-picker) for wd-day-locked while
+     the stopwatch runs (partials/_focus_mode.html) - mid-workout a day
+     switch is a mis-tap. Same height, so nothing below jumps; a tap on it
+     says how to switch. #}
+  <style>
+    .wd-day-locked { display: none; position: relative; }
+  </style>
+  <div class="container text-center col-5 col-md-3 col-sm-5 mb-1 p-1 wd-day-wrap">
+    <div class="wd-day-locked mb-1">
+      <button type="button" class="form-select mb-1 text-center" aria-describedby="wdDayLockedHint">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" class="me-1">
+          <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+        </svg>{{ chosen_day }}</button>
+      <div class="wd-day-hint" id="wdDayLockedHint" role="status">{{ _("Finish the workout to switch the day") }}</div>
+    </div>
+    <form class="mb-1 wd-day-picker" action="{{ url_for('training_session') }}" method="get">
       <select class="form-select mb-1 text-center" aria-label="{{ _("Training day") }}" id="trainingSelect"
         name="training_day" onchange="this.form.submit()">
 
@@ -523,6 +537,15 @@
                  exercise that side is left empty, but its slot keeps the other
                  button on its own edge. -->
             {% set nav_fallback_icon = url_for('static', filename='icons/exercises/dumbbell-bicep-curl.svg') %}
+            {# "Moving icons" in Customization plays these too - like the plan
+               table's icon_picture(), and never with "reduce motion" on. #}
+            {% macro nav_icon(exercise) -%}
+              {%- set still = exercise_icon(exercise) -%}
+              {%- set moving = exercise_icon_moving(exercise) if still and current_user.animate_session_icons else none -%}
+              <picture>
+                {%- if moving %}<source srcset="{{ moving }}" media="(prefers-reduced-motion: no-preference)">{% endif -%}
+                <img src="{{ still or url_for('static', filename='icons/exercises/dumbbell-bicep-curl.svg') }}" alt=""></picture>
+            {%- endmacro %}
             {% set nav_index = exercises_to_display.index(chosen_exercise) if chosen_exercise in exercises_to_display else none %}
             {% set prev_exercise = exercises_to_display[nav_index - 1] if nav_index is not none and nav_index > 0 else none %}
             {% set next_exercise = exercises_to_display[nav_index + 1] if nav_index is not none and nav_index + 1 < exercises_to_display|length else none %}
@@ -531,7 +554,7 @@
               <button type="submit" name="previous_day" class="wd-nav-btn btn p-0 border rounded-3 shadow-sm"
                 title="{{ _("Previous: {name}", name=exercise_label(prev_exercise)) }}" aria-label="{{ _("Previous exercise: {name}", name=exercise_label(prev_exercise)) }}">
                 <span class="wd-nav-chevron" aria-hidden="true">&lsaquo;</span>
-                <img src="{{ exercise_icon(prev_exercise) or nav_fallback_icon }}" alt="">
+                {{ nav_icon(prev_exercise) }}
               </button>
               {% else %}
               <span class="wd-nav-btn" aria-hidden="true"></span>
@@ -540,7 +563,7 @@
               {% if next_exercise %}
               <button type="submit" name="next_day" class="wd-nav-btn btn p-0 border rounded-3 shadow-sm"
                 title="{{ _("Next: {name}", name=exercise_label(next_exercise)) }}" aria-label="{{ _("Next exercise: {name}", name=exercise_label(next_exercise)) }}">
-                <img src="{{ exercise_icon(next_exercise) or nav_fallback_icon }}" alt="">
+                {{ nav_icon(next_exercise) }}
                 <span class="wd-nav-chevron" aria-hidden="true">&rsaquo;</span>
               </button>
               {% else %}
@@ -564,6 +587,8 @@
                 background-color: #fff;
                 transition: all 0.25s ease;
               }
+              /* the <picture> around the icon takes no box of its own */
+              .wd-nav-btn picture { display: contents; }
               .wd-nav-btn img {
                 width: 60%;
                 height: auto;

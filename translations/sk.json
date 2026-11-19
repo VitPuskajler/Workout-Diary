@@ -1,4 +1,9 @@
 {
+  "Logged in the wrong unit? Change it to:": "Zapísané v zlej jednotke? Zmeniť na:",
+  "Another unit than the other sets of this exercise - forgot the Kg/Lbs switch?": "Iná jednotka ako pri ostatných sériách tohto cviku - zabudnutý prepínač Kg/Lbs?",
+  "The number stays as you typed it, only its unit changes.": "Číslo ostane, ako si ho zapísal, zmení sa len jeho jednotka.",
+  "Statistics count it as {kg} kg.": "Štatistiky ho počítajú ako {kg} kg.",
+  "Finish the workout to switch the day": "Deň zmeníš po ukončení tréningu",
   "Use steps of {step}, e.g. 7.5.": "Používaj kroky po {step}, napr. 7.5.",
   "Enter a number of {min} or more.": "Zadaj číslo {min} alebo viac.",
   "Enter a number from {min} to {max}.": "Zadaj číslo od {min} do {max}.",
@@ -42,7 +47,6 @@
   "Confirm": "Potvrdiť",
   "Confirm changes": "Potvrdiť zmeny",
   "Continue": "Pokračovať",
-  "Convert to:": "Previesť na:",
   "Copied!": "Skopírované!",
   "Copy all": "Kopírovať všetko",
   "Choose from an existing mesocycle": "Vyber z existujúceho mezocyklu",

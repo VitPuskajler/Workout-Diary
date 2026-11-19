@@ -96,6 +96,17 @@ class WorkoutManagement:
         return round(lbs_to_kg(weight), 2)
 
     @staticmethod
+    def _weight_as_logged(weight):
+        """A stored weight for /progress: the number as it was typed in, in
+        its own unit (the row's "unit" says which) - so a set logged in the
+        wrong unit stands out next to the others instead of hiding behind a
+        conversion. 0 for none; 100.0 -> 100."""
+        if not weight:
+            return 0
+        weight = round(float(weight), 2)
+        return int(weight) if weight.is_integer() else weight
+
+    @staticmethod
     def _weight_in_kg_sql():
         """Same conversion as `_weight_in_kg`, as a SQL expression - for
         aggregates like func.max() that must convert before comparing, not
@@ -1819,12 +1830,9 @@ class WorkoutManagement:
         if len(notes_val) > 150:
             return {"ok": False, "error": tr("Notes can be at most 150 characters.")}
 
-        # /progress always shows weight already converted to kg (see
-        # exercise_progress_data / custom_session_progress), so a value typed
-        # in here is a kg value - re-tag the entry as kg unless it was logged
-        # as "other" (a machine's own scale, never convertible).
-        if weight_val is not None and entry.unit != "other":
-            entry.unit = "kg"
+        # /progress shows each weight as it was logged, next to its own unit
+        # (see _weight_as_logged), so a value typed in here is in that same
+        # unit - the entry keeps it. A wrong unit is the fix-unit button's job.
 
         entry.reps = reps_val
         entry.weight = weight_val
@@ -1843,7 +1851,8 @@ class WorkoutManagement:
             "entry": {
                 "entry_id": entry.entry_id,
                 "reps": entry.reps or 0,
-                "weight": entry.weight or 0,
+                "weight": self._weight_as_logged(entry.weight),
+                "unit": entry.unit or "kg",
                 "rpe": entry.rpe or 0,
                 "notes": entry.notes or "",
             },
@@ -1937,7 +1946,7 @@ class WorkoutManagement:
                 {
                     "entry_id": row.entry_id,
                     "unit": row.unit,
-                    "weight_kg": self._weight_in_kg(row.weight, row.unit) or 0,
+                    "weight": self._weight_as_logged(row.weight),
                 }
                 for row in targets
             ],
@@ -2397,7 +2406,7 @@ class WorkoutManagement:
                         "entry_id": som.entry_id,
                         "date": f"{sess.session_date.day}.{sess.session_date.month}.{sess.session_date.year}",
                         "reps": som.reps or 0,
-                        "weight": self._weight_in_kg(som.weight, som.unit) or 0,
+                        "weight": self._weight_as_logged(som.weight),
                         "rpe": som.rpe or 0,
                         "notes": som.notes or "",
                         "unit": som.unit or "kg",
@@ -2664,7 +2673,7 @@ class WorkoutManagement:
                     "entry_id": entry.entry_id,
                     "date": date_label,
                     "reps": entry.reps or 0,
-                    "weight": self._weight_in_kg(entry.weight, entry.unit) or 0,
+                    "weight": self._weight_as_logged(entry.weight),
                     "rpe": entry.rpe or 0,
                     "notes": entry.notes or "",
                     "unit": entry.unit or "kg",
@@ -2898,6 +2907,17 @@ class WorkoutManagement:
         text = " ".join(text.split())
         return text
 
+    @staticmethod
+    def _md_weight(row):
+        """A /progress row's weight as the table shows it: "-" for none,
+        else the number with its unit ("other" - a machine's own scale -
+        has no unit to show)."""
+        weight = row.get("weight")
+        if not weight:
+            return "-"
+        unit = row.get("unit") or "kg"
+        return f"{weight} {unit}" if unit in ("kg", "lbs") else str(weight)
+
     def progress_as_markdown(self, progress, chosen_day, chosen_mesocycle, session_summary=None):
         """Render the progress page's tables as markdown, ready to paste anywhere.
 
@@ -2958,7 +2978,7 @@ class WorkoutManagement:
                     "| {date} | {reps} | {weight} | {rpe} | {notes} |".format(
                         date=self._md_cell(row.get("date", "")),
                         reps=self._md_cell(row.get("reps", "")),
-                        weight=self._md_cell(row.get("weight", "")),
+                        weight=self._md_cell(self._md_weight(row)),
                         rpe=self._md_cell(row.get("rpe", "")),
                         notes=self._md_cell(row.get("notes", "")),
                     )
