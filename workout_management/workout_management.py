@@ -34,7 +34,7 @@ from flask import request
 
 from translations.i18n import current_language, translate as tr
 from datetime import datetime, date, timedelta, timezone
-from workout_management.units import lbs_to_kg
+from workout_management.units import kg_to_lbs, lbs_to_kg
 
 
 # ---- exercise names in the user's language ---------------------------------
@@ -105,6 +105,17 @@ class WorkoutManagement:
             return 0
         weight = round(float(weight), 2)
         return int(weight) if weight.is_integer() else weight
+
+    @staticmethod
+    def _converted_weight(weight, from_unit, to_unit):
+        """The same weight in another unit: kg <-> lbs, rounded to what a
+        gym's plates make sense of (kg to 0.01, lbs to 0.1 - 36.29 kg is
+        80.0 lbs, not 80.0066). "other" has no factor: unchanged."""
+        if from_unit == to_unit or "other" in (from_unit, to_unit):
+            return weight
+        if to_unit == "lbs":
+            return round(kg_to_lbs(weight), 1)
+        return round(lbs_to_kg(weight), 2)
 
     @staticmethod
     def _weight_in_kg_sql():
@@ -1888,15 +1899,26 @@ class WorkoutManagement:
         return {"ok": True, "entry_id": entry_id}
 
     # Ownership-checked unit repair for the /progress inline editor's "fix
-    # unit" button. Unlike update_progress_entry, this never touches the
-    # stored `weight` number - it only re-tags which unit it means, which is
-    # the actual mistake (toggle left on the wrong setting), and changes what
-    # /progress's kg-converted display shows.
-    def fix_entry_unit(self, entry_id, target_unit, scope):
+    # unit" button. Two different mistakes, two different repairs:
+    #   convert=False - the unit was wrong, the number right (typed the
+    #     machine's 50 with the toggle on Kg): only the unit tag changes.
+    #   convert=True  - the weight was right, in the other unit (a set saved
+    #     as 36.29 kg among 80 lbs ones): the number is recalculated, kg <->
+    #     lbs only - "other" is a machine's own scale, with no factor.
+    # restore_weight (one set only) puts back an exact number - the undo of
+    # a conversion, without the rounding of converting back.
+    def fix_entry_unit(self, entry_id, target_unit, scope, convert=False, restore_weight=None):
         if target_unit not in WEIGHT_UNITS:
             return {"ok": False, "error": tr("Unknown unit.")}
         if scope not in ("entry", "session"):
             return {"ok": False, "error": tr("Unknown scope.")}
+        if restore_weight is not None:
+            try:
+                restore_weight = float(restore_weight)
+            except (TypeError, ValueError):
+                return {"ok": False, "error": tr("{label} must be a number.", label=tr("Weight"))}
+            if scope != "entry" or restore_weight < 0:
+                return {"ok": False, "error": tr("Could not save, try again.")}
 
         current_user_id = self.current_user_id_db()
 
@@ -1931,6 +1953,10 @@ class WorkoutManagement:
             )
 
         for row in targets:
+            if restore_weight is not None:
+                row.weight = restore_weight
+            elif convert and row.weight and row.unit != target_unit:
+                row.weight = self._converted_weight(row.weight, row.unit or "kg", target_unit)
             row.unit = target_unit
 
         try:

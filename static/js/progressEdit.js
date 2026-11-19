@@ -372,7 +372,9 @@
       fetch("/progress/fix_unit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entry_id: item.entryId, unit: item.unit, scope: "entry" }),
+        // The exact old number back, not a conversion of a conversion.
+        body: JSON.stringify({ entry_id: item.entryId, unit: item.unit, scope: "entry",
+                               restore_weight: item.weight === "" ? null : item.weight }),
       })
         .then(function (resp) { return resp.json(); })
         .then(function (data) {
@@ -524,7 +526,17 @@
       if (current && current.row === rows[i] && current.editing) {
         // The row you fixed from is still open - update its live input and
         // snapshot together so this does not register as an unsaved edit.
-        // Same number, only its unit changes - the input keeps what is in it.
+        // A conversion changes the number too - into the input as well,
+        // unless something else was typed there already.
+        var newWeight = weight ? String(weight) : "";
+        if (newWeight !== current.snapshot.weight) {
+          if (current.fields && current.fields.weight &&
+              current.fields.weight.value === current.snapshot.weight) {
+            current.fields.weight.value = newWeight;
+          }
+          current.snapshot.weight = newWeight;
+        }
+        rows[i].querySelector('[data-field="weight"]').dataset.weight = newWeight;
         current.currentUnit = unit;
         if (current.fixUnitBtn) {
           current.fixUnitBtn.innerHTML = fixUnitBtnHtml(unit);
@@ -553,27 +565,68 @@
     showFixUnitPreview(unit);
   }
 
-  // "100 kg → 100 lbs": the number stays - the mistake is the label, not
-  // what was typed - and what the statistics, which count in kg, make of it.
-  function showFixUnitPreview(unit) {
-    var preview = document.getElementById("progress_fix_unit_preview");
-    var note = document.getElementById("progress_fix_unit_note");
-    if (!preview || !note || !current) return;
+  // ---- the two repairs: relabel or convert --------------------------------
+  // "Only the unit is wrong": 50 kg -> 50 lbs, the number as typed.
+  // "Convert the weight":     36.29 kg -> 80 lbs, recalculated (kg <-> lbs).
+  // The server rounds the same way (_converted_weight).
+  var fixMode = "label";       // the repair picked in the popup
+  var fixModeTouched = false;  // picked by hand - no more guessing for it
+
+  function convertWeight(weight, from, to) {
+    if (from === to || from === "other" || to === "other") return weight;
+    return to === "lbs" ? roundTo(weight / KG_PER_LB, 1) : roundTo(weight * KG_PER_LB, 2);
+  }
+
+  // On a half-kilo / half-pound step, the way plates add up.
+  function isRound(num) {
+    return Math.abs(num * 2 - Math.round(num * 2)) < 0.05;
+  }
+
+  function currentWeight() {
     var weight = Number(current.row.querySelector('[data-field="weight"]').dataset.weight) || 0;
     if (current.fields && current.fields.weight && current.fields.weight.value.trim() !== "") {
       weight = Number(current.fields.weight.value) || weight;
     }
+    return weight;
+  }
+
+  function setFixMode(mode) {
+    fixMode = mode;
+    var radio = document.getElementById(mode === "convert" ? "progress_fix_mode_convert" : "progress_fix_mode_label");
+    if (radio) radio.checked = true;
+    showFixUnitNote();
+  }
+
+  function showFixUnitPreview(unit) {
+    var modes = document.getElementById("progress_fix_unit_modes");
+    if (!modes || !current) return;
+    var from = current.currentUnit, weight = currentWeight();
+    var canConvert = !!weight && from !== "other" && unit !== "other";
+    var converted = convertWeight(weight, from, unit);
     function shown(u) { return u === "other" ? UNIT_LABELS.other.toLowerCase() : u; }
-    if (!weight) {
-      preview.textContent = "";
-    } else {
-      preview.textContent = weight + " " + shown(current.currentUnit) + " → " + weight + " " + shown(unit);
-    }
-    var text = wdT("The number stays as you typed it, only its unit changes.");
-    if (weight && unit === "lbs") {
-      text += " " + wdT("Statistics count it as {kg} kg.").replace("{kg}", roundTo(weight * KG_PER_LB, 1));
-    }
-    note.textContent = text;
+
+    document.getElementById("progress_fix_mode_label_result").textContent =
+      weight ? weight + " " + shown(from) + " → " + weight + " " + shown(unit) : "";
+    document.getElementById("progress_fix_mode_convert_result").textContent =
+      canConvert ? weight + " " + shown(from) + " → " + converted + " " + shown(unit) : "";
+    document.getElementById("progress_fix_mode_convert").disabled = !canConvert;
+    document.querySelector('label[for="progress_fix_mode_convert"]').classList.toggle("d-none", !canConvert);
+
+    // The likelier repair, until one is picked by hand: a number that only
+    // comes out round once converted (36.29 kg = 80 lbs) was converted
+    // before; a round number as it is was typed off the machine.
+    var mode = fixModeTouched ? fixMode : (canConvert && !isRound(weight) && isRound(converted) ? "convert" : "label");
+    setFixMode(canConvert ? mode : "label");
+  }
+
+  function showFixUnitNote() {
+    var note = document.getElementById("progress_fix_unit_note");
+    if (!note || !current || !fixUnitTargetUnit) return;
+    var weight = currentWeight(), unit = fixUnitTargetUnit;
+    var result = fixMode === "convert" ? convertWeight(weight, current.currentUnit, unit) : weight;
+    note.textContent = weight && unit === "lbs"
+      ? wdT("Statistics count it as {kg} kg.").replace("{kg}", roundTo(result * KG_PER_LB, 1))
+      : "";
   }
 
   function openFixUnitModal() {
@@ -592,6 +645,18 @@
     // off, i.e. Kg meant to be Lbs or vice versa. "Other" has no natural
     // opposite, so it defaults to Kg, the most common intended unit.
     var defaultTarget = current.currentUnit === "kg" ? "lbs" : "kg";
+    // Better still: the unit the rest of this exercise was logged in.
+    var counts = {};
+    var tableRows = current.row.closest("table").querySelectorAll("tbody > tr[data-entry-id]");
+    for (var r = 0; r < tableRows.length; r++) {
+      var td = tableRows[r].querySelector('[data-field="weight"]');
+      if (!td || !td.dataset.weight || tableRows[r] === current.row) continue;
+      var u = tableRows[r].dataset.unit || "kg";
+      counts[u] = (counts[u] || 0) + 1;
+    }
+    var usual = majority(counts);
+    if (usual && usual !== current.currentUnit) defaultTarget = usual;
+    fixModeTouched = false;
     setFixUnitTarget(defaultTarget, targetBtns, sessionBtn, entryBtn);
 
     fixUnitModal.show();
@@ -609,6 +674,7 @@
         entry_id: current.entryId,
         unit: fixUnitTargetUnit,
         scope: scope,
+        convert: fixMode === "convert",
       }),
     })
       .then(function (resp) { return resp.json(); })
@@ -624,7 +690,11 @@
           if (cur && cur.unitUndo) {
             var seen = cur.unitUndo.some(function (item) { return item.entryId === u.entry_id; });
             var row = document.querySelector('tr[data-entry-id="' + u.entry_id + '"]');
-            if (!seen && row) cur.unitUndo.push({ entryId: u.entry_id, unit: row.dataset.unit || "kg" });
+            if (!seen && row) {
+              var wTd = row.querySelector('[data-field="weight"]');
+              cur.unitUndo.push({ entryId: u.entry_id, unit: row.dataset.unit || "kg",
+                                  weight: wTd ? wTd.dataset.weight || "" : "" });
+            }
           }
           applyUnitFixToRow(u.entry_id, u.unit, u.weight);
         }
@@ -632,7 +702,10 @@
         if (cur && cur.unitUndo) {
           cur.unitUndo = cur.unitUndo.filter(function (item) {
             var row = document.querySelector('tr[data-entry-id="' + item.entryId + '"]');
-            return !row || (row.dataset.unit || "kg") !== item.unit;
+            if (!row) return false;
+            var wTd = row.querySelector('[data-field="weight"]');
+            var nowWeight = row === cur.row ? cur.snapshot.weight : (wTd ? wTd.dataset.weight || "" : "");
+            return (row.dataset.unit || "kg") !== item.unit || String(nowWeight) !== String(item.weight);
           });
           refreshDirty(cur);
         }
@@ -658,6 +731,13 @@
     targetBtns.forEach(function (btn) {
       btn.addEventListener("click", function () {
         setFixUnitTarget(btn.dataset.targetUnit, targetBtns, sessionBtn, entryBtn);
+      });
+    });
+
+    ["label", "convert"].forEach(function (mode) {
+      var radio = document.getElementById("progress_fix_mode_" + mode);
+      if (radio) radio.addEventListener("change", function () {
+        if (radio.checked) { fixModeTouched = true; setFixMode(mode); }
       });
     });
 

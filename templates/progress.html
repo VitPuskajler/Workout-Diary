@@ -359,6 +359,19 @@
         .wd-edit-error {
           font-size: .8rem;
         }
+        /* The two repairs in the fix-unit popup. */
+        .wd-fix-mode {
+          line-height: 1.25;
+          padding: .5rem .75rem;
+        }
+        .wd-fix-mode-sub {
+          font-size: .75rem;
+          opacity: .8;
+        }
+        .wd-fix-mode-result {
+          margin-top: .2rem;
+          font-weight: 700;
+        }
 
         /* The unsaved-changes dialog, matching the pale-veil treatment
            create_workout.html already uses for the same interaction. */
@@ -607,15 +620,31 @@
             <p class="mb-1" id="progress_fix_unit_title">
               {{ _("This set is logged in") }} <strong id="progress_fix_unit_current">Kg</strong>.
             </p>
-            <p class="mb-2 text-secondary" style="font-size: .85rem;">{{ _("Logged in the wrong unit? Change it to:") }}</p>
+            <p class="mb-2 text-secondary" style="font-size: .85rem;">{{ _("Change it to:") }}</p>
             <div class="btn-group mb-3" role="group" aria-label="{{ _("Target unit") }}" id="progress_fix_unit_targets">
               <button type="button" class="btn btn-outline-secondary btn-sm" data-target-unit="kg">Kg</button>
               <button type="button" class="btn btn-outline-secondary btn-sm" data-target-unit="lbs">Lbs</button>
               <button type="button" class="btn btn-outline-secondary btn-sm" data-target-unit="other">{{ _("Other") }}</button>
             </div>
-            {# What the change does to this set: "100 kg → 100 lbs" and what the
-               statistics make of it - filled in by progressEdit.js. #}
-            <p class="mb-1 fw-semibold" id="progress_fix_unit_preview"></p>
+            {# Two mistakes, two repairs - each showing what it does to this
+               set ("36.29 kg → 80 lbs"), filled in by progressEdit.js, which
+               also picks the likelier one. Kg <-> Lbs only: "Other" has no
+               factor, so it only ever relabels. #}
+            <div class="d-flex flex-column gap-2 mb-2 text-start" id="progress_fix_unit_modes"
+              role="radiogroup" aria-label="{{ _("What was wrong?") }}">
+              <input type="radio" class="btn-check" name="progress_fix_mode" id="progress_fix_mode_label" value="label">
+              <label class="btn btn-outline-secondary wd-fix-mode" for="progress_fix_mode_label">
+                <span class="d-block fw-semibold">{{ _("Only the unit is wrong") }}</span>
+                <span class="d-block wd-fix-mode-sub">{{ _("I typed the machine's number with the wrong unit") }}</span>
+                <span class="d-block wd-fix-mode-result" id="progress_fix_mode_label_result"></span>
+              </label>
+              <input type="radio" class="btn-check" name="progress_fix_mode" id="progress_fix_mode_convert" value="convert">
+              <label class="btn btn-outline-secondary wd-fix-mode" for="progress_fix_mode_convert">
+                <span class="d-block fw-semibold">{{ _("Convert the weight") }}</span>
+                <span class="d-block wd-fix-mode-sub">{{ _("The weight is right, recalculate it") }}</span>
+                <span class="d-block wd-fix-mode-result" id="progress_fix_mode_convert_result"></span>
+              </label>
+            </div>
             <p class="mb-3 text-secondary" style="font-size: .78rem;" id="progress_fix_unit_note"></p>
             <div class="d-flex flex-column gap-2">
               <button type="button" class="btn btn-success" id="progress_fix_unit_session"></button>

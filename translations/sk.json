@@ -1,7 +1,11 @@
 {
-  "Logged in the wrong unit? Change it to:": "Zapísané v zlej jednotke? Zmeniť na:",
+  "Change it to:": "Zmeniť na:",
+  "What was wrong?": "Čo bolo zle?",
+  "Only the unit is wrong": "Zlá je len jednotka",
+  "I typed the machine's number with the wrong unit": "Zapísal som číslo zo stroja so zlou jednotkou",
+  "Convert the weight": "Prepočítať váhu",
+  "The weight is right, recalculate it": "Váha sedí, prepočítaj ju",
   "Another unit than the other sets of this exercise - forgot the Kg/Lbs switch?": "Iná jednotka ako pri ostatných sériách tohto cviku - zabudnutý prepínač Kg/Lbs?",
-  "The number stays as you typed it, only its unit changes.": "Číslo ostane, ako si ho zapísal, zmení sa len jeho jednotka.",
   "Statistics count it as {kg} kg.": "Štatistiky ho počítajú ako {kg} kg.",
   "Finish the workout to switch the day": "Deň zmeníš po ukončení tréningu",
   "Use steps of {step}, e.g. 7.5.": "Používaj kroky po {step}, napr. 7.5.",

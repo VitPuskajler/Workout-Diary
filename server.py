@@ -2094,6 +2094,8 @@ def progress_fix_unit():
         entry_id=entry_id,
         target_unit=payload.get("unit"),
         scope=payload.get("scope"),
+        convert=bool(payload.get("convert")),
+        restore_weight=payload.get("restore_weight"),
     )
     return jsonify(result), (200 if result.get("ok") else 400)
 
