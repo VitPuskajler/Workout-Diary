@@ -1488,6 +1488,41 @@ class WorkoutManagement:
             )
             return None
 
+    def recent_entries(self, exercise_name, limit=3):
+        """The user's last `limit` sets of an exercise, newest first, from any
+        workout - for the popup Repeat opens when it has nothing to copy.
+        Each: {"date", "weight", "unit", "reps", "rpe", "band_kg"}; weight
+        as logged (see _weight_as_logged)."""
+        exercise_row = self.find_exercise_id_db(exercise_name) if exercise_name else None
+        if not exercise_row:
+            return []
+        rows = (
+            db.session.query(ExerciseEntries, Sessions.session_date)
+            .join(Sessions, ExerciseEntries.session_id == Sessions.session_id)
+            .filter(
+                Sessions.user_id == self.current_user_id_db(),
+                ExerciseEntries.exercise_id == exercise_row[0],
+            )
+            .order_by(
+                desc(Sessions.session_date),
+                desc(ExerciseEntries.set_number),
+                desc(ExerciseEntries.entry_id),
+            )
+            .limit(limit)
+            .all()
+        )
+        return [
+            {
+                "date": f"{day.day}.{day.month}.{day.year}",
+                "weight": self._weight_as_logged(entry.weight),
+                "unit": entry.unit or "kg",
+                "reps": entry.reps,
+                "rpe": entry.rpe,
+                "band_kg": entry.band_kg,
+            }
+            for entry, day in rows
+        ]
+
     def jinja_sets_function(self, chosen_day, chosen_exercise):
         user = Users.query.filter_by(username=current_user.username).first()
         user_id_db = user.user_id

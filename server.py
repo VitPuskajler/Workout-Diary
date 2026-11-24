@@ -737,19 +737,30 @@ def training_session():
         elif 'previous_day' in request.form:
             # arrow_buttons_next_exercise
             # Sore exercise in session
-            previous_exercise = arrow_buttons_next_exercise("previous_day", chosen_exercise, chosen_day)
+            # The button's value is the exercise it leads to, along the order
+            # the page showed (SSet / Combo groups one under the other, which
+            # only the browser knows); the plan's order is the fallback.
+            previous_exercise = (
+                request.form.get("previous_day") if request.form.get("previous_day") in exercises_in_workout
+                else arrow_buttons_next_exercise("previous_day", chosen_exercise, chosen_day))
             if previous_exercise:
                 session["chosen_exercise"] = previous_exercise
                 return redirect(url_for("training_session"))
         elif 'next_day' in request.form:
             # arrow_buttons_next_exercise
-            next_exercise = arrow_buttons_next_exercise("next_day", chosen_exercise, chosen_day)
+            next_exercise = (
+                request.form.get("next_day") if request.form.get("next_day") in exercises_in_workout
+                else arrow_buttons_next_exercise("next_day", chosen_exercise, chosen_day))
             if next_exercise:
                 session["chosen_exercise"] = next_exercise
                 return redirect(url_for("training_session"))
         elif 'repeat_button' in request.form:
-            # If repeat button was clicked, last set will me "repeated"
-            repeat_set(chosen_exercise, workout_id, chosen_day)
+            # If repeat button was clicked, last set will me "repeated".
+            # Nothing to copy (no set today, none on this day before): the
+            # page after the redirect opens a popup with this exercise's last
+            # sets from anywhere, or says to type the set in by hand.
+            if repeat_set(chosen_exercise, workout_id, chosen_day) is None and chosen_exercise:
+                session["repeat_nothing"] = chosen_exercise
         elif 'change_level' in request.form:
             # The level icons beside the exercise's name: the easier / harder
             # level of its ladder goes into the plan row - only before the
@@ -792,6 +803,11 @@ def training_session():
     # Data for preview
     last_exercise = last_exercise_preview(chosen_exercise, workout_id, chosen_day)
 
+    # Repeat found nothing to copy (see the POST above): its popup, once.
+    repeat_nothing = session.pop("repeat_nothing", None)
+    repeat_history = (db_operations.recent_entries(chosen_exercise)
+                      if repeat_nothing and repeat_nothing == chosen_exercise else None)
+
     # Kg/Lbs/Other toggle above the weight column - defaults to whatever unit
     # this exercise was last logged in.
     default_unit = last_used_unit_for_exercise(chosen_exercise)
@@ -811,6 +827,7 @@ def training_session():
         preview=preview,
         placeholders=exercise_placeholders,
         last_exercise =last_exercise,
+        repeat_history=repeat_history,
         default_unit=default_unit,
         # the day's index, for the reorder mode's order_<day> field
         order_day=workout_key,

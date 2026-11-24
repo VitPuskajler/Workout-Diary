@@ -143,7 +143,7 @@
     background: rgba(255, 193, 7, .14); border: 1px solid rgba(255, 193, 7, .5); font-size: .9rem;
   }
   .wd-sset-group b { color: #ffc107; font-size: .75rem; letter-spacing: .04em; text-transform: uppercase; flex: 0 0 auto; }
-  .wd-sset-group span { flex: 1; min-width: 0; }
+  .wd-sset-group > span:not(.wd-sset-icons) { flex: 1; min-width: 0; }
 
   /* A group in the day's exercise table: a thin bar of the group's colour
      down the left edge of its rows, unbroken from the first to the last
@@ -167,6 +167,18 @@
   }
   .wd-sset-dialog button.wd-sset-ex[aria-pressed="true"] { border-color: #ffc107; background: #3a3420; }
   .wd-sset-ex .wd-sset-n { float: right; color: #ffc107; font-weight: 700; }
+  /* The icons are drawn dark: they sit on a light tile, as on the arrows. */
+  .wd-sset-icon {
+    display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+    width: 34px; height: 34px; border-radius: 8px; background: #fff;
+  }
+  .wd-sset-icon picture { display: contents; }
+  .wd-sset-icon img { width: 76%; height: 76%; display: block; }
+  .wd-sset-group .wd-sset-icon { width: 26px; height: 26px; border-radius: 6px; }
+  .wd-sset-group .wd-sset-icons { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
+  .wd-sset-dialog button.wd-sset-ex { display: flex; align-items: center; gap: 10px; }
+  .wd-sset-ex .wd-sset-name { flex: 1; min-width: 0; }
+  .wd-sset-ex .wd-sset-n { float: none; }
   .wd-sset-empty { text-align: center; opacity: .75; margin-bottom: 14px; }
   .wd-sw-dialog .wd-sset-pair { background: #ffc107; color: #212529; }
   .wd-sw-dialog .wd-sset-pair:disabled { opacity: .35; }
@@ -246,7 +258,14 @@
 {# The exercises SSet can pair: the day's plan (Training Session) or what
    is on today's list (Intuitive Training) - English names, shown translated. #}
 {% set sw_ex_list = [] %}
-{% for name in (sw_exercises or []) %}{% set _ = sw_ex_list.append({"name": name, "label": exercise_label(name)}) %}{% endfor %}
+{# Each with its drawing, for the pop-up: "moving" is the one playing its rep
+   - only with "Moving icons" on in Customization, like the arrows' icons. #}
+{% set sw_fallback_icon = url_for('static', filename='icons/exercises/dumbbell-bicep-curl.svg') %}
+{% for name in (sw_exercises or []) %}
+  {%- set still = exercise_icon(name) -%}
+  {%- set moving = exercise_icon_moving(name) if still and current_user.animate_session_icons else none -%}
+  {%- set _ = sw_ex_list.append({"name": name, "label": exercise_label(name), "icon": still or sw_fallback_icon, "moving": moving}) -%}
+{% endfor %}
 <div class="wd-sw-modal" id="wd-sset" role="dialog" aria-modal="true" aria-labelledby="wd-sset-title">
   <div class="wd-sw-dialog wd-sset wd-sset-dialog">
     <p id="wd-sset-title">{{ _("Supersets") }}</p>
@@ -523,6 +542,8 @@
         });
       });
       order.forEach(function (row) { body.appendChild(row); });
+      // The arrows beside Confirm follow this order (Training Session).
+      if (window.wdSyncNav) window.wdSyncNav();
     }
     document.addEventListener("wd-swapped", function () { paintGroups(true); });
     // The reorder button: back to the plan's order BEFORE the page's own
@@ -539,6 +560,32 @@
         var now = document.body.classList.contains("wd-reorder");
         if (now !== wasReordering) { wasReordering = now; paintGroups(true); }
       }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    }
+
+    // The exercise's drawing on its light tile - playing its rep when it has
+    // a moving one (and "reduce motion" is off), the still one otherwise.
+    function exerciseOf(name) {
+      for (var i = 0; i < EXERCISES.length; i++) if (EXERCISES[i].name === name) return EXERCISES[i];
+      return null;
+    }
+    function iconTile(name) {
+      var ex = exerciseOf(name);
+      var tile = document.createElement("span");
+      tile.className = "wd-sset-icon";
+      tile.setAttribute("aria-hidden", "true");
+      if (!ex || !ex.icon) return tile;
+      var picture = document.createElement("picture");
+      if (ex.moving) {
+        var source = document.createElement("source");
+        source.srcset = ex.moving;
+        source.media = "(prefers-reduced-motion: no-preference)";
+        picture.appendChild(source);
+      }
+      var img = document.createElement("img");
+      img.src = ex.icon; img.alt = "";
+      picture.appendChild(img);
+      tile.appendChild(picture);
+      return tile;
     }
 
     function labelOf(name) {
@@ -567,7 +614,10 @@
         remove.addEventListener("click", function () {
           st.sset.splice(index, 1); save(); drawSset(); render();
         });
-        row.appendChild(shape); row.appendChild(kind); row.appendChild(names); row.appendChild(remove);
+        var icons = document.createElement("span");
+        icons.className = "wd-sset-icons";
+        group.forEach(function (name) { icons.appendChild(iconTile(name)); });
+        row.appendChild(shape); row.appendChild(kind); row.appendChild(icons); row.appendChild(names); row.appendChild(remove);
         groupsEl.appendChild(row);
       });
       listEl.innerHTML = "";
@@ -579,7 +629,10 @@
         b.type = "button"; b.className = "wd-sset-ex";
         var at = picked.indexOf(ex.name);
         b.setAttribute("aria-pressed", at >= 0 ? "true" : "false");
-        b.textContent = ex.label;
+        b.appendChild(iconTile(ex.name));
+        var text = document.createElement("span");
+        text.className = "wd-sset-name"; text.textContent = ex.label;
+        b.appendChild(text);
         if (at >= 0) {
           var n = document.createElement("span");
           n.className = "wd-sset-n"; n.textContent = String(at + 1);

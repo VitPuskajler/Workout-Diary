@@ -546,12 +546,29 @@
                 {%- if moving %}<source srcset="{{ moving }}" media="(prefers-reduced-motion: no-preference)">{% endif -%}
                 <img src="{{ still or url_for('static', filename='icons/exercises/dumbbell-bicep-curl.svg') }}" alt=""></picture>
             {%- endmacro %}
+            {# The arrows lead along the order of the table below - the plan's,
+               but with SSet / Combo groups one under the other (that order
+               lives in this browser only, so the script at the end of this
+               block redraws these two from the table). Drawn here first from
+               the plan's order, for the first paint and for no JS: each
+               button's value is the exercise it leads to. #}
             {% set nav_index = exercises_to_display.index(chosen_exercise) if chosen_exercise in exercises_to_display else none %}
             {% set prev_exercise = exercises_to_display[nav_index - 1] if nav_index is not none and nav_index > 0 else none %}
             {% set next_exercise = exercises_to_display[nav_index + 1] if nav_index is not none and nav_index + 1 < exercises_to_display|length else none %}
-            <div class="d-flex justify-content-between align-items-start" style="margin-top: -2em;">
+            {% set nav_data = {} %}
+            {% for name in exercises_to_display %}
+              {%- set still = exercise_icon(name) -%}
+              {%- set moving = exercise_icon_moving(name) if still and current_user.animate_session_icons else none -%}
+              {%- set nav_added = nav_data.update({name: {
+                    "icon": still or nav_fallback_icon, "moving": moving,
+                    "prev": _("Previous: {name}", name=exercise_label(name)),
+                    "prevAria": _("Previous exercise: {name}", name=exercise_label(name)),
+                    "next": _("Next: {name}", name=exercise_label(name)),
+                    "nextAria": _("Next exercise: {name}", name=exercise_label(name))}}) -%}
+            {% endfor %}
+            <div class="d-flex justify-content-between align-items-start" id="wdNav" data-current="{{ chosen_exercise or '' }}" style="margin-top: -2em;">
               {% if prev_exercise %}
-              <button type="submit" name="previous_day" class="wd-nav-btn btn p-0 border rounded-3 shadow-sm"
+              <button type="submit" name="previous_day" value="{{ prev_exercise }}" class="wd-nav-btn btn p-0 border rounded-3 shadow-sm"
                 title="{{ _("Previous: {name}", name=exercise_label(prev_exercise)) }}" aria-label="{{ _("Previous exercise: {name}", name=exercise_label(prev_exercise)) }}">
                 <span class="wd-nav-chevron" aria-hidden="true">&lsaquo;</span>
                 {{ nav_icon(prev_exercise) }}
@@ -561,7 +578,7 @@
               {% endif %}
 
               {% if next_exercise %}
-              <button type="submit" name="next_day" class="wd-nav-btn btn p-0 border rounded-3 shadow-sm"
+              <button type="submit" name="next_day" value="{{ next_exercise }}" class="wd-nav-btn btn p-0 border rounded-3 shadow-sm"
                 title="{{ _("Next: {name}", name=exercise_label(next_exercise)) }}" aria-label="{{ _("Next exercise: {name}", name=exercise_label(next_exercise)) }}">
                 {{ nav_icon(next_exercise) }}
                 <span class="wd-nav-chevron" aria-hidden="true">&rsaquo;</span>
@@ -570,6 +587,7 @@
               <span class="wd-nav-btn" aria-hidden="true"></span>
               {% endif %}
             </div>
+            <script type="application/json" id="wdNavData">{{ nav_data|tojson }}</script>
 
             <!-- I keep this style in here because I am not willing to search for it later... and it changes borders of my pretty arrow buttons -->
             <style>
@@ -837,7 +855,74 @@
      rather than up there, so the page looks exactly as before - and so
      #wd-live ends where it says, not after the stopwatch. #}
   </div>
+  {# Repeat had nothing to copy: what the popup below shows, once - its
+     script moves this into #wdRepeatModal and opens it. #}
+  {% if repeat_history is not none %}
+  <template id="wdRepeatNothing">
+    {% if repeat_history %}
+    <p class="mb-2">{{ _("There is no set of this exercise to repeat in this workout. Your last sets of it:") }}</p>
+    <table class="table table-sm table-striped text-center mb-2">
+      <thead>
+        <tr>
+          <th>{{ _("Date") }}</th>
+          <th>{{ _("Weight") }}</th>
+          <th>{{ _('Sec') if is_timed(chosen_exercise) else _('Reps') }}</th>
+          <th>RPE</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in repeat_history %}
+        <tr>
+          <td>{{ item.date }}</td>
+          <td>{% if item.band_kg %}{{ _("band") }} {{ '−' if band_mode(chosen_exercise) == 'assist' else '+' }}{{ item.band_kg }} kg{% elif item.weight %}{{ item.weight }} {{ item.unit if item.unit in ('kg', 'lbs') else '' }}{% else %}-{% endif %}</td>
+          <td>{{ item.reps if item.reps is not none else '-' }}</td>
+          <td>{{ item.rpe if item.rpe else '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="mb-0 small text-secondary">{{ _("Type the set in and tap Confirm.") }}</p>
+    {% else %}
+    <p class="mb-0">{{ _("You have not logged this exercise yet, so there is nothing to repeat. Type your first set in by hand and tap Confirm.") }}</p>
+    {% endif %}
+  </template>
+  {% endif %}
   </div>{# #wd-live #}
+
+  {# Opened by the script below when #wdRepeatNothing is there. Outside
+     #wd-live, like the level picker, so a swap never pulls it away. #}
+  <div class="modal fade" id="wdRepeatModal" tabindex="-1" aria-labelledby="wdRepeatTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="wdRepeatTitle">{{ _("Nothing to repeat") }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _("Close") }}"></button>
+        </div>
+        <div class="modal-body" id="wdRepeatBody"></div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-success px-4" data-bs-dismiss="modal">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      function openRepeatPopup() {
+        var source = document.getElementById("wdRepeatNothing");
+        var modalEl = document.getElementById("wdRepeatModal");
+        if (!source || !modalEl || typeof bootstrap === "undefined") return;
+        var body = document.getElementById("wdRepeatBody");
+        body.innerHTML = "";
+        body.appendChild(source.content.cloneNode(true));
+        source.remove();                  // once - not again on the next swap
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+      }
+      // After a page load, and after Repeat came back without one.
+      if (document.readyState === "complete") { openRepeatPopup(); }
+      else { window.addEventListener("load", openRepeatPopup); }
+      document.addEventListener("wd-swapped", openRepeatPopup);
+    })();
+  </script>
 
   {# The level picker (see the level icon under the name). Outside #wd-live
      so a swap never pulls it from under an open dialog; it is filled from
@@ -1230,6 +1315,74 @@
       if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitExerciseTitle);
       window.addEventListener("resize", fitExerciseTitle);
       document.addEventListener("wd-swapped", fitExerciseTitle);
+    })();
+  </script>
+  <script>
+    // The arrows beside Confirm lead along the table's order - the plan's,
+    // with SSet / Combo groups one under the other (partials/_stopwatch.html
+    // moves the rows and calls this after it). That order lives in this
+    // browser only, so the two buttons are drawn here from the rows: the
+    // exercise above the current one and the one below. Each button's value
+    // is the exercise it leads to; the server checks it is in the day.
+    (function () {
+      function navButton(kind, name, info) {
+        var button = document.createElement("button");
+        button.type = "submit";
+        button.name = kind === "prev" ? "previous_day" : "next_day";
+        button.value = name;
+        button.className = "wd-nav-btn btn p-0 border rounded-3 shadow-sm";
+        button.title = info[kind];
+        button.setAttribute("aria-label", info[kind + "Aria"]);
+        var chevron = document.createElement("span");
+        chevron.className = "wd-nav-chevron";
+        chevron.setAttribute("aria-hidden", "true");
+        chevron.innerHTML = kind === "prev" ? "&lsaquo;" : "&rsaquo;";
+        var picture = document.createElement("picture");
+        if (info.moving) {
+          var source = document.createElement("source");
+          source.srcset = info.moving;
+          source.media = "(prefers-reduced-motion: no-preference)";
+          picture.appendChild(source);
+        }
+        var img = document.createElement("img");
+        img.src = info.icon; img.alt = "";
+        picture.appendChild(img);
+        if (kind === "prev") { button.appendChild(chevron); button.appendChild(picture); }
+        else { button.appendChild(picture); button.appendChild(chevron); }
+        return button;
+      }
+      function emptySlot() {
+        var slot = document.createElement("span");
+        slot.className = "wd-nav-btn";
+        slot.setAttribute("aria-hidden", "true");
+        return slot;
+      }
+      window.wdSyncNav = function () {
+        var nav = document.getElementById("wdNav");
+        var dataEl = document.getElementById("wdNavData");
+        var body = document.querySelector("#exercisePreview tbody");
+        if (!nav || !dataEl || !body) return;
+        var data;
+        try { data = JSON.parse(dataEl.textContent); } catch (err) { return; }
+        var names = [];
+        Array.prototype.forEach.call(body.rows, function (row) {
+          var button = row.querySelector("button[name=chosen_exercise]");
+          if (button && data[button.value]) names.push(button.value);
+        });
+        var at = names.indexOf(nav.dataset.current);
+        if (at < 0) return;               // not in the table: as the server drew it
+        var prev = at > 0 ? names[at - 1] : null;
+        var next = at + 1 < names.length ? names[at + 1] : null;
+        // Already as it should be (the same exercises): leave the buttons be.
+        var oldPrev = nav.querySelector("button[name=previous_day]");
+        var oldNext = nav.querySelector("button[name=next_day]");
+        if ((oldPrev ? oldPrev.value : null) === prev && (oldNext ? oldNext.value : null) === next) return;
+        nav.innerHTML = "";
+        nav.appendChild(prev ? navButton("prev", prev, data[prev]) : emptySlot());
+        nav.appendChild(next ? navButton("next", next, data[next]) : emptySlot());
+      };
+      window.wdSyncNav();
+      document.addEventListener("wd-swapped", window.wdSyncNav);
     })();
   </script>
   <script src="{{ url_for('static', filename='js/liveForm.js') }}"></script>
